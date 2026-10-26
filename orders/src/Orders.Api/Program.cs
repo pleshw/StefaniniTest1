@@ -1,3 +1,4 @@
+using Orders.Infrastructure.Persistence;
 using ServiceDefaults;
 
 if (HealthCheckCommand.IsRequested(args))
@@ -8,8 +9,14 @@ if (HealthCheckCommand.IsRequested(args))
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.Services.AddOrdersPersistence(builder.Configuration);
 
 var app = builder.Build();
+
+if (OrdersMigrator.IsRequested(args))
+{
+    return await OrdersMigrator.RunAsync(app);
+}
 
 app.MapServiceDefaults();
 

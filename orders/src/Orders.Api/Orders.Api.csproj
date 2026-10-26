@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- dotnet ef migrations script runs with this project as the startup project (deploy gate). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../../shared/ServiceDefaults/ServiceDefaults.csproj" />
     <ProjectReference Include="../Orders.Application/Orders.Application.csproj" />
     <ProjectReference Include="../Orders.Infrastructure/Orders.Infrastructure.csproj" />

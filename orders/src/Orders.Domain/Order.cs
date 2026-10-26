@@ -12,7 +12,7 @@ public sealed class Order
         [OrderStatus.Confirmed] = [OrderStatus.Cancelled],
     };
 
-    private static readonly PlaceValidator _placeValidator = new();
+    private static readonly BuildValidator _buildValidator = new();
     private static readonly TransitionValidator _transitionValidator = new();
 
     private readonly List<OrderItem> _items;
@@ -91,16 +91,32 @@ public sealed class Order
         IEnumerable<OrderItem> items,
         DateTimeOffset now)
     {
-        var orderNumber = number?.Trim();
-        var creator = createdBy?.Trim();
-        var lines = items.ToList();
-        _placeValidator.EnsureValid(new PlaceInput(id, orderNumber, creator, lines));
+        var order = Build(id, number, client, createdBy, channel, items, now);
+        order._history.Add(new OrderStatusChange(null, OrderStatus.Pending, null, order.CreatedBy, now));
+        order._domainEvents.Add(new OrderPlaced(id, order.Number, client.Id, channel, order.Total, order.ItemCount, now));
 
-        var currency = lines[0].UnitPrice.Currency;
+        return order;
+    }
 
-        var order = new Order(id, orderNumber!, client, creator!, channel, lines, currency, now);
-        order._history.Add(new OrderStatusChange(null, OrderStatus.Pending, null, creator!, now));
-        order._domainEvents.Add(new OrderPlaced(id, orderNumber!, client.Id, channel, order.Total, order.ItemCount, now));
+    /// <summary>Rebuilds a stored order. The totals are recomputed from the items, and no event is raised.</summary>
+    public static Order Restore(
+        Guid id,
+        string number,
+        ClientRef client,
+        string createdBy,
+        OrderChannel channel,
+        OrderStatus status,
+        IEnumerable<OrderItem> items,
+        IEnumerable<OrderStatusChange> history,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt,
+        int rowVersion)
+    {
+        var order = Build(id, number, client, createdBy, channel, items, createdAt);
+        order.Status = status;
+        order.UpdatedAt = updatedAt;
+        order.RowVersion = rowVersion;
+        order._history.AddRange(history);
 
         return order;
     }
@@ -122,6 +138,25 @@ public sealed class Order
 
     public void ClearDomainEvents() => _domainEvents.Clear();
 
+    private static Order Build(
+        Guid id,
+        string number,
+        ClientRef client,
+        string createdBy,
+        OrderChannel channel,
+        IEnumerable<OrderItem> items,
+        DateTimeOffset createdAt)
+    {
+        var orderNumber = number?.Trim();
+        var creator = createdBy?.Trim();
+        var lines = items.ToList();
+        _buildValidator.EnsureValid(new BuildInput(id, orderNumber, creator, lines));
+
+        var currency = lines[0].UnitPrice.Currency;
+
+        return new Order(id, orderNumber!, client, creator!, channel, lines, currency, createdAt);
+    }
+
     private void TransitionTo(OrderStatus target, string actor, string? reason, DateTimeOffset now, bool reasonRequired)
     {
         var changedBy = actor?.Trim();
@@ -140,11 +175,11 @@ public sealed class Order
         _domainEvents.Add(new OrderStatusChanged(Id, previous, target, reason, changedBy!, now));
     }
 
-    private sealed record PlaceInput(Guid Id, string? Number, string? CreatedBy, List<OrderItem> Lines);
+    private sealed record BuildInput(Guid Id, string? Number, string? CreatedBy, List<OrderItem> Lines);
 
-    private sealed class PlaceValidator : AbstractValidator<PlaceInput>
+    private sealed class BuildValidator : AbstractValidator<BuildInput>
     {
-        public PlaceValidator()
+        public BuildValidator()
         {
             RuleFor(input => input.Id).NotEqual(Guid.Empty).WithMessage("Order id must not be empty.");
             RuleFor(input => input.Number).NotEmpty().WithMessage("Order number must not be empty.");

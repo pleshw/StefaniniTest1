@@ -23,6 +23,13 @@
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.13" />
     <!-- Catalog persistence -->
     <PackageVersion Include="MongoDB.Driver" Version="3.13.0" />
+    <!-- Orders persistence and messaging -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.54.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.54.0" />
     <!-- Test stack -->
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
@@ -30,6 +37,7 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageVersion Include="Testcontainers.MongoDb" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
   </ItemGroup>
 
 </Project>

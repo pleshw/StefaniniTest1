@@ -79,3 +79,7 @@ dotnet_naming_style.underscore_camel.capitalization = camel_case
 # Tests: Method_Condition_Result naming
 [**Tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# EF Core generates migrations and the model snapshot; they are reviewed as SQL (deploy gate), not as C#.
+[**/Migrations/*.cs]
+generated_code = true
