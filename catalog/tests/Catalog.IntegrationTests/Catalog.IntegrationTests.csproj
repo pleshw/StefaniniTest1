@@ -9,4 +9,8 @@
     <ProjectReference Include="../../src/Catalog.Infrastructure/Catalog.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
 </Project>
