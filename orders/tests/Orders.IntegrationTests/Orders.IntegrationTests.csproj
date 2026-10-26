@@ -6,8 +6,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Orders.Api/Orders.Api.csproj" />
-    <ProjectReference Include="../../src/Orders.Worker/Orders.Worker.csproj" />
+    <ProjectReference Include="../../src/Orders.Worker/Orders.Worker.csproj" Aliases="OrdersWorker" />
     <ProjectReference Include="../../src/Orders.Infrastructure/Orders.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
 </Project>
