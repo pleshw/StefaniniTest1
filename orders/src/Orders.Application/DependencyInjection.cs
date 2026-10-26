@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orders.Application.Confirmation;
 using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
@@ -37,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<OrderStatusChangeRecorder>();
         services.AddScoped<ChangeOrderStatusHandler>();
         services.AddScoped<ListDeadLettersHandler>();
+        services.AddScoped<ListEventsHandler>();
         services.AddScoped<ReplayDeadLetterHandler>();
         services.AddScoped<ListConfirmationRulesHandler>();
         services.AddScoped<GetConfirmationRuleHandler>();

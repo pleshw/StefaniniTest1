@@ -56,6 +56,7 @@ public static class WorkerMessaging
         var worker = configuration.GetSection(WorkerOptions.SectionName).Get<WorkerOptions>() ?? new WorkerOptions();
         services.TryAddScoped<IOrderPlacedProcessor, AutomaticConfirmationProcessor>();
         services.AddOrderConfirmation();
+        services.AddHostedService<RetentionJob>();
 
         return services.AddOrdersPersistence(configuration, wolverine =>
         {

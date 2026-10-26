@@ -33,6 +33,7 @@ app.MapAdminOrderEndpoints();
 app.MapAdminDiscountRuleEndpoints();
 app.MapAdminConfirmationRuleEndpoints();
 app.MapAdminDeadLetterEndpoints();
+app.MapAdminEventEndpoints();
 
 app.Run();
 

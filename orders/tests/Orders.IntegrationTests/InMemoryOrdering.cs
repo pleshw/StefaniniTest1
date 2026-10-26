@@ -4,11 +4,13 @@ using Orders.Application.Catalog;
 using Orders.Application.Confirmation;
 using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Domain;
 using Orders.Domain.Confirmation;
 using Orders.Domain.Discounts;
+using Orders.Infrastructure.Messaging;
 
 namespace Orders.IntegrationTests;
 
@@ -316,12 +318,16 @@ internal sealed class InMemoryOrderDiscountStore : IOrderDiscountStore
     }
 }
 
-/// <summary>Remembers the events written to the event log, in order.</summary>
-internal sealed class InMemoryOrderEventLog : IOrderEventLog
+/// <summary>
+/// The event log in a list: remembers what was written, in order, and answers the admin queries oldest first by
+/// <c>(occurred_at, id)</c> like the SQL query.
+/// </summary>
+internal sealed class InMemoryOrderEventLog : IOrderEventLog, IOrderEventLogQueries
 {
     private readonly ConcurrentQueue<IDomainEvent> _entries = new();
-
     private readonly ConcurrentQueue<OrderEventLogEntry> _other = new();
+    private static readonly System.Text.Json.JsonSerializerOptions _json = new(System.Text.Json.JsonSerializerDefaults.Web);
+    private readonly List<OrderEventDto> _rows = [];
 
     public IReadOnlyCollection<IDomainEvent> Entries => _entries.ToList();
 
@@ -331,13 +337,45 @@ internal sealed class InMemoryOrderEventLog : IOrderEventLog
     public Task AppendAsync(IDomainEvent domainEvent, CancellationToken cancellationToken)
     {
         _entries.Enqueue(domainEvent);
+
+        if (domainEvent is OrderStatusChanged changed)
+        {
+            Add(changed.OrderId, "OrderStatusChanged.v1", System.Text.Json.JsonSerializer.Serialize(changed.ToContract(), _json), changed.OccurredAt);
+        }
+
         return Task.CompletedTask;
     }
 
     public Task AppendEntryAsync(OrderEventLogEntry entry, CancellationToken cancellationToken)
     {
         _other.Enqueue(entry);
+        Add(entry.OrderId, entry.Type, entry.Payload, entry.OccurredAt);
+
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<OrderEventDto>> ListAsync(EventFilter filter, CancellationToken cancellationToken)
+    {
+        lock (_rows)
+        {
+            return Task.FromResult<IReadOnlyList<OrderEventDto>>(_rows
+                .Where(row => filter.OrderId is null || row.OrderId == filter.OrderId)
+                .Where(row => filter.Type is null || row.Type == filter.Type)
+                .Where(row => filter.After is null || row.OccurredAt > filter.After.OccurredAt || (row.OccurredAt == filter.After.OccurredAt && row.Id > filter.After.Id))
+                .OrderBy(row => row.OccurredAt)
+                .ThenBy(row => row.Id)
+                .Take(filter.Take)
+                .ToList());
+        }
+    }
+
+    private void Add(Guid orderId, string type, string payload, DateTimeOffset occurredAt)
+    {
+        lock (_rows)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(payload);
+            _rows.Add(new OrderEventDto(_rows.Count + 1, orderId, type, document.RootElement.Clone(), occurredAt));
+        }
     }
 }
 

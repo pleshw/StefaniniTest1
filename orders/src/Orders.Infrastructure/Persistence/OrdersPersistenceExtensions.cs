@@ -6,8 +6,10 @@ using Microsoft.Extensions.Hosting;
 using Orders.Application.Confirmation;
 using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
+using Orders.Application.Retention;
 using Orders.Domain;
 using Orders.Infrastructure.Messaging;
 using Wolverine;
@@ -67,6 +69,10 @@ public static class OrdersPersistenceExtensions
         services.AddScoped<IConfirmationRuleRepository, ConfirmationRuleRepository>();
         services.AddScoped<IActiveConfirmationRules, CachedActiveConfirmationRules>();
         services.AddScoped<IOrderEventLog, OrderEventLog>();
+        services.AddScoped<IOrderEventLogQueries, OrderEventLogQueries>();
+        services.AddSingleton(configuration.GetSection(RetentionOptions.SectionName).Get<RetentionOptions>() ?? new RetentionOptions());
+        services.AddScoped<IRetentionStore, RetentionStore>();
+        services.AddScoped<RetentionRunner>();
         services.AddSingleton<IDeadLetters>(provider => configuration.MessagingOptions().Enabled
             ? new RabbitMqDeadLetters(provider.GetRequiredService<IConfiguration>())
             : new DisabledDeadLetters());

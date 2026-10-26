@@ -8,6 +8,7 @@ using Orders.Application.Catalog;
 using Orders.Application.Confirmation;
 using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Infrastructure.Persistence;
@@ -65,6 +66,7 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IIdempotencyStore>(Idempotency);
             services.AddSingleton<IOrderEventPublisher>(Events);
             services.AddSingleton<IOrderEventLog>(EventLog);
+            services.AddSingleton<IOrderEventLogQueries>(EventLog);
             services.AddSingleton<IConfirmationRuleRepository>(ConfirmationRuleStore);
             services.AddSingleton<IDeadLetters>(DeadLetters);
             services.AddSingleton<IActiveConfirmationRules>(ConfirmationRules);
