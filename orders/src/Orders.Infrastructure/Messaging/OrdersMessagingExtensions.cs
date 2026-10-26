@@ -32,7 +32,7 @@ public static class OrdersTopology
 
 public static class OrdersMessagingExtensions
 {
-    internal static OrdersMessagingOptions MessagingOptions(this IConfiguration configuration) =>
+    public static OrdersMessagingOptions MessagingOptions(this IConfiguration configuration) =>
         configuration.GetSection(OrdersMessagingOptions.SectionName).Get<OrdersMessagingOptions>() ?? new OrdersMessagingOptions();
 
     /// <summary>

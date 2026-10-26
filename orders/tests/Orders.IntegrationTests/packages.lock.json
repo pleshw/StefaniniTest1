@@ -2153,6 +2153,7 @@
         "type": "Project",
         "dependencies": {
           "Orders.Application": "[1.0.0, )",
+          "Orders.Contracts": "[1.0.0, )",
           "Orders.Infrastructure": "[1.0.0, )",
           "ServiceDefaults": "[1.0.0, )"
         }

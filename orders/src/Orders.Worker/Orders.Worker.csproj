@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../../../shared/ServiceDefaults/ServiceDefaults.csproj" />
     <ProjectReference Include="../Orders.Application/Orders.Application.csproj" />
+    <ProjectReference Include="../Orders.Contracts/Orders.Contracts.csproj" />
     <ProjectReference Include="../Orders.Infrastructure/Orders.Infrastructure.csproj" />
   </ItemGroup>
 

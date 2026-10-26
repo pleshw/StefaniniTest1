@@ -38,8 +38,10 @@ public static class OrdersPersistenceExtensions
     /// <summary>
     /// Registers the Orders DbContext, the order repository and Wolverine's PostgreSQL message persistence (outbox and
     /// inbox tables live in the <c>wolverine</c> schema and are created by <see cref="OrdersMigrator"/>, not by the host).
+    /// <paramref name="configureMessaging"/> lets a host add its own listeners and error policies.
     /// </summary>
-    public static IServiceCollection AddOrdersPersistence(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddOrdersPersistence(
+        this IServiceCollection services, IConfiguration configuration, Action<WolverineOptions>? configureMessaging = null)
     {
         var options = configuration.GetSection(OrdersPersistenceOptions.SectionName).Get<OrdersPersistenceOptions>() ?? new OrdersPersistenceOptions();
 
@@ -68,6 +70,7 @@ public static class OrdersPersistenceExtensions
             wolverine.PersistMessagesWithPostgresql(connectionString, OrdersPersistenceOptions.WolverineSchema);
             wolverine.AutoBuildMessageStorageOnStartup = options.AutoCreateMessageStorage ? JasperFx.AutoCreate.CreateOrUpdate : JasperFx.AutoCreate.None;
             wolverine.UseOrdersRabbitMq(configuration);
+            configureMessaging?.Invoke(wolverine);
         });
 
         return services;

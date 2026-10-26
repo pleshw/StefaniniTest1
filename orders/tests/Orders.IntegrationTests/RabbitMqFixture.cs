@@ -58,6 +58,40 @@ public sealed class RabbitMqFixture : IAsyncLifetime
         }
     }
 
+    /// <summary>Publishes a copy of <paramref name="message"/> to an exchange: same payload, message id, type and headers.</summary>
+    public Task RepublishAsync(string exchange, QueuedMessage message, CancellationToken cancellationToken) =>
+        PublishAsync(exchange, message.RoutingKey, message.Properties, message.Payload, cancellationToken);
+
+    /// <summary>Publishes a message to an exchange and checks that some queue received it.</summary>
+    public async Task PublishAsync(string exchange, string routingKey, object properties, string payload, CancellationToken cancellationToken)
+    {
+        var response = await _management.PostAsJsonAsync(
+            $"/api/exchanges/{_defaultVhost}/{exchange}/publish",
+            new { properties, routing_key = routingKey, payload, payload_encoding = "string" },
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken)).GetProperty("routed").GetBoolean().ShouldBeTrue();
+    }
+
+    /// <summary>Removes every message from a queue that exists.</summary>
+    public async Task PurgeAsync(string queue, CancellationToken cancellationToken)
+    {
+        var response = await _management.DeleteAsync($"/api/queues/{_defaultVhost}/{queue}/contents", cancellationToken);
+
+        if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+        {
+            response.EnsureSuccessStatusCode();
+        }
+    }
+
+    /// <summary>The number of messages waiting in a queue.</summary>
+    public async Task<int> CountAsync(string queue, CancellationToken cancellationToken)
+    {
+        var info = await _management.GetFromJsonAsync<JsonElement>($"/api/queues/{_defaultVhost}/{queue}", cancellationToken);
+
+        return info.GetProperty("messages").GetInt32();
+    }
+
     /// <summary>Takes up to <paramref name="count"/> messages off the queue (acknowledging them).</summary>
     public async Task<IReadOnlyList<QueuedMessage>> GetMessagesAsync(string queue, int count, CancellationToken cancellationToken)
     {
@@ -105,5 +139,5 @@ public sealed class QueuedMessage(JsonElement message)
     public string? Header(string name) =>
         Headers.ValueKind == JsonValueKind.Object && Headers.TryGetProperty(name, out var value) ? value.ToString() : null;
 
-    private JsonElement Properties => message.GetProperty("properties");
+    public JsonElement Properties => message.GetProperty("properties");
 }

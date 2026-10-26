@@ -106,9 +106,14 @@ services:
     build:
       context: .
       dockerfile: orders/src/Orders.Worker/Dockerfile
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
+      orders-migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck:
