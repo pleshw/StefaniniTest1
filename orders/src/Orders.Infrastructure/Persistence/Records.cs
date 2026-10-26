@@ -1,5 +1,6 @@
 using NpgsqlTypes;
 using Orders.Domain;
+using Orders.Domain.Discounts;
 
 namespace Orders.Infrastructure.Persistence;
 
@@ -101,4 +102,61 @@ internal sealed class IdempotencyRequestRecord
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset ExpiresAt { get; set; }
+}
+
+internal sealed class DiscountRuleRecord
+{
+    public Guid Id { get; set; }
+
+    public int Version { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public DiscountType Type { get; set; }
+
+    public string Parameters { get; set; } = "{}";
+
+    public string Conditions { get; set; } = "[]";
+
+    public int Priority { get; set; }
+
+    public bool Stackable { get; set; }
+
+    public bool OncePerClient { get; set; }
+
+    public DateTimeOffset ValidFrom { get; set; }
+
+    public DateTimeOffset? ValidTo { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public string CreatedBy { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+internal sealed class OrderDiscountRecord
+{
+    public Guid OrderId { get; set; }
+
+    public Guid DiscountRuleId { get; set; }
+
+    public int RuleVersion { get; set; }
+
+    public decimal Amount { get; set; }
+}
+
+internal sealed class DiscountRedemptionRecord
+{
+    public const string OncePerClientIndex = "ux_redemption_once_per_client";
+
+    public Guid DiscountRuleId { get; set; }
+
+    public Guid ClientId { get; set; }
+
+    public Guid OrderId { get; set; }
+
+    public bool OncePerClient { get; set; }
+
+    public DateTimeOffset RedeemedAt { get; set; }
 }

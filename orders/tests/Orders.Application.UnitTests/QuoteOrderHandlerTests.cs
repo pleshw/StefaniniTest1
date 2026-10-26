@@ -1,7 +1,9 @@
 using Orders.Application.Catalog;
+using Orders.Application.Discounts;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
 using Orders.Domain;
+using Orders.Domain.Discounts;
 
 namespace Orders.Application.UnitTests;
 
@@ -12,14 +14,18 @@ public sealed class QuoteOrderHandlerTests
     private static readonly Currency _brl = Currency.Create("BRL");
 
     private readonly ICatalogPriceProvider _catalog = Substitute.For<ICatalogPriceProvider>();
+    private readonly IActiveDiscountRules _rules = Substitute.For<IActiveDiscountRules>();
     private readonly QuoteOrderHandler _handler;
 
     public QuoteOrderHandlerTests()
     {
         _catalog.GetPricesAsync(_brl, Arg.Any<IReadOnlyCollection<string>>(), Token).Returns(Result.Ok(new CatalogPrices(
             [Price("KB-1", 19.99m, 3), Price("MS-1", 10m, 1)], [])));
+        _rules.GetAsync(_brl, Token).Returns([]);
+        var clock = new FixedTimeProvider(_now);
         _handler = new QuoteOrderHandler(
-            new OrderDrafter(new PricingService(_catalog, new CartValidator(new CartLineValidator())), new FixedTimeProvider(_now)),
+            new OrderDrafter(
+                new PricingService(_catalog, new CartValidator(new CartLineValidator())), _rules, Substitute.For<IOrderQueries>(), new DiscountEngine(clock), clock),
             new QuoteOrderQueryValidator());
     }
 
@@ -36,6 +42,20 @@ public sealed class QuoteOrderHandlerTests
         quote.DiscountTotal.ShouldBe(0m);
         quote.Total.ShouldBe(49.98m);
         quote.Items.Select(item => (item.Sku, item.Quantity, item.LineTotal)).ShouldBe([("KB-1", 2, 39.98m), ("MS-1", 1, 10m)]);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_ActiveRules_AreAppliedLikeOnCreate()
+    {
+        _rules.GetAsync(_brl, Token).Returns([DiscountRule.Create(
+            Guid.NewGuid(), 1, "two off", DiscountType.FixedAmount, """{ "amounts": [ { "currency": "BRL", "amount": 2 } ] }""", "[]", 1, false, false, _now.AddDays(-1), null, true)]);
+
+        var quote = (await _handler.HandleAsync(Query(Line("KB-1", 2), Line("MS-1", 1)), Token)).Value;
+
+        quote.DiscountTotal.ShouldBe(2m);
+        quote.Total.ShouldBe(47.98m);
+        quote.Items.Sum(item => item.LineDiscount).ShouldBe(2m);
     }
 
     [Fact]

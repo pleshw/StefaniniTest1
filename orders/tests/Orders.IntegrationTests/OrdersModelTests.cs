@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Orders.Domain;
+using Orders.Domain.Discounts;
+using Orders.Domain.Rules;
 using Orders.Infrastructure.Persistence;
 
 namespace Orders.IntegrationTests;
@@ -38,7 +40,7 @@ public sealed class OrdersModelTests
 
         var tables = context.Model.GetEntityTypes().Select(type => type.GetTableName()).Order().ToList();
 
-        tables.ShouldBe(["idempotency_requests", "order_items", "order_status_history", "orders"]);
+        tables.ShouldBe(["discount_redemptions", "discount_rules", "idempotency_requests", "order_discounts", "order_items", "order_status_history", "orders"]);
     }
 
     [Fact]
@@ -53,6 +55,58 @@ public sealed class OrdersModelTests
         orders.FindProperty(nameof(OrderRecord.Total))!.GetColumnType().ShouldBe("numeric(19,4)");
         orders.FindProperty(nameof(OrderRecord.Currency))!.GetColumnType().ShouldBe("char(3)");
         orders.FindProperty(nameof(OrderRecord.SearchVector))!.GetColumnName().ShouldBe("search_vector");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Model_DiscountTables_FollowThePlanDdl()
+    {
+        using var context = NewContext();
+        var rules = context.Model.FindEntityType(typeof(DiscountRuleRecord))!;
+        var redemptions = context.Model.FindEntityType(typeof(DiscountRedemptionRecord))!;
+        var orderDiscounts = context.Model.FindEntityType(typeof(OrderDiscountRecord))!;
+
+        rules.FindPrimaryKey()!.Properties.Select(property => property.GetColumnName()).ShouldBe(["id", "version"]);
+        rules.FindProperty(nameof(DiscountRuleRecord.Parameters))!.GetColumnType().ShouldBe("jsonb");
+        rules.FindProperty(nameof(DiscountRuleRecord.Conditions))!.GetDefaultValueSql().ShouldBe("'[]'::jsonb");
+        redemptions.FindPrimaryKey()!.Properties.Select(property => property.GetColumnName()).ShouldBe(["discount_rule_id", "order_id"]);
+        var once = redemptions.GetIndexes().Single(index => index.GetDatabaseName() == "ux_redemption_once_per_client");
+        once.IsUnique.ShouldBeTrue();
+        once.GetFilter().ShouldBe("once_per_client");
+        once.Properties.Select(property => property.GetColumnName()).ShouldBe(["discount_rule_id", "client_id"]);
+        orderDiscounts.FindPrimaryKey()!.Properties.Select(property => property.GetColumnName()).ShouldBe(["order_id", "discount_rule_id"]);
+        orderDiscounts.FindProperty(nameof(OrderDiscountRecord.Amount))!.GetColumnType().ShouldBe("numeric(19,4)");
+        orderDiscounts.GetForeignKeys().Single(key => key.PrincipalEntityType == rules).DeleteBehavior.ShouldBe(DeleteBehavior.Restrict);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void DiscountRuleMapper_StoredRule_IsRebuiltThroughTheDomainFactory()
+    {
+        var record = new DiscountRuleRecord
+        {
+            Id = Guid.NewGuid(),
+            Version = 2,
+            Name = "Ten off",
+            Type = DiscountType.Percentage,
+            Parameters = """{ "percent": 10, "appliesTo": "order" }""",
+            Conditions = """[{ "kind": "MinSubtotal", "amount": 100, "currency": "BRL" }]""",
+            Priority = 5,
+            Stackable = true,
+            OncePerClient = true,
+            ValidFrom = _now,
+            IsActive = true,
+        };
+
+        var rule = DiscountRuleMapper.ToDomain(record);
+
+        rule.Id.ShouldBe(record.Id);
+        rule.Version.ShouldBe(2);
+        rule.Type.ShouldBe(DiscountType.Percentage);
+        rule.Conditions.Items.ShouldHaveSingleItem().ShouldBeOfType<MinSubtotalCondition>();
+        rule.Stackable.ShouldBeTrue();
+        rule.OncePerClient.ShouldBeTrue();
+        Should.Throw<DomainException>(() => DiscountRuleMapper.ToDomain(new DiscountRuleRecord { Id = Guid.NewGuid(), Version = 1, Name = "x", Parameters = "{}" }));
     }
 
     [Fact]

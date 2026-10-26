@@ -14,6 +14,12 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
 
     public DbSet<IdempotencyRequestRecord> IdempotencyRequests => Set<IdempotencyRequestRecord>();
 
+    public DbSet<DiscountRuleRecord> DiscountRules => Set<DiscountRuleRecord>();
+
+    public DbSet<OrderDiscountRecord> OrderDiscounts => Set<OrderDiscountRecord>();
+
+    public DbSet<DiscountRedemptionRecord> DiscountRedemptions => Set<DiscountRedemptionRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("pg_trgm");
@@ -22,6 +28,9 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
         ConfigureItems(modelBuilder.Entity<OrderItemRecord>());
         ConfigureHistory(modelBuilder.Entity<OrderStatusHistoryRecord>());
         ConfigureIdempotency(modelBuilder.Entity<IdempotencyRequestRecord>());
+        ConfigureDiscountRules(modelBuilder.Entity<DiscountRuleRecord>());
+        ConfigureOrderDiscounts(modelBuilder.Entity<OrderDiscountRecord>());
+        ConfigureRedemptions(modelBuilder.Entity<DiscountRedemptionRecord>());
     }
 
     private static void ConfigureOrders(EntityTypeBuilder<OrderRecord> order)
@@ -102,5 +111,58 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
         request.Property(record => record.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()");
         request.Property(record => record.ExpiresAt).HasColumnName("expires_at");
         request.HasIndex(record => record.ExpiresAt).HasDatabaseName("ix_idempotency_expires");
+    }
+
+    private static void ConfigureDiscountRules(EntityTypeBuilder<DiscountRuleRecord> rule)
+    {
+        rule.ToTable("discount_rules");
+        rule.HasKey(record => new { record.Id, record.Version });
+        rule.Property(record => record.Id).HasColumnName("id");
+        rule.Property(record => record.Version).HasColumnName("version");
+        rule.Property(record => record.Name).HasColumnName("name").IsRequired();
+        rule.Property(record => record.Type).HasColumnName("type").HasConversion<string>().IsRequired();
+        rule.Property(record => record.Parameters).HasColumnName("parameters").HasColumnType("jsonb").IsRequired();
+        rule.Property(record => record.Conditions).HasColumnName("conditions").HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb").IsRequired();
+        rule.Property(record => record.Priority).HasColumnName("priority");
+        rule.Property(record => record.Stackable).HasColumnName("stackable").HasDefaultValue(false);
+        rule.Property(record => record.OncePerClient).HasColumnName("once_per_client").HasDefaultValue(false);
+        rule.Property(record => record.ValidFrom).HasColumnName("valid_from");
+        rule.Property(record => record.ValidTo).HasColumnName("valid_to");
+        rule.Property(record => record.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+        rule.Property(record => record.CreatedBy).HasColumnName("created_by").IsRequired();
+        rule.Property(record => record.CreatedAt).HasColumnName("created_at");
+    }
+
+    private static void ConfigureOrderDiscounts(EntityTypeBuilder<OrderDiscountRecord> discount)
+    {
+        discount.ToTable("order_discounts");
+        discount.HasKey(record => new { record.OrderId, record.DiscountRuleId });
+        discount.Property(record => record.OrderId).HasColumnName("order_id");
+        discount.Property(record => record.DiscountRuleId).HasColumnName("discount_rule_id");
+        discount.Property(record => record.RuleVersion).HasColumnName("rule_version");
+        discount.Property(record => record.Amount).HasColumnName("amount").HasColumnType("numeric(19,4)");
+        discount.HasOne<OrderRecord>().WithMany().HasForeignKey(record => record.OrderId);
+        discount.HasOne<DiscountRuleRecord>().WithMany()
+            .HasForeignKey(record => new { record.DiscountRuleId, record.RuleVersion })
+            .HasPrincipalKey(rule => new { rule.Id, rule.Version })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureRedemptions(EntityTypeBuilder<DiscountRedemptionRecord> redemption)
+    {
+        redemption.ToTable("discount_redemptions");
+        redemption.HasKey(record => new { record.DiscountRuleId, record.OrderId });
+        redemption.Property(record => record.DiscountRuleId).HasColumnName("discount_rule_id");
+        redemption.Property(record => record.ClientId).HasColumnName("client_id");
+        redemption.Property(record => record.OrderId).HasColumnName("order_id");
+        redemption.Property(record => record.OncePerClient).HasColumnName("once_per_client");
+        redemption.Property(record => record.RedeemedAt).HasColumnName("redeemed_at").HasDefaultValueSql("now()");
+        redemption.HasOne<OrderRecord>().WithMany().HasForeignKey(record => record.OrderId);
+
+        // At most one redemption per client of a once-per-client rule: a second order racing for it fails here.
+        redemption.HasIndex(record => new { record.DiscountRuleId, record.ClientId })
+            .IsUnique()
+            .HasFilter("once_per_client")
+            .HasDatabaseName(DiscountRedemptionRecord.OncePerClientIndex);
     }
 }

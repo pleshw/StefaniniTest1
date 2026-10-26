@@ -33,6 +33,9 @@ internal sealed class OrderQueries(OrdersDbContext context) : IOrderQueries
         return history.Count == 0 ? null : history;
     }
 
+    public async Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
+        await context.Orders.AsNoTracking().AnyAsync(order => order.ClientId == clientId, cancellationToken);
+
     internal IQueryable<OrderSummaryDto> ListQuery(OrderListFilter filter)
     {
         var orders = context.Orders.AsNoTracking();

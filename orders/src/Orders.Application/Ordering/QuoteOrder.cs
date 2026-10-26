@@ -48,7 +48,7 @@ public sealed class QuoteOrderHandler(OrderDrafter drafter, IValidator<QuoteOrde
             query.ClientId, query.ClientName, query.ClientId.ToString(), query.Channel, query.Currency, query.Lines, cancellationToken);
 
         return draft.IsSuccess
-            ? Result.Ok(draft.Value.ToQuoteDto())
+            ? Result.Ok(draft.Value.Order.ToQuoteDto())
             : Result.Fail<QuoteDto>(draft.Error!.Kind, draft.Error.Message);
     }
 }

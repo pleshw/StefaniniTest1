@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orders.Application.Catalog;
+using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 
@@ -23,6 +24,10 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
 
     internal FakeCatalogPriceProvider Catalog { get; } = new();
 
+    internal InMemoryActiveDiscountRules DiscountRules { get; } = new();
+
+    internal InMemoryOrderDiscountStore Discounts { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Orders:Persistence:Enabled", "false");
@@ -34,6 +39,8 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IOrderQueries>(new InMemoryOrderQueries(Orders));
             services.AddSingleton<IIdempotencyStore>(Idempotency);
             services.AddSingleton<IOrderEventPublisher>(Events);
+            services.AddSingleton<IActiveDiscountRules>(DiscountRules);
+            services.AddSingleton<IOrderDiscountStore>(Discounts);
             services.AddSingleton<IOrderTransaction>(new SerializingOrderTransaction());
             services.AddSingleton(TimeProvider.System);
 

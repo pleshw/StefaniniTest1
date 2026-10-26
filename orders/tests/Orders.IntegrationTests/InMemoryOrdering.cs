@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
 using Orders.Application;
 using Orders.Application.Catalog;
+using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Domain;
+using Orders.Domain.Discounts;
 
 namespace Orders.IntegrationTests;
 
@@ -151,6 +153,9 @@ internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOr
             .Select((change, index) => new OrderStatusChangeDto(index + 1, change.From?.ToString(), change.To.ToString(), change.Reason, change.Actor, change.ChangedAt))
             .ToList());
 
+    public Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
+        Task.FromResult(orders.All.Any(order => order.Client.Id == clientId));
+
     private Order? Visible(Guid id, Guid? ownerId) =>
         orders.All.SingleOrDefault(order => order.Id == id && (ownerId is null || order.Client.Id == ownerId));
 
@@ -160,5 +165,45 @@ internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOr
 
         return new OrderSummaryDto(
             dto.Id, dto.Number, dto.Client, dto.Status, dto.Channel, dto.Currency, dto.ItemCount, dto.Subtotal, dto.DiscountTotal, dto.Total, dto.CreatedAt);
+    }
+}
+
+/// <summary>Active rules set by the test; filtered per currency like the cached repository.</summary>
+internal sealed class InMemoryActiveDiscountRules : IActiveDiscountRules
+{
+    public List<DiscountRule> Rules { get; } = [];
+
+    public Task<IReadOnlyList<DiscountRule>> GetAsync(Currency currency, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DiscountRule>>(Rules.Where(rule => rule.CanApplyIn(currency)).ToList());
+
+    public void Invalidate()
+    {
+    }
+}
+
+/// <summary>Stores applied discounts and enforces once-per-client like the partial unique index.</summary>
+internal sealed class InMemoryOrderDiscountStore : IOrderDiscountStore
+{
+    private readonly ConcurrentDictionary<(Guid Rule, Guid Client), Guid> _oncePerClient = new();
+    private readonly ConcurrentQueue<(Guid OrderId, AppliedDiscount Discount)> _stored = new();
+
+    public IReadOnlyCollection<(Guid OrderId, AppliedDiscount Discount)> Stored => _stored.ToList();
+
+    public Task AddAsync(Order order, IReadOnlyList<AppliedDiscount> discounts, CancellationToken cancellationToken)
+    {
+        foreach (var discount in discounts.Where(discount => discount.OncePerClient))
+        {
+            if (!_oncePerClient.TryAdd((discount.RuleId, order.Client.Id), order.Id))
+            {
+                throw new DiscountAlreadyUsedException("A once-per-client discount in this order was already used by the client.", new InvalidOperationException());
+            }
+        }
+
+        foreach (var discount in discounts)
+        {
+            _stored.Enqueue((order.Id, discount));
+        }
+
+        return Task.CompletedTask;
     }
 }

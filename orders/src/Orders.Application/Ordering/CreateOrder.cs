@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Pricing;
 using Orders.Domain;
@@ -60,6 +61,7 @@ public sealed class CreateOrderHandler(
     IIdempotencyStore idempotencyStore,
     OrderDrafter drafter,
     IOrderRepository orders,
+    IOrderDiscountStore discounts,
     IOrderTransaction transaction,
     IOrderEventPublisher events,
     IValidator<CreateOrderCommand> validator)
@@ -99,31 +101,47 @@ public sealed class CreateOrderHandler(
             : Fail(draft.Error!);
     }
 
+    /// <summary>
+    /// One transaction for the idempotency row, the order, its discounts and redemptions, and the outbox event. A
+    /// once-per-client rule redeemed meanwhile rolls everything back and answers 409; the key stays unused.
+    /// </summary>
     private async Task<Result<CreateOrderOutcome>> PlaceAsync(
-        CreateOrderCommand command, Guid key, Order order, CancellationToken cancellationToken) =>
-        await transaction.ExecuteAsync(
-            async token =>
-            {
-                if (!await idempotencyStore.TryReserveAsync(command.ClientId, key, command.RequestHash, order.Id, token))
+        CreateOrderCommand command, Guid key, OrderDraft draft, CancellationToken cancellationToken)
+    {
+        var order = draft.Order;
+
+        try
+        {
+            return await transaction.ExecuteAsync(
+                async token =>
                 {
-                    return await ReplayWinnerAsync(command, key, token);
-                }
+                    if (!await idempotencyStore.TryReserveAsync(command.ClientId, key, command.RequestHash, order.Id, token))
+                    {
+                        return await ReplayWinnerAsync(command, key, token);
+                    }
 
-                await orders.AddAsync(order, token);
+                    await orders.AddAsync(order, token);
+                    await discounts.AddAsync(order, draft.Discounts, token);
 
-                foreach (var domainEvent in order.DomainEvents)
-                {
-                    await events.PublishAsync(domainEvent, token);
-                }
+                    foreach (var domainEvent in order.DomainEvents)
+                    {
+                        await events.PublishAsync(domainEvent, token);
+                    }
 
-                order.ClearDomainEvents();
+                    order.ClearDomainEvents();
 
-                var body = JsonSerializer.Serialize(order.ToDto(), _json);
-                await idempotencyStore.CompleteAsync(command.ClientId, key, _createdStatus, body, token);
+                    var body = JsonSerializer.Serialize(order.ToDto(), _json);
+                    await idempotencyStore.CompleteAsync(command.ClientId, key, _createdStatus, body, token);
 
-                return Result.Ok(new CreateOrderOutcome(_createdStatus, body, order.Id, Replayed: false));
-            },
-            cancellationToken);
+                    return Result.Ok(new CreateOrderOutcome(_createdStatus, body, order.Id, Replayed: false));
+                },
+                cancellationToken);
+        }
+        catch (DiscountAlreadyUsedException exception)
+        {
+            return Result.Fail<CreateOrderOutcome>(ErrorKind.DiscountAlreadyUsed, exception.Message);
+        }
+    }
 
     /// <summary>The reservation lost to a concurrent request with the same key that has committed meanwhile.</summary>
     private async Task<Result<CreateOrderOutcome>> ReplayWinnerAsync(CreateOrderCommand command, Guid key, CancellationToken token)
