@@ -43,6 +43,15 @@ public sealed record Money
 
     public Money Multiply(int quantity) => Create(Amount * quantity, Currency);
 
+    /// <summary><paramref name="percent"/> percent of this amount, rounded like every amount.</summary>
+    public Money Percent(decimal percent) => Create(Amount * percent / 100m, Currency);
+
+    public Money Min(Money other)
+    {
+        EnsureSameCurrency(other);
+        return other.Amount < Amount ? other : this;
+    }
+
     public bool IsGreaterThan(Money other)
     {
         EnsureSameCurrency(other);
