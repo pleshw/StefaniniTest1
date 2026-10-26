@@ -4,6 +4,22 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Build writes the OpenAPI document to catalog/openapi/catalog.v1.json; CI fails when it differs from the committed one. -->
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../../openapi</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name catalog</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
+
+  <!-- The generator rejects dots in the file name and writes the v1 document as catalog.json; publish it as catalog.v1.json. -->
+  <Target Name="NameOpenApiDocument" AfterTargets="GenerateOpenApiDocuments">
+    <Copy SourceFiles="$(OpenApiDocumentsDirectory)/catalog.json" DestinationFiles="$(OpenApiDocumentsDirectory)/catalog.v1.json" Condition="Exists('$(OpenApiDocumentsDirectory)/catalog.json')" />
+    <Delete Files="$(OpenApiDocumentsDirectory)/catalog.json" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../../../shared/ServiceDefaults/ServiceDefaults.csproj" />
     <ProjectReference Include="../Catalog.Application/Catalog.Application.csproj" />

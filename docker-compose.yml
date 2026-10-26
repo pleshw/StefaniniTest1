@@ -55,6 +55,7 @@ services:
       dockerfile: catalog/src/Catalog.Api/Dockerfile
     environment:
       Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
+      Catalog__Seed__Enabled: "true"  # development catalog; staging and production never set it
     depends_on:
       mongo:
         condition: service_healthy
