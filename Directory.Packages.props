@@ -6,7 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Package versions are added here by the step that first needs them. -->
+    <!-- Test stack -->
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
   </ItemGroup>
 
 </Project>

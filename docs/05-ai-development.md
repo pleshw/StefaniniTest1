@@ -61,3 +61,4 @@ Fill in one row per session as the work happens. Session links must be shareable
 | Step | Model | Session link | PR | Notes (rework, decisions asked) |
 | --- | --- | --- | --- | --- |
 | C01 | Sonnet 5.5 | _add link_ | _add PR_ | No questions asked. The C01 row already existed as a placeholder, so it was filled in rather than duplicated. CODEOWNERS lists paths of projects that do not exist yet (Domain, Contracts, Worker, Migrations, Bff/Security, deploy); the two-approval count itself is set in branch protection in C08. |
+| C02 | Sonnet 5.5 | _add link_ | _add PR_ | Asked: C01 PR was still open (you merged it), and whether to enable NuGet lock files (yes, enabled here). Not asked, please review: `global.json` now opts into the Microsoft.Testing.Platform runner because xunit.v3 on the .NET 10 SDK requires it; `Microsoft.NET.Test.Sdk` and `xunit.runner.visualstudio` were therefore not added. |
