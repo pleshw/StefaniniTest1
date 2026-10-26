@@ -18,6 +18,7 @@ builder.Services.AddSingleton(new CurrencyPolicy(
 builder.Services.AddCatalogMongo(builder.Configuration);
 builder.Services.AddScoped<ListProductsHandler>();
 builder.Services.AddScoped<GetProductHandler>();
+builder.Services.AddScoped<QueryPricesHandler>();
 
 var app = builder.Build();
 

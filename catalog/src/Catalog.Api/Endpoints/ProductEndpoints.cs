@@ -19,7 +19,23 @@ internal static class ProductEndpoints
             .WithName("GetProduct")
             .WithSummary("One product; the ETag is its version.");
 
+        products.MapPost("/prices:query", QueryPrices)
+            .WithName("QueryPrices")
+            .WithSummary("Batch price lookup for 1-100 distinct SKUs in one currency; one MongoDB query.");
+
         return app;
+    }
+
+    internal sealed record PriceQueryRequest(string? Currency, string[]? Skus);
+
+    private static async Task<Results<Ok<PriceQueryResult>, ProblemHttpResult>> QueryPrices(
+        PriceQueryRequest request,
+        QueryPricesHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new PriceQuery(request.Currency, request.Skus), cancellationToken);
+
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
     }
 
     private static async Task<Results<Ok<ProductPage>, ProblemHttpResult>> ListProducts(
