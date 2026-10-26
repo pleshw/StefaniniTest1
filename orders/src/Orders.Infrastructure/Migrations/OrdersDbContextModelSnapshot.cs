@@ -24,6 +24,118 @@ namespace Orders.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.DiscountRedemptionRecord", b =>
+                {
+                    b.Property<Guid>("DiscountRuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("discount_rule_id");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_id");
+
+                    b.Property<bool>("OncePerClient")
+                        .HasColumnType("boolean")
+                        .HasColumnName("once_per_client");
+
+                    b.Property<DateTimeOffset>("RedeemedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("redeemed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("DiscountRuleId", "OrderId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("DiscountRuleId", "ClientId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_redemption_once_per_client")
+                        .HasFilter("once_per_client");
+
+                    b.ToTable("discount_redemptions", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.DiscountRuleRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<string>("Conditions")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("conditions")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("OncePerClient")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("once_per_client");
+
+                    b.Property<string>("Parameters")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parameters");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.Property<bool>("Stackable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stackable");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset>("ValidFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateTimeOffset?>("ValidTo")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to");
+
+                    b.HasKey("Id", "Version");
+
+                    b.ToTable("discount_rules", (string)null);
+                });
+
             modelBuilder.Entity("Orders.Infrastructure.Persistence.IdempotencyRequestRecord", b =>
                 {
                     b.Property<Guid>("ClientId")
@@ -68,6 +180,31 @@ namespace Orders.Infrastructure.Migrations
                         .HasDatabaseName("ix_idempotency_expires");
 
                     b.ToTable("idempotency_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderDiscountRecord", b =>
+                {
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid>("DiscountRuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("discount_rule_id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("RuleVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("rule_version");
+
+                    b.HasKey("OrderId", "DiscountRuleId");
+
+                    b.HasIndex("DiscountRuleId", "RuleVersion");
+
+                    b.ToTable("order_discounts", (string)null);
                 });
 
             modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderItemRecord", b =>
@@ -271,6 +408,30 @@ namespace Orders.Infrastructure.Migrations
                     b.HasKey("OrderId", "Seq");
 
                     b.ToTable("order_status_history", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.DiscountRedemptionRecord", b =>
+                {
+                    b.HasOne("Orders.Infrastructure.Persistence.OrderRecord", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderDiscountRecord", b =>
+                {
+                    b.HasOne("Orders.Infrastructure.Persistence.OrderRecord", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Orders.Infrastructure.Persistence.DiscountRuleRecord", null)
+                        .WithMany()
+                        .HasForeignKey("DiscountRuleId", "RuleVersion")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderItemRecord", b =>

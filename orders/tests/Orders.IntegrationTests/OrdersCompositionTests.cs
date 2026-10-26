@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Orders.Application;
+using Orders.Application.Discounts;
 using Orders.Application.Ordering;
 using Orders.Infrastructure.Catalog;
 using Orders.Infrastructure.Persistence;
@@ -37,5 +38,6 @@ public sealed class OrdersCompositionTests
         scope.ServiceProvider.GetRequiredService<GetOrderHandler>().ShouldNotBeNull();
         scope.ServiceProvider.GetRequiredService<GetOrderHistoryHandler>().ShouldNotBeNull();
         scope.ServiceProvider.GetRequiredService<QuoteOrderHandler>().ShouldNotBeNull();
+        scope.ServiceProvider.GetRequiredService<IActiveDiscountRules>().ShouldNotBeNull();
     }
 }

@@ -96,6 +96,22 @@ public sealed class DiscountRule
             isActive);
     }
 
+    /// <summary>
+    /// False when the rule can never take anything off a cart in <paramref name="currency"/>: a fixed amount or tiers
+    /// in other currencies only, or a <c>MinSubtotal</c> condition in another currency.
+    /// </summary>
+    public bool CanApplyIn(Currency currency)
+    {
+        var strategyFits = Strategy switch
+        {
+            FixedAmountDiscount fixedAmount => fixedAmount.Parameters.Amounts.Any(amount => Currency.Create(amount.Currency) == currency),
+            TieredDiscount tiered => Currency.Create(tiered.Parameters.Currency) == currency,
+            _ => true,
+        };
+
+        return strategyFits && Conditions.Items.OfType<MinSubtotalCondition>().All(condition => Currency.Create(condition.Currency) == currency);
+    }
+
     /// <summary>Active and within its validity window at <paramref name="now"/>.</summary>
     public bool IsInEffectAt(DateTimeOffset now) => IsActive && ValidFrom <= now && (ValidTo is null || now < ValidTo);
 

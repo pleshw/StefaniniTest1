@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Domain;
@@ -53,6 +54,10 @@ public static class OrdersPersistenceExtensions
         services.AddDbContext<OrdersDbContext>(builder => builder.UseNpgsql(connectionString));
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOrderQueries, OrderQueries>();
+        services.AddScoped<IDiscountRuleRepository, DiscountRuleRepository>();
+        services.AddMemoryCache();
+        services.AddSingleton(configuration.GetSection(DiscountOptions.SectionName).Get<DiscountOptions>() ?? new DiscountOptions());
+        services.AddScoped<IActiveDiscountRules, CachedActiveDiscountRules>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IOrderTransaction, OrdersTransaction>();
