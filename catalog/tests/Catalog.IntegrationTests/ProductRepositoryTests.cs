@@ -51,6 +51,7 @@ public sealed class ProductRepositoryTests : IClassFixture<MongoFixture>
     [Trait("Category", "Integration")]
     public async Task SaveAsync_SkuAlreadyStored_ThrowsConcurrencyException()
     {
+        await new MongoIndexInitializer(_database).StartAsync(Token);
         await _repository.SaveAsync(NewProduct("SKU-1"), null, _audit, [], Token);
 
         await Should.ThrowAsync<ConcurrencyException>(
@@ -143,7 +144,7 @@ public sealed class ProductRepositoryTests : IClassFixture<MongoFixture>
         found.Select(product => product.Sku.Value).ShouldBe(["A", "C"], ignoreOrder: true);
         found[0].Prices.ShouldNotBeEmpty();
         var finds = _mongo.Commands.Skip(before)
-            .Where(command => command.CommandName == "find" && command.DatabaseNamespace.DatabaseName == _database.DatabaseNamespace.DatabaseName)
+            .Where(command => command.CommandName == "find" && command.DatabaseName == _database.DatabaseNamespace.DatabaseName)
             .ToList();
         var find = finds.ShouldHaveSingleItem();
         var projection = find.Command["projection"].AsBsonDocument;

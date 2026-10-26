@@ -47,7 +47,7 @@ public sealed class PriceQueryMongoTests : IClassFixture<MongoFixture>, IDisposa
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(Token);
         body.GetProperty("items").GetArrayLength().ShouldBe(3);
         var finds = _mongo.Commands.Skip(before)
-            .Where(command => command.CommandName == "find" && command.DatabaseNamespace.DatabaseName == _database.DatabaseNamespace.DatabaseName);
+            .Where(command => command.CommandName == "find" && command.DatabaseName == _database.DatabaseNamespace.DatabaseName);
         finds.Count().ShouldBe(1);
     }
 
