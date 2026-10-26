@@ -25,6 +25,14 @@ public sealed record Currency
         return new Currency(normalized);
     }
 
+    public static bool TryCreate(string? code, out Currency? currency)
+    {
+        var normalized = code?.Trim().ToUpperInvariant() ?? string.Empty;
+        currency = _validator.Validate(normalized).IsValid ? new Currency(normalized) : null;
+
+        return currency is not null;
+    }
+
     public override string ToString() => Code;
 
     private sealed class CodeValidator : AbstractValidator<string>

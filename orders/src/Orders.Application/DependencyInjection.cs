@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Orders.Application.Idempotency;
+using Orders.Application.Ordering;
 using Orders.Application.Pricing;
 
 namespace Orders.Application;
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<CartValidator>();
         services.AddScoped<PricingService>();
         services.AddScoped<IdempotencyService>();
+        services.AddScoped<CreateOrderHandler>();
 
         return services;
     }

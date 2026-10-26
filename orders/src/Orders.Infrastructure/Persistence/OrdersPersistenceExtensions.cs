@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
+using Orders.Domain;
+using Orders.Infrastructure.Messaging;
 using Wolverine;
 using Wolverine.Postgresql;
 
@@ -46,10 +48,13 @@ public static class OrdersPersistenceExtensions
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IOrderTransaction, OrdersTransaction>();
+        services.AddScoped<IOrderEventPublisher, WolverineOrderEventPublisher>();
         services.AddWolverine(wolverine =>
         {
             wolverine.PersistMessagesWithPostgresql(connectionString, OrdersPersistenceOptions.WolverineSchema);
             wolverine.AutoBuildMessageStorageOnStartup = JasperFx.AutoCreate.None;
+            wolverine.PublishMessage<OrderPlaced>().ToLocalQueue(OrderPlacedHandler.LocalQueue).UseDurableInbox();
         });
 
         return services;
