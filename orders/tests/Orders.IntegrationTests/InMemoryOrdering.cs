@@ -176,9 +176,71 @@ internal sealed class InMemoryActiveDiscountRules : IActiveDiscountRules
     public Task<IReadOnlyList<DiscountRule>> GetAsync(Currency currency, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DiscountRule>>(Rules.Where(rule => rule.CanApplyIn(currency)).ToList());
 
-    public void Invalidate()
+    public int Invalidations { get; private set; }
+
+    public void Invalidate() => Invalidations++;
+}
+
+/// <summary>Rule versions kept in a list, with the same "latest version wins" reading as the SQL repository.</summary>
+internal sealed class InMemoryDiscountRuleRepository : IDiscountRuleRepository
+{
+    private readonly List<DiscountRuleDto> _versions = [];
+
+    public Task<IReadOnlyList<DiscountRule>> GetActiveAsync(CancellationToken cancellationToken)
     {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<DiscountRule>>(Latest().Where(rule => rule.IsActive).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id)
+                .Select(rule => DiscountRule.Create(
+                    rule.Id, rule.Version, rule.Name, Enum.Parse<DiscountType>(rule.Type), rule.Parameters.GetRawText(), rule.Conditions.GetRawText(),
+                    rule.Priority, rule.Stackable, rule.OncePerClient, rule.ValidFrom, rule.ValidTo, rule.IsActive))
+                .ToList());
+        }
     }
+
+    public Task<IReadOnlyList<DiscountRuleDto>> ListLatestAsync(bool? active, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<DiscountRuleDto>>(
+                Latest().Where(rule => active is null || rule.IsActive == active).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id).ToList());
+        }
+    }
+
+    public Task<DiscountRuleDto?> GetLatestAsync(Guid id, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult(Latest().FirstOrDefault(rule => rule.Id == id));
+        }
+    }
+
+    public Task<bool> AddVersionAsync(DiscountRuleDto rule, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            if (_versions.Any(stored => stored.Id == rule.Id && stored.Version == rule.Version))
+            {
+                return Task.FromResult(false);
+            }
+
+            _versions.Add(rule);
+            return Task.FromResult(true);
+        }
+    }
+
+    public IReadOnlyList<DiscountRuleDto> Versions
+    {
+        get
+        {
+            lock (_versions)
+            {
+                return _versions.ToList();
+            }
+        }
+    }
+
+    private IEnumerable<DiscountRuleDto> Latest() => _versions.GroupBy(rule => rule.Id).Select(group => group.MaxBy(rule => rule.Version)!);
 }
 
 /// <summary>Stores applied discounts and enforces once-per-client like the partial unique index.</summary>

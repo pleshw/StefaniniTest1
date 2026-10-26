@@ -30,6 +30,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapOrderEndpoints();
 app.MapAdminOrderEndpoints();
+app.MapAdminDiscountRuleEndpoints();
 
 app.Run();
 

@@ -10,6 +10,12 @@ public enum ErrorKind
 
     /// <summary>A once-per-client discount was already redeemed by the client (HTTP 409 discount-already-used).</summary>
     DiscountAlreadyUsed,
+
+    /// <summary>The If-Match version is not the current one (HTTP 412).</summary>
+    PreconditionFailed,
+
+    /// <summary>An update needs an If-Match header and none was sent (HTTP 428).</summary>
+    PreconditionRequired,
 }
 
 public sealed record ResultError(ErrorKind Kind, string Message);

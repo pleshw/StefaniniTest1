@@ -25,6 +25,12 @@ public static class DependencyInjection
         services.AddScoped<ListOrdersHandler>();
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<GetOrderHistoryHandler>();
+        services.AddScoped<ListDiscountRulesHandler>();
+        services.AddScoped<GetDiscountRuleHandler>();
+        services.AddScoped<CreateDiscountRuleHandler>();
+        services.AddScoped<ReplaceDiscountRuleHandler>();
+        services.AddScoped<DeactivateDiscountRuleHandler>();
+        services.AddScoped<PreviewDiscountRuleHandler>();
 
         return services;
     }

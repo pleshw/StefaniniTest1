@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Orders.Application.Discounts;
 using Orders.Application.Ordering;
 using Orders.Domain;
 using Orders.Domain.Discounts;
@@ -87,6 +88,71 @@ public sealed class DiscountRuleRepositoryTests(PostgresFixture postgres) : ICla
         context.OrderDiscounts.Add(new OrderDiscountRecord { OrderId = order, DiscountRuleId = rule, RuleVersion = 9, Amount = 1m });
 
         await Should.ThrowAsync<DbUpdateException>(() => context.SaveChangesAsync(Token));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetLatestAsync_ManyVersions_ReturnsTheHighestAndItsJson()
+    {
+        var id = Guid.NewGuid();
+        await Insert(Rule(id, 1, percent: 5));
+        await Insert(Rule(id, 2, percent: 15, isActive: false));
+
+        await using var context = postgres.NewContext();
+        var latest = await new DiscountRuleRepository(context).GetLatestAsync(id, Token);
+
+        latest.ShouldNotBeNull().Version.ShouldBe(2);
+        latest.IsActive.ShouldBeFalse();
+        latest.Type.ShouldBe("Percentage");
+        latest.Parameters.GetProperty("percent").GetDecimal().ShouldBe(15m);
+        (await new DiscountRuleRepository(context).GetLatestAsync(Guid.NewGuid(), Token)).ShouldBeNull();
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ListLatestAsync_ReturnsOneRowPerRuleAndFiltersOnTheLatestVersion()
+    {
+        var edited = Guid.NewGuid();
+        var deactivated = Guid.NewGuid();
+        await Insert(Rule(edited, 1, percent: 5, isActive: false));
+        await Insert(Rule(edited, 2, percent: 5));
+        await Insert(Rule(deactivated, 1, percent: 5));
+        await Insert(Rule(deactivated, 2, percent: 5, isActive: false));
+
+        await using var context = postgres.NewContext();
+        var repository = new DiscountRuleRepository(context);
+        var all = (await repository.ListLatestAsync(null, Token)).Where(rule => rule.Id == edited || rule.Id == deactivated).ToList();
+        var active = (await repository.ListLatestAsync(true, Token)).Select(rule => rule.Id).ToList();
+        var inactive = (await repository.ListLatestAsync(false, Token)).Select(rule => rule.Id).ToList();
+
+        all.Count.ShouldBe(2);
+        all.Single(rule => rule.Id == edited).Version.ShouldBe(2);
+        active.ShouldContain(edited);
+        active.ShouldNotContain(deactivated);
+        inactive.ShouldContain(deactivated);
+        inactive.ShouldNotContain(edited);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task AddVersionAsync_SameVersionTwice_SecondReturnsFalseAndTheContextStaysUsable()
+    {
+        var id = Guid.NewGuid();
+        var rule = new DiscountRuleDto(
+            id, 1, "Rule", "Percentage", System.Text.Json.JsonDocument.Parse("""{ "percent": 5, "appliesTo": "order" }""").RootElement.Clone(),
+            System.Text.Json.JsonDocument.Parse("[]").RootElement.Clone(), 1, false, false, _now, null, true, "admin-1", _now);
+        await using var winner = postgres.NewContext();
+        await using var loser = postgres.NewContext();
+
+        var first = await new DiscountRuleRepository(winner).AddVersionAsync(rule, Token);
+        var repository = new DiscountRuleRepository(loser);
+        var second = await repository.AddVersionAsync(rule, Token);
+        var next = await repository.AddVersionAsync(rule with { Version = 2 }, Token);
+
+        first.ShouldBeTrue();
+        second.ShouldBeFalse();
+        next.ShouldBeTrue();
+        (await repository.GetLatestAsync(id, Token))!.Version.ShouldBe(2);
     }
 
     private async Task<IReadOnlyList<DiscountRule>> Active()

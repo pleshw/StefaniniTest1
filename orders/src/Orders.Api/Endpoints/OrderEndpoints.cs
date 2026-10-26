@@ -182,6 +182,8 @@ internal static class OrderEndpoints
         ErrorKind.CatalogUnavailable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Catalog unavailable"),
         ErrorKind.NotFound => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status404NotFound, title: "Not found"),
         ErrorKind.Forbidden => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden"),
+        ErrorKind.PreconditionFailed => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status412PreconditionFailed, title: "Precondition failed"),
+        ErrorKind.PreconditionRequired => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status428PreconditionRequired, title: "Precondition required"),
         ErrorKind.DiscountAlreadyUsed => TypedResults.Problem(
             detail: error.Message, statusCode: StatusCodes.Status409Conflict, title: "Discount already used", type: DiscountAlreadyUsedType),
         _ => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status400BadRequest, title: "Invalid request"),
