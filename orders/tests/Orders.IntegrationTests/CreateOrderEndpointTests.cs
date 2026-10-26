@@ -140,6 +140,7 @@ public sealed class CreateOrderEndpointTests : IClassFixture<OrdersApiFactory>
         await AssertProblem(await Post("""{"items":[]}""", Guid.NewGuid().ToString()), HttpStatusCode.BadRequest);
         await AssertProblem(await Post(Body(("KB-1", 0)), Guid.NewGuid().ToString()), HttpStatusCode.BadRequest);
         await AssertProblem(await Post("""{"currency":"REAL","items":[{"sku":"KB-1","quantity":1}]}""", Guid.NewGuid().ToString()), HttpStatusCode.BadRequest);
+        await AssertProblem(await Post("""{"items":[{"quantity":1}]}""", Guid.NewGuid().ToString()), HttpStatusCode.BadRequest);
     }
 
     [Fact]

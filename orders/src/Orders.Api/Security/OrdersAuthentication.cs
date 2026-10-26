@@ -7,16 +7,21 @@ namespace Orders.Api.Security;
 
 internal static class OrdersAuthentication
 {
+    public const string AdminPolicy = "Admin";
+    public const string AdminRole = "Admin";
+
     /// <summary>
-    /// Order routes need a signed-in user. Until the identity provider arrives (C40-C41) the only registered scheme
-    /// authenticates nobody, so these routes answer 401 outside tests, which register their own scheme.
+    /// Order routes need a signed-in user, admin routes the Admin role. Until the identity provider arrives (C40-C41)
+    /// the only registered scheme authenticates nobody, so these routes answer 401 outside tests, which register
+    /// their own scheme.
     /// </summary>
     public static IServiceCollection AddOrdersAuthentication(this IServiceCollection services)
     {
         services.AddAuthentication(UnconfiguredAuthenticationHandler.SchemeName)
             .AddScheme<AuthenticationSchemeOptions, UnconfiguredAuthenticationHandler>(
                 UnconfiguredAuthenticationHandler.SchemeName, _ => { });
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AdminPolicy, policy => policy.RequireRole(AdminRole));
 
         return services;
     }

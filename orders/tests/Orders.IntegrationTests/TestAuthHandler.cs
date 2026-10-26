@@ -6,7 +6,10 @@ using Microsoft.Extensions.Options;
 
 namespace Orders.IntegrationTests;
 
-/// <summary>Test-only scheme: <c>X-Test-User</c> signs a request in as that subject, <c>X-Test-Name</c> sets the name claim.</summary>
+/// <summary>
+/// Test-only scheme: <c>X-Test-User</c> signs a request in as that subject, <c>X-Test-Name</c> sets the name claim and
+/// <c>X-Test-Roles</c> (comma separated) gives roles.
+/// </summary>
 internal sealed class TestAuthHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
@@ -16,6 +19,7 @@ internal sealed class TestAuthHandler(
     public const string SchemeName = "Test";
     public const string UserHeader = "X-Test-User";
     public const string NameHeader = "X-Test-Name";
+    public const string RolesHeader = "X-Test-Roles";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -30,6 +34,9 @@ internal sealed class TestAuthHandler(
         {
             claims.Add(new Claim("name", name.ToString()));
         }
+
+        var roles = Request.Headers[RolesHeader].ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var identity = new ClaimsIdentity(claims, SchemeName);
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));

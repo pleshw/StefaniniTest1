@@ -19,5 +19,16 @@ internal static partial class RequestMapper
         string? idempotencyKey,
         byte[] requestHash);
 
+    [MapProperty(nameof(AdminOrderEndpoints.CreateAdminOrderRequest.Items), nameof(CreateOrderCommand.Lines))]
+    public static partial CreateOrderCommand ToCommand(
+        this AdminOrderEndpoints.CreateAdminOrderRequest request,
+        string createdBy,
+        OrderChannel channel,
+        string? idempotencyKey,
+        byte[] requestHash);
+
     private static partial CartLine ToCartLine(OrderEndpoints.CreateOrderLine line);
+
+    /// <summary>A missing text field reaches the validators as empty, so it is a 400 instead of a mapping exception.</summary>
+    private static string ToText(string? value) => value ?? string.Empty;
 }

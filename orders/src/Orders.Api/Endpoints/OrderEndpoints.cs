@@ -54,6 +54,13 @@ internal static class OrderEndpoints
             idempotencyKey,
             CanonicalRequestHash.Compute(request, _json));
 
+        return await Place(command, handler, response, cancellationToken);
+    }
+
+    /// <summary>Runs the create-order flow and writes the stored status, body and Location (same for every replay).</summary>
+    internal static async Task<Results<ContentHttpResult, ProblemHttpResult>> Place(
+        CreateOrderCommand command, CreateOrderHandler handler, HttpResponse response, CancellationToken cancellationToken)
+    {
         var result = await handler.HandleAsync(command, cancellationToken);
 
         if (!result.IsSuccess)
@@ -67,7 +74,7 @@ internal static class OrderEndpoints
         return TypedResults.Text(outcome.Body, "application/json", Encoding.UTF8, outcome.Status);
     }
 
-    private static ProblemHttpResult ToProblem(ResultError error) => error.Kind switch
+    internal static ProblemHttpResult ToProblem(ResultError error) => error.Kind switch
     {
         ErrorKind.Unprocessable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status422UnprocessableEntity, title: "Unprocessable request"),
         ErrorKind.CatalogUnavailable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Catalog unavailable"),
