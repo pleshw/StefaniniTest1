@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/Orders.Domain/Orders.Domain.csproj" />
     <ProjectReference Include="../../src/Orders.Application/Orders.Application.csproj" />
     <ProjectReference Include="../../src/Orders.Infrastructure/Orders.Infrastructure.csproj" />
