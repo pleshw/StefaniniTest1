@@ -5,6 +5,7 @@ namespace Orders.ArchitectureTests;
 
 public sealed class DependencyRuleTests
 {
+    internal const string Contracts = "Orders.Contracts";
     internal const string Domain = "Orders.Domain";
     internal const string Application = "Orders.Application";
     internal const string Infrastructure = "Orders.Infrastructure";
@@ -26,6 +27,34 @@ public sealed class DependencyRuleTests
     private static readonly string[] _hosts = [Api, Worker, Bff];
 
     public static TheoryData<string> HostNames => new(_hosts);
+
+    [Fact]
+    [Trait("Category", "Architecture")]
+    public void Contracts_ProjectFile_ReferencesNoProjectAndNoPackage()
+    {
+        ProjectFiles.ProjectReferences(Contracts).ShouldBeEmpty();
+        ProjectFiles.PackageReferences(Contracts).ShouldBeEmpty();
+        ProjectFiles.FrameworkReferences(Contracts).ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Architecture")]
+    public void Contracts_Types_AreSealedRecordsWithVersionedNames()
+    {
+        var types = Load(Contracts).GetExportedTypes();
+
+        types.ShouldNotBeEmpty();
+        types.Where(type => !type.IsSealed || type.GetMethod("<Clone>$") is null).Select(type => type.FullName).ShouldBeEmpty();
+        types.Where(type => !System.Text.RegularExpressions.Regex.IsMatch(type.Name, "V[1-9][0-9]*$")).Select(type => type.FullName).ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Architecture")]
+    public void Domain_Application_AndContracts_DoNotKnowEachOther()
+    {
+        ProjectFiles.ProjectReferences(Domain).ShouldNotContain(Contracts);
+        ProjectFiles.ProjectReferences(Application).ShouldNotContain(Contracts);
+    }
 
     [Fact]
     [Trait("Category", "Architecture")]

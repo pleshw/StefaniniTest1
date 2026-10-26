@@ -67,7 +67,7 @@ public static class OrdersPersistenceExtensions
         {
             wolverine.PersistMessagesWithPostgresql(connectionString, OrdersPersistenceOptions.WolverineSchema);
             wolverine.AutoBuildMessageStorageOnStartup = options.AutoCreateMessageStorage ? JasperFx.AutoCreate.CreateOrUpdate : JasperFx.AutoCreate.None;
-            wolverine.PublishMessage<OrderPlaced>().ToLocalQueue(OrderPlacedHandler.LocalQueue).UseDurableInbox();
+            wolverine.UseOrdersRabbitMq(configuration);
         });
 
         return services;
