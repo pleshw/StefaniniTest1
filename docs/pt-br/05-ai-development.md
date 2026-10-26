@@ -35,7 +35,7 @@ Alternativas consideradas: GitHub Copilot (forte em autocompletar no editor, mai
 | 7 | Testes | Testes escritos antes do código em cada etapa (TDD), gates de cobertura aplicados pelo CI; a IA não pode pular testes nem afrouxar gates | Sonnet 5.5 | Projetos de teste, `web/tests` |
 | 8 | Code review | `/code-review` em todo PR antes da revisão humana; o Opus revisa os PRs de Domain, mensageria e segurança; o humano aprova e faz o merge | Opus 5.5 + humano | Comentários no PR |
 | 9 | CI/CD | Pipelines escritos como uma etapa (C08) e revisados como código; o gate de deploy nunca é editado sem duas aprovações | Sonnet 5.5 + humano | `.github/workflows/*` |
-| 10 | Documentação e release | README, ADRs, runbook e evidências de aceite mantidos atualizados em cada etapa e finalizados na C58 | Sonnet 5.5 | `README.md`, `docs/pt-br/adr/`, `docs/en-us/adr/` |
+| 10 | Documentação e release | README, ADRs, runbook e evidências de aceite mantidos atualizados em cada etapa e finalizados na C58 | Sonnet 5.5 | `README.md`, `README-en-us.md`, `docs/pt-br/adr/`, `docs/en-us/adr/` |
 | 11 | Apresentação | Rascunhar slides que resumem a arquitetura, as decisões e os diferenciais | Opus 5.5 | `docs/pt-br/presentation/`, `docs/en-us/presentation/` |
 
 ### Salvaguardas
@@ -55,7 +55,7 @@ Preencha uma linha por sessão à medida que o trabalho acontece. Os links de se
 | Fase | Data | Modelo | Link da sessão | Resultado |
 | --- | --- | --- | --- | --- |
 | 1–5 Requisitos, arquitetura, divisão do trabalho, governança, dimensionamento | 2026-10-26 | Opus 5.5 | _add link_ | `docs/*/01`–`04` |
-| Organização do repositório e da documentação | 2026-10-26 | Opus 5.5 | _add link_ | `README.md`, `docs/*/05` |
+| Organização do repositório e da documentação | 2026-10-26 | Opus 5.5 | _add link_ | `README.md`, `README-en-us.md`, `docs/*/05` |
 | Documentação bilíngue (pt-BR como fonte da verdade, espelho em en-US) | 2026-10-26 | Opus 5.5 | _add link_ | `docs/pt-br/`, `docs/en-us/`, `AGENTS.md` |
 
 ### Sessões de implementação

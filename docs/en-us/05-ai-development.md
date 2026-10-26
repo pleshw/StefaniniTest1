@@ -35,7 +35,7 @@ Alternatives considered: GitHub Copilot (strong completion in the editor, weaker
 | 7 | Testing | Tests written before code in each step (TDD), coverage gates enforced by CI; the AI may not skip tests or lower gates | Sonnet 5.5 | Test projects, `web/tests` |
 | 8 | Code review | `/code-review` on every PR before human review; Opus reviews Domain, messaging and security PRs; the human approves and merges | Opus 5.5 + human | PR comments |
 | 9 | CI/CD | Pipelines written as a step (C08) and reviewed like code; the deploy gate is never edited without two approvals | Sonnet 5.5 + human | `.github/workflows/*` |
-| 10 | Documentation and release | README, ADRs, runbook and acceptance evidence kept current in each step and finalised in C58 | Sonnet 5.5 | `README.md`, `docs/pt-br/adr/`, `docs/en-us/adr/` |
+| 10 | Documentation and release | README, ADRs, runbook and acceptance evidence kept current in each step and finalised in C58 | Sonnet 5.5 | `README.md`, `README-en-us.md`, `docs/pt-br/adr/`, `docs/en-us/adr/` |
 | 11 | Presentation | Draft slides summarising architecture, decisions and differentials | Opus 5.5 | `docs/pt-br/presentation/`, `docs/en-us/presentation/` |
 
 ### Guardrails
@@ -55,7 +55,7 @@ Fill in one row per session as the work happens. Session links must be shareable
 | Stage | Date | Model | Session link | Output |
 | --- | --- | --- | --- | --- |
 | 1–5 Requirements, architecture, breakdown, governance, dimensioning | 2026-10-26 | Opus 5.5 | _add link_ | `docs/*/01`–`04` |
-| Repository and documentation organisation | 2026-10-26 | Opus 5.5 | _add link_ | `README.md`, `docs/*/05` |
+| Repository and documentation organisation | 2026-10-26 | Opus 5.5 | _add link_ | `README.md`, `README-en-us.md`, `docs/*/05` |
 | Bilingual documentation (pt-BR source of truth, en-US mirror) | 2026-10-26 | Opus 5.5 | _add link_ | `docs/pt-br/`, `docs/en-us/`, `AGENTS.md` |
 
 ### Implementation sessions

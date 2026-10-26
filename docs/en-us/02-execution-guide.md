@@ -4,7 +4,7 @@
 
 ## How to use this guide
 
-Run one step per agent session: paste the prompt, replace `{STEP}`, and let Sonnet 5.5 deliver a branch, a single commit and a PR. The next step starts only after the previous PR is merged and `main` is green.
+Run one step per agent session: paste the prompt, replace `{STEP}`, and let Sonnet 5.5 deliver a branch, a single commit and a PR. The next step starts only after the previous PR is merged and `main` is green. The code blocks in this guide, the agent prompt included, are identical in both documentation trees and stay in English; only the surrounding prose is translated.
 
 ### Agent prompt (copy for every step)
 
@@ -89,7 +89,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C01 `chore: bootstrap repository`**
 
-- Build: `README.md` (purpose, how to run), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (C# and TS style), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` includes `EF1002`), `Directory.Packages.props` (central versions), `.github/pull_request_template.md` (definition of done checklist plus an "AI session" field: model and shared session link), `.github/CODEOWNERS`.
+- Build: `README.md` (pt-BR) and `README-en-us.md` (purpose, how to run), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (C# and TS style), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` includes `EF1002`), `Directory.Packages.props` (central versions), `.github/pull_request_template.md` (definition of done checklist plus an "AI session" field: model and shared session link), `.github/CODEOWNERS`.
 - Tests: none.
 - Verify: `dotnet --version` prints 10.0.x.
 
@@ -459,7 +459,7 @@ Ends with every acceptance criterion verified, load targets met, and v1.0.0 depl
 
 **C58 `docs: release v1.0.0`**
 
-- Build: README (run, test, troubleshoot), ADRs in `docs/pt-br/adr/` and `docs/en-us/adr/` (BFF, Wolverine, Mongo replica set, multi-currency, confirmation rules), runbook (DLQ replay, rule changes, rollback), acceptance criteria evidence table linking tests, `05-ai-development.md` evidence tables complete in both languages, short presentation in `docs/pt-br/presentation/` with its English copy in `docs/en-us/presentation/` (architecture, decisions, differentials, demo script). Tag `v1.0.0`.
+- Build: README in both languages (run, test, troubleshoot), ADRs in `docs/pt-br/adr/` and `docs/en-us/adr/` (BFF, Wolverine, Mongo replica set, multi-currency, confirmation rules), runbook (DLQ replay, rule changes, rollback), acceptance criteria evidence table linking tests, `05-ai-development.md` evidence tables complete in both languages, short presentation in `docs/pt-br/presentation/` with its English copy in `docs/en-us/presentation/` (architecture, decisions, differentials, demo script). Tag `v1.0.0`.
 - Tests: none new.
 - Verify: the tag triggers `cd.yml`; staging passes smoke; production waits for the gate approval and deploys.
 
