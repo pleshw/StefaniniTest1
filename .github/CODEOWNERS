@@ -1,0 +1,25 @@
+# Paths that need two approvals (one of them from CODEOWNERS), per the code review guide:
+# Domain, messaging, security, migrations, .github/** and deploy/**.
+# Branch protection enforces the approval count; this file supplies the required code-owner review.
+# Paths for projects added in later steps are listed now so the rule is in force from their first commit.
+
+# Pipelines and deployment
+/.github/                          @pleshw
+/deploy/                           @pleshw
+/scripts/deploy.sh                 @pleshw
+
+# Domain layers
+/orders/src/Orders.Domain/         @pleshw
+/catalog/src/Catalog.Domain/       @pleshw
+
+# Messaging: event contracts, consumers, broker topology
+/orders/src/Orders.Contracts/      @pleshw
+/orders/src/Orders.Worker/         @pleshw
+/deploy/rabbitmq/                  @pleshw
+
+# Migrations
+/orders/src/Orders.Infrastructure/Migrations/  @pleshw
+
+# Security: authentication, token exchange, identity provider realm
+/orders/src/Orders.Bff/Security/   @pleshw
+/deploy/keycloak/                  @pleshw

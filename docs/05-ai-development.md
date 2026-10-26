@@ -60,4 +60,4 @@ Fill in one row per session as the work happens. Session links must be shareable
 
 | Step | Model | Session link | PR | Notes (rework, decisions asked) |
 | --- | --- | --- | --- | --- |
-| C01 | Sonnet 5.5 | _add link_ | _add PR_ | |
+| C01 | Sonnet 5.5 | _add link_ | _add PR_ | No questions asked. The C01 row already existed as a placeholder, so it was filled in rather than duplicated. CODEOWNERS lists paths of projects that do not exist yet (Domain, Contracts, Worker, Migrations, Bff/Security, deploy); the two-approval count itself is set in branch protection in C08. |
