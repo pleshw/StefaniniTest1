@@ -14,6 +14,8 @@ public static class DependencyInjection
         services.AddScoped<GetProductHandler>();
         services.AddScoped<QueryPricesHandler>();
         services.AddScoped<UpsertProductHandler>();
+        services.AddScoped<ChangePriceHandler>();
+        services.AddScoped<DeactivateProductHandler>();
 
         return services;
     }
