@@ -28,5 +28,19 @@ public sealed record Sku
         return new Sku(normalized);
     }
 
+    public static bool TryCreate(string? value, out Sku? sku)
+    {
+        try
+        {
+            sku = Create(value);
+            return true;
+        }
+        catch (DomainException)
+        {
+            sku = null;
+            return false;
+        }
+    }
+
     public override string ToString() => Value;
 }

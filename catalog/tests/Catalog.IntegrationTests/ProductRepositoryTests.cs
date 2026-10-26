@@ -154,6 +154,39 @@ public sealed class ProductRepositoryTests : IClassFixture<MongoFixture>
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task SearchAsync_CategoryAndCursor_ReturnsActiveProductsInNameThenSkuOrder()
+    {
+        await _repository.SaveAsync(NewProduct("B", "Beta"), null, _audit, [], Token);
+        await _repository.SaveAsync(NewProduct("A2", "Alpha"), null, _audit, [], Token);
+        await _repository.SaveAsync(NewProduct("A1", "Alpha"), null, _audit, [], Token);
+        var inactive = NewProduct("Z", "Zeta");
+        inactive.Deactivate();
+        await _repository.SaveAsync(inactive, null, _audit, [], Token);
+
+        var all = await _repository.SearchAsync(new ProductSearch(null, "peripherals", null, 10), Token);
+        var afterFirst = await _repository.SearchAsync(
+            new ProductSearch(null, "peripherals", new ProductCursor("Alpha", "A1"), 10), Token);
+
+        all.Select(product => product.Sku.Value).ShouldBe(["A1", "A2", "B"]);
+        afterFirst.Select(product => product.Sku.Value).ShouldBe(["A2", "B"]);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task SearchAsync_TextAndLimit_UsesTheTextIndexAndStopsAtTheLimit()
+    {
+        await _repository.SaveAsync(NewProduct("A", "Mechanical keyboard"), null, _audit, [], Token);
+        await _repository.SaveAsync(NewProduct("B", "Keyboard cover"), null, _audit, [], Token);
+        await _repository.SaveAsync(NewProduct("C", "Mouse"), null, _audit, [], Token);
+        await new MongoIndexInitializer(_database).StartAsync(Token);
+
+        var matches = await _repository.SearchAsync(new ProductSearch("keyboard", null, null, 1), Token);
+
+        matches.Select(product => product.Sku.Value).ShouldBe(["B"]);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task StartAsync_ReplicaSetDatabase_CreatesTheRequiredIndexes()
     {
         var initializer = new MongoIndexInitializer(_database);
@@ -175,9 +208,9 @@ public sealed class ProductRepositoryTests : IClassFixture<MongoFixture>
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    private static Product NewProduct(string sku) => Product.Create(
+    private static Product NewProduct(string sku, string name = "Keyboard") => Product.Create(
         Sku.Create(sku),
-        "Keyboard",
+        name,
         "A keyboard",
         "peripherals",
         new Dictionary<string, string> { ["layout"] = "abnt2" },

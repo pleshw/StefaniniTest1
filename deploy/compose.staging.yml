@@ -54,6 +54,8 @@ services:
 
   catalog-api:
     image: ${CATALOG_API_IMAGE:?missing in releases/current.env}
+    environment:
+      Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
     depends_on:
       mongo:
         condition: service_healthy

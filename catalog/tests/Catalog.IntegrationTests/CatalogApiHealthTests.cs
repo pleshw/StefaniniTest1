@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Catalog.IntegrationTests;
 
-public sealed class CatalogApiHealthTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class CatalogApiHealthTests : IClassFixture<CatalogApiFactory>
 {
     private readonly HttpClient _client;
 
-    public CatalogApiHealthTests(WebApplicationFactory<Program> factory)
+    public CatalogApiHealthTests(CatalogApiFactory factory)
     {
         _client = factory.CreateClient();
     }

@@ -7,20 +7,37 @@ public sealed class CurrencyPolicy
 
     public CurrencyPolicy(IEnumerable<string> allowedCodes)
     {
-        _allowed = allowedCodes.Select(Currency.Create).ToHashSet();
+        var currencies = allowedCodes.Select(Currency.Create).ToList();
 
-        if (_allowed.Count == 0)
+        if (currencies.Count == 0)
         {
             throw new DomainException("At least one currency must be allowed.");
         }
+
+        _allowed = currencies.ToHashSet();
+        Default = currencies[0];
     }
 
-    public Currency Parse(string? code)
-    {
-        var currency = Currency.Create(code);
+    /// <summary>The first configured currency, used when a request names none.</summary>
+    public Currency Default { get; }
 
-        return _allowed.Contains(currency)
-            ? currency
-            : throw new DomainException($"Currency {currency.Code} is not supported.");
+    public Currency Parse(string? code) =>
+        TryParse(code, out var currency)
+            ? currency!
+            : throw new DomainException($"Currency {code} is not supported.");
+
+    public bool TryParse(string? code, out Currency? currency)
+    {
+        try
+        {
+            var parsed = Currency.Create(code);
+            currency = _allowed.Contains(parsed) ? parsed : null;
+        }
+        catch (DomainException)
+        {
+            currency = null;
+        }
+
+        return currency is not null;
     }
 }

@@ -6,6 +6,9 @@ public interface IProductRepository
 {
     Task<Product?> GetBySkuAsync(Sku sku, CancellationToken cancellationToken);
 
+    /// <summary>Active products ordered by name then SKU, after the cursor, at most <see cref="ProductSearch.Limit"/> rows.</summary>
+    Task<IReadOnlyList<Product>> SearchAsync(ProductSearch search, CancellationToken cancellationToken);
+
     /// <summary>Reads the price-relevant fields of many products with a single query.</summary>
     Task<IReadOnlyList<ProductSummary>> GetManyAsync(IReadOnlyCollection<Sku> skus, CancellationToken cancellationToken);
 

@@ -53,6 +53,8 @@ services:
     build:
       context: .
       dockerfile: catalog/src/Catalog.Api/Dockerfile
+    environment:
+      Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
     depends_on:
       mongo:
         condition: service_healthy

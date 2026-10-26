@@ -28,6 +28,38 @@ public sealed class ProductRepository : IProductRepository
         return document is null ? null : ToDomain(document);
     }
 
+    public async Task<IReadOnlyList<Product>> SearchAsync(ProductSearch search, CancellationToken cancellationToken)
+    {
+        var filters = Builders<ProductDocument>.Filter;
+        var conditions = new List<FilterDefinition<ProductDocument>> { filters.Eq(document => document.IsActive, true) };
+
+        if (!string.IsNullOrWhiteSpace(search.Text))
+        {
+            conditions.Add(filters.Text(search.Text));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search.Category))
+        {
+            conditions.Add(filters.Eq(document => document.Category, search.Category));
+        }
+
+        if (search.After is { } after)
+        {
+            conditions.Add(filters.Or(
+                filters.Gt(document => document.Name, after.Name),
+                filters.And(
+                    filters.Eq(document => document.Name, after.Name),
+                    filters.Gt(document => document.Sku, after.Sku))));
+        }
+
+        var documents = await _products.Find(filters.And(conditions))
+            .SortBy(document => document.Name).ThenBy(document => document.Sku)
+            .Limit(search.Limit)
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(ToDomain).ToList();
+    }
+
     public async Task<IReadOnlyList<ProductSummary>> GetManyAsync(
         IReadOnlyCollection<Sku> skus, CancellationToken cancellationToken)
     {
