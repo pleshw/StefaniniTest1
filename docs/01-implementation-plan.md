@@ -21,7 +21,7 @@ Confirmed decisions:
 | Order events | Consumed by Orders.Worker (status state machine) and by the BFF (live feed for Admin). |
 | Prices | Catalog is the price authority. Orders fetches prices server side in one batch call and never trusts client prices. |
 | Retention | Idempotency keys 24 h; published outbox rows 30 days. |
-| CI/CD | GitHub Actions; every deploy passes a mandatory gate (see the Execution guide tab). |
+| CI/CD | GitHub Actions; every deploy passes a mandatory gate (see the [Execution guide](02-execution-guide.md#cicd-with-github-actions)). |
 | Audit | Stored as domain data in each service, not derived from logs. |
 
 ## Architecture
@@ -475,7 +475,7 @@ Keeping tests lean: one behaviour per test, builders for test data, no testing o
 
 Eight phases, each ending in a merged, green `main` with a demoable result. Phases 1 and 2 can run in parallel once Phase 0 lands, because Orders codes against a Catalog contract stub first.
 
-Commit-by-commit steps and the GitHub Actions setup: [Execution guide](02-execution-guide.md). Review rules: [Code review guide](03-code-review-guide.md). Effort, team and sizing: [Tech dimensioning](04-tech-dimensioning.md).
+Commit-by-commit steps and the GitHub Actions setup: [Execution guide](02-execution-guide.md). Review rules: [Code review guide](03-code-review-guide.md). Effort, team and sizing: [Tech dimensioning](04-tech-dimensioning.md). AI tool and process: [AI-assisted development](05-ai-development.md).
 
 ### Phase 0 — Foundations
 

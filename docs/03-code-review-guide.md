@@ -1,6 +1,6 @@
-# Code review and clean code guide
+# Code review and governance guide
 
-One short rulebook for a multi-stack squad: what a PR must have, what blocks it, and how artifacts move through the pipelines.
+One short rulebook for a multi-stack squad: what a PR must have, what blocks it, and how artifacts move through the pipelines. How AI-generated work fits this process is described in [AI-assisted development](05-ai-development.md).
 
 ## Principles for every stack
 
