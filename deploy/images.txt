@@ -1,0 +1,9 @@
+# Container images built by cd.yml: <name> <Dockerfile>. Single source for the build matrix,
+# the promote step and the deploy gate. Rows whose Dockerfile does not exist yet are skipped
+# (orders-migrator arrives with C17, web with C45).
+orders-api orders/src/Orders.Api/Dockerfile
+orders-worker orders/src/Orders.Worker/Dockerfile
+orders-bff orders/src/Orders.Bff/Dockerfile
+orders-migrator orders/src/Orders.Infrastructure/Migrator.Dockerfile
+catalog-api catalog/src/Catalog.Api/Dockerfile
+web web/Dockerfile

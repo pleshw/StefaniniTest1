@@ -1,0 +1,122 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        solution: [orders/Orders.slnx, catalog/Catalog.slnx]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with: { global-json-file: global.json }
+      - run: dotnet restore ${{ matrix.solution }} --locked-mode
+      - run: dotnet format ${{ matrix.solution }} --verify-no-changes --no-restore
+      - run: dotnet build ${{ matrix.solution }} -c Release --no-restore -warnaserror
+      - name: OpenAPI documents are up to date
+        run: git diff --exit-code -- '*/openapi/*.json'
+      # The solutions use the Microsoft.Testing.Platform runner (global.json), so traits are filtered with
+      # --filter-trait (repeated means OR). Exit code 8 (no test matched in a project) is expected for projects
+      # without that category and is ignored.
+      # Coverage is NOT collected yet: the guide's /p:CollectCoverage (coverlet.msbuild) flags are rejected by the
+      # Microsoft.Testing.Platform runner (exit code 5) and no coverage package is in the tech stack table.
+      # The gates (Domain 90 %, Application 85 %, Bff 80 %) need a decision before they can be enforced.
+      - name: Unit and architecture tests with coverage gates
+        run: >
+          dotnet test --solution ${{ matrix.solution }} -c Release --no-build
+          --filter-trait "Category=Unit" --filter-trait "Category=Architecture"
+          --ignore-exit-code 8
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: coverage-${{ strategy.job-index }}
+          path: '**/coverage.cobertura.xml'
+          if-no-files-found: ignore
+          retention-days: 14
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: dotnet
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with: { global-json-file: global.json }
+      - run: >
+          dotnet test --solution orders/Orders.slnx -c Release
+          --filter-trait "Category=Integration" --filter-trait "Category=Resilience"
+          --ignore-exit-code 8
+      - run: >
+          dotnet test --solution catalog/Catalog.slnx -c Release
+          --filter-trait "Category=Integration"
+          --ignore-exit-code 8
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Phase 0 placeholder: web/ is scaffolded in C45; until then this job passes without checks.
+      - id: present
+        run: echo "exists=$([[ -f web/package.json ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.present.outputs.exists != 'true'
+        run: echo "web/ does not exist yet (scaffolded in C45); nothing to check."
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.present.outputs.exists == 'true'
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm ci
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm run lint
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm run typecheck
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm test -- --coverage   # thresholds in vitest.config.ts
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm run build
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with: { global-json-file: global.json }
+      - name: Vulnerable NuGet packages
+        run: |
+          for s in orders/Orders.slnx catalog/Catalog.slnx; do
+            dotnet restore "$s"
+            dotnet list "$s" package --vulnerable --include-transitive | tee out.txt
+            if grep -q 'has the following vulnerable packages' out.txt; then exit 1; fi
+          done
+      - name: Vulnerable npm packages
+        if: hashFiles('web/package-lock.json') != ''
+        working-directory: web
+        run: npm ci && npm audit --audit-level=high
+      - name: Secret scan
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --no-banner
+      - name: Compose file is valid
+        run: cp .env.example .env && docker compose config -q
+
+  gate:
+    if: always()
+    needs: [dotnet, integration, web, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every required job succeeded
+        run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'to_entries | all(.value.result == "success")'
