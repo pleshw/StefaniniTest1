@@ -1,0 +1,96 @@
+name: deploy
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }
+      sha:         { type: string, required: true }
+      repo:        { type: string, required: true }
+permissions:
+  contents: read
+  packages: read
+  attestations: read
+  deployments: read
+
+jobs:
+  deploy-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { ref: '${{ inputs.sha }}' }
+      - name: Deploy freeze
+        if: vars.DEPLOY_FREEZE == 'true'
+        run: |
+          echo "Deploys are frozen"
+          exit 1
+      - name: CI gate passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?check_name=gate" \
+            --jq '.check_runs | map(.conclusion) | index("success") != null' | grep -qx true
+      - name: Images exist and provenance verifies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ inputs.repo }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          for img in $(bash scripts/images.sh | cut -d' ' -f1); do
+            gh attestation verify "oci://ghcr.io/${REPO}/${img}:sha-${SHA}" --repo "$GITHUB_REPOSITORY"
+          done
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with: { global-json-file: global.json }
+      - name: Migration safety
+        env:
+          ALLOW_DESTRUCTIVE_MIGRATION: ${{ vars.ALLOW_DESTRUCTIVE_MIGRATION }}
+        run: |
+          if [[ ! -d orders/src/Orders.Infrastructure/Migrations ]]; then
+            echo "No migrations yet (first migration arrives with C17); nothing to check."
+            exit 0
+          fi
+          dotnet tool restore
+          dotnet ef migrations script --idempotent \
+            --project orders/src/Orders.Infrastructure --startup-project orders/src/Orders.Api -o migration.sql
+          if grep -Eiq 'DROP (TABLE|COLUMN)|RENAME (TO|COLUMN)' migration.sql \
+             && [[ "${ALLOW_DESTRUCTIVE_MIGRATION}" != 'true' ]]; then
+            echo "Destructive migration: needs an ADR and an expand/contract release"; exit 1
+          fi
+      - name: Production requires a successful staging deploy of the same commit
+        if: inputs.environment == 'production'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${SHA}&environment=staging" --jq '.[0].id')
+          [[ -n "$id" ]] || { echo "Commit never reached staging"; exit 1; }
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/$id/statuses" --jq '.[0].state' | grep -qx success
+
+  deploy:
+    needs: deploy-gate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}     # production: required reviewers approve here
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { ref: '${{ inputs.sha }}' }
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
+      - name: Deploy by digest
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          REPO: ${{ inputs.repo }}
+          SHA: ${{ inputs.sha }}
+        run: bash scripts/deploy.sh "$TARGET_ENVIRONMENT" "$REPO" "sha-${SHA}"
+      - name: Smoke test
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: bash scripts/smoke.sh "$APP_URL"
+      - name: Roll back to the previous release
+        if: failure()
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        run: bash scripts/deploy.sh "$TARGET_ENVIRONMENT" --rollback
