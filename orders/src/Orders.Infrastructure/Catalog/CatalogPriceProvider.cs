@@ -20,7 +20,7 @@ internal sealed partial class CatalogPriceProvider(ICatalogApiClient client, ILo
 
             var found = response.Items
                 .Select(item => new CatalogPrice(
-                    item.Sku, item.Name, item.Category, Money.Create(item.UnitPrice, currency), item.Version, item.IsActive))
+                    item.Sku, item.Name, item.Category, Money.Create(item.UnitPrice, Currency.Create(item.Currency)), item.Version, item.IsActive))
                 .ToList();
 
             return Result.Ok(new CatalogPrices(found, response.Missing.ToList()));
