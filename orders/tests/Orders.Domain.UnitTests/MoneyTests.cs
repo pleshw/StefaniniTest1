@@ -64,6 +64,32 @@ public sealed class MoneyTests
 
     [Theory]
     [Trait("Category", "Unit")]
+    [InlineData(19.99, 10, 2.00)]
+    [InlineData(0.05, 10, 0.01)]
+    [InlineData(0.04, 10, 0.00)]
+    [InlineData(80, 12.5, 10)]
+    public void Percent_Amount_RoundsTheShareAwayFromZero(decimal amount, decimal percent, decimal expected)
+    {
+        OrderBuilder.BrlAmount(amount).Percent(percent).ShouldBe(OrderBuilder.BrlAmount(expected));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Min_TwoAmounts_ReturnsTheSmaller()
+    {
+        OrderBuilder.BrlAmount(2m).Min(OrderBuilder.BrlAmount(1m)).ShouldBe(OrderBuilder.BrlAmount(1m));
+        OrderBuilder.BrlAmount(1m).Min(OrderBuilder.BrlAmount(2m)).ShouldBe(OrderBuilder.BrlAmount(1m));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Min_OtherCurrency_Throws()
+    {
+        Should.Throw<DomainException>(() => OrderBuilder.BrlAmount(1m).Min(OrderBuilder.UsdAmount(1m)));
+    }
+
+    [Theory]
+    [Trait("Category", "Unit")]
     [InlineData(" brl ", "BRL")]
     [InlineData("usd", "USD")]
     public void Currency_Create_NormalizesTheCode(string input, string expected)

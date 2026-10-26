@@ -32,11 +32,10 @@ public sealed class CreateOrderHandlerTests
         _handler = new CreateOrderHandler(
             new IdempotencyService(_store),
             _store,
-            new PricingService(_catalog, new CartValidator(new CartLineValidator())),
+            new OrderDrafter(new PricingService(_catalog, new CartValidator(new CartLineValidator())), new FixedTimeProvider(_now)),
             _orders,
             _transaction,
             _events,
-            new FixedTimeProvider(_now),
             new CreateOrderCommandValidator());
     }
 
@@ -76,6 +75,22 @@ public sealed class CreateOrderHandlerTests
         await _events.Received(1).PublishAsync(Arg.Is<IDomainEvent>(domainEvent => domainEvent is OrderPlaced), Token);
         await _store.Received(1).TryReserveAsync(_client, Guid.Parse(_key), _hash, result.Value.OrderId, Token);
         await _store.Received(1).CompleteAsync(_client, Guid.Parse(_key), 201, result.Value.Body, Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_AdminOnBehalfOfAClient_PlacesTheOrderForTheClientAndScopesTheKeyByIt()
+    {
+        var command = Command(Line("KB-1", 1)) with { CreatedBy = "admin-1", Channel = OrderChannel.Admin };
+
+        var result = await _handler.HandleAsync(command, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _orders.Received(1).AddAsync(
+            Arg.Is<Order>(order => order.Client.Id == _client && order.CreatedBy == "admin-1" && order.Channel == OrderChannel.Admin),
+            Token);
+        await _store.Received(1).TryGetAsync(_client, Guid.Parse(_key), Token);
+        await _store.Received(1).TryReserveAsync(_client, Guid.Parse(_key), _hash, result.Value.OrderId, Token);
     }
 
     [Fact]

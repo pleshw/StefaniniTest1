@@ -14,7 +14,12 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<CartValidator>();
         services.AddScoped<PricingService>();
         services.AddScoped<IdempotencyService>();
+        services.AddScoped<OrderDrafter>();
         services.AddScoped<CreateOrderHandler>();
+        services.AddScoped<QuoteOrderHandler>();
+        services.AddScoped<ListOrdersHandler>();
+        services.AddScoped<GetOrderHandler>();
+        services.AddScoped<GetOrderHistoryHandler>();
 
         return services;
     }

@@ -29,6 +29,7 @@ app.MapServiceDefaults();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapOrderEndpoints();
+app.MapAdminOrderEndpoints();
 
 app.Run();
 

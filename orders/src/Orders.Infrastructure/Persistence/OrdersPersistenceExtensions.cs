@@ -52,6 +52,7 @@ public static class OrdersPersistenceExtensions
 
         services.AddDbContext<OrdersDbContext>(builder => builder.UseNpgsql(connectionString));
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IOrderQueries, OrderQueries>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IOrderTransaction, OrdersTransaction>();
