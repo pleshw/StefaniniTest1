@@ -32,11 +32,10 @@ public sealed class CreateOrderHandlerTests
         _handler = new CreateOrderHandler(
             new IdempotencyService(_store),
             _store,
-            new PricingService(_catalog, new CartValidator(new CartLineValidator())),
+            new OrderDrafter(new PricingService(_catalog, new CartValidator(new CartLineValidator())), new FixedTimeProvider(_now)),
             _orders,
             _transaction,
             _events,
-            new FixedTimeProvider(_now),
             new CreateOrderCommandValidator());
     }
 

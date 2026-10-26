@@ -58,15 +58,12 @@ public static class OrderNumbers
 public sealed class CreateOrderHandler(
     IdempotencyService idempotency,
     IIdempotencyStore idempotencyStore,
-    PricingService pricing,
+    OrderDrafter drafter,
     IOrderRepository orders,
     IOrderTransaction transaction,
     IOrderEventPublisher events,
-    TimeProvider clock,
     IValidator<CreateOrderCommand> validator)
 {
-    public const string DefaultCurrency = "BRL";
-
     private const int _createdStatus = 201;
 
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
@@ -94,38 +91,17 @@ public sealed class CreateOrderHandler(
             return replay.IsSuccess ? Result.Ok(ToReplay(replay.Value!)) : Fail(replay.Error!);
         }
 
-        try
-        {
-            var currency = Currency.Create(command.Currency ?? DefaultCurrency);
-            var client = ClientRef.Create(command.ClientId, command.ClientName);
-            var priced = await pricing.PriceAsync(currency, command.Lines, cancellationToken);
+        var draft = await drafter.DraftAsync(
+            command.ClientId, command.ClientName, command.CreatedBy, command.Channel, command.Currency, command.Lines, cancellationToken);
 
-            // No discounts until the discount engine arrives (C27-C29): every line keeps its full price.
-            return priced.IsSuccess
-                ? await PlaceAsync(command, key.Value, client, priced.Value, cancellationToken)
-                : Fail(priced.Error!);
-        }
-        catch (DomainException exception)
-        {
-            return Result.Fail<CreateOrderOutcome>(ErrorKind.Validation, exception.Message);
-        }
+        return draft.IsSuccess
+            ? await PlaceAsync(command, key.Value, draft.Value, cancellationToken)
+            : Fail(draft.Error!);
     }
 
     private async Task<Result<CreateOrderOutcome>> PlaceAsync(
-        CreateOrderCommand command, Guid key, ClientRef client, PricedCart cart, CancellationToken cancellationToken)
-    {
-        var now = clock.GetUtcNow();
-        var orderId = Guid.NewGuid();
-        var order = Order.Place(
-            orderId,
-            OrderNumbers.For(orderId, now),
-            client,
-            command.CreatedBy,
-            command.Channel,
-            cart.Lines.Select(line => line.ToOrderItem()),
-            now);
-
-        return await transaction.ExecuteAsync(
+        CreateOrderCommand command, Guid key, Order order, CancellationToken cancellationToken) =>
+        await transaction.ExecuteAsync(
             async token =>
             {
                 if (!await idempotencyStore.TryReserveAsync(command.ClientId, key, command.RequestHash, order.Id, token))
@@ -148,7 +124,6 @@ public sealed class CreateOrderHandler(
                 return Result.Ok(new CreateOrderOutcome(_createdStatus, body, order.Id, Replayed: false));
             },
             cancellationToken);
-    }
 
     /// <summary>The reservation lost to a concurrent request with the same key that has committed meanwhile.</summary>
     private async Task<Result<CreateOrderOutcome>> ReplayWinnerAsync(CreateOrderCommand command, Guid key, CancellationToken token)

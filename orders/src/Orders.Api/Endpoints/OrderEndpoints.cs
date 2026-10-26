@@ -25,6 +25,10 @@ internal static class OrderEndpoints
             .WithName("CreateOrder")
             .WithSummary("Place an order for the signed-in shopper. Idempotency-Key (UUID) is required: 400 without it, 422 when it was used with another body, replay of the first response when it was used with the same body.");
 
+        orders.MapPost("/quote", QuoteOrder)
+            .WithName("QuoteOrder")
+            .WithSummary("Price a cart for the signed-in shopper exactly as placing the order would, without storing anything. No Idempotency-Key is needed; errors match order creation (400, 422, 503).");
+
         orders.MapGet("/", ListOrders)
             .WithName("ListOrders")
             .WithSummary("List orders newest first. Shoppers see only their own orders (403 for another clientId); admins see every client. Filters: clientId, status, from (inclusive), to (exclusive), q (order number or client name); keyset paging with after (the previous page's next) and limit (1-100, default 20).");
@@ -66,6 +70,20 @@ internal static class OrderEndpoints
             CanonicalRequestHash.Compute(request, _json));
 
         return await Place(command, handler, response, cancellationToken);
+    }
+
+    private static async Task<Results<Ok<QuoteDto>, ProblemHttpResult>> QuoteOrder(
+        CreateOrderRequest request, ClaimsPrincipal user, QuoteOrderHandler handler, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(OrdersAuthentication.SubjectOf(user), out var clientId))
+        {
+            return NoClientId();
+        }
+
+        var result = await handler.HandleAsync(
+            request.ToQuery(clientId, OrdersAuthentication.NameOf(user), OrderChannel.Shop), cancellationToken);
+
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
     }
 
     private static async Task<Results<Ok<OrderPage>, ProblemHttpResult>> ListOrders(

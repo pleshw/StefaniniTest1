@@ -27,6 +27,10 @@ internal static partial class RequestMapper
         string? idempotencyKey,
         byte[] requestHash);
 
+    [MapProperty(nameof(OrderEndpoints.CreateOrderRequest.Items), nameof(QuoteOrderQuery.Lines))]
+    public static partial QuoteOrderQuery ToQuery(
+        this OrderEndpoints.CreateOrderRequest request, Guid clientId, string clientName, OrderChannel channel);
+
     private static partial CartLine ToCartLine(OrderEndpoints.CreateOrderLine line);
 
     /// <summary>A missing text field reaches the validators as empty, so it is a 400 instead of a mapping exception.</summary>
