@@ -2,18 +2,18 @@
 
 A RESTful order platform built with .NET 10: an **Orders API** (PostgreSQL, CQRS, RabbitMQ), a **Catalog service** (MongoDB), a **BFF** that is the browser's only entry point, and two front-end pages (Shop and Admin) written in plain HTML, TypeScript and Bootstrap.
 
-> **Status:** planning complete, implementation not started. Work proceeds step by step through the [Execution guide](docs/02-execution-guide.md), starting with step C01. The commands in [Getting started](#getting-started) describe the target setup and become runnable as the steps land (compose in C06–C07, front-end in C45, smoke test in C54).
+> **Status:** planning complete, implementation not started. Work proceeds step by step through the [Execution guide](docs/pt-br/02-execution-guide.md), starting with step C01. The commands in [Getting started](#getting-started) describe the target setup and become runnable as the steps land (compose in C06–C07, front-end in C45, smoke test in C54).
 
 ## Challenge deliverables
 
 | Deliverable | Where |
 | --- | --- |
 | Source code of both services, with setup and run instructions | `orders/` (Orders API, Worker, BFF), `catalog/` (Catalog API), `web/` (front-end); instructions in [Getting started](#getting-started) |
-| AI development tool: which, why, and how it was used in each stage | [AI-assisted development](docs/05-ai-development.md) |
-| Code review / governance guide | [Code review guide](docs/03-code-review-guide.md) |
-| Proposal dimensioning (differentials) | [Tech dimensioning](docs/04-tech-dimensioning.md) |
-| Link to the AI chat sessions (mandatory) | [AI conversation links](#ai-conversation-links) and the evidence tables in [AI-assisted development](docs/05-ai-development.md#evidence) |
-| Presentation (desirable) | `docs/presentation/` (produced in step C58) |
+| AI development tool: which, why, and how it was used in each stage | [AI-assisted development](docs/pt-br/05-ai-development.md) (pt-BR) · [en-US](docs/en-us/05-ai-development.md) |
+| Code review / governance guide | [Code review guide](docs/pt-br/03-code-review-guide.md) (pt-BR) · [en-US](docs/en-us/03-code-review-guide.md) |
+| Proposal dimensioning (differentials) | [Tech dimensioning](docs/pt-br/04-tech-dimensioning.md) (pt-BR) · [en-US](docs/en-us/04-tech-dimensioning.md) |
+| Link to the AI chat sessions (mandatory) | [AI conversation links](#ai-conversation-links) and the evidence tables in [AI-assisted development](docs/pt-br/05-ai-development.md#evidências) |
+| Presentation (desirable) | `docs/pt-br/presentation/` and `docs/en-us/presentation/` (produced in step C58) |
 
 ## Getting started
 
@@ -84,23 +84,25 @@ Integration tests use Testcontainers, so Docker must be running. Filter by categ
 
 ## Documentation
 
-| Document | What it covers |
-| --- | --- |
-| [Implementation plan](docs/01-implementation-plan.md) | Decisions, architecture, BFF, API surface, data model and idempotency, discount and confirmation rules, front-end, observability, testing, phases, traceability |
-| [Execution guide](docs/02-execution-guide.md) | 58 commit-sized steps (C01–C58) with the agent prompt, definition of done, and the GitHub Actions CI/CD setup with the mandatory deploy gate |
-| [Code review guide](docs/03-code-review-guide.md) | Governance: clean code principles, PR acceptance criteria, what blocks a PR, review workflow, stack checklists, artifacts and pipelines |
-| [Tech dimensioning](docs/04-tech-dimensioning.md) | Premises, runtime sizing, effort by phase, team composition and seniority, delivery timeline, estimate risks |
-| [AI-assisted development](docs/05-ai-development.md) | Tool choice (Claude Code with Opus 5.5 and Sonnet 5.5), reasons, use in each lifecycle stage, guardrails, session evidence |
+Documentation is kept in two languages with the same file names: [`docs/pt-br/`](docs/pt-br/) (Brazilian Portuguese, the source of truth) and [`docs/en-us/`](docs/en-us/) (English mirror). Changes are written in pt-BR first and mirrored in en-US in the same PR; when they disagree, pt-BR wins. Rules for agents are in [AGENTS.md](AGENTS.md).
+
+| Document (pt-BR) | English | What it covers |
+| --- | --- | --- |
+| [Implementation plan](docs/pt-br/01-implementation-plan.md) | [en-US](docs/en-us/01-implementation-plan.md) | Decisions, architecture, BFF, API surface, data model and idempotency, discount and confirmation rules, front-end, observability, testing, phases, traceability |
+| [Execution guide](docs/pt-br/02-execution-guide.md) | [en-US](docs/en-us/02-execution-guide.md) | 58 commit-sized steps (C01–C58) with the agent prompt, definition of done, and the GitHub Actions CI/CD setup with the mandatory deploy gate |
+| [Code review guide](docs/pt-br/03-code-review-guide.md) | [en-US](docs/en-us/03-code-review-guide.md) | Governance: clean code principles, PR acceptance criteria, what blocks a PR, review workflow, stack checklists, artifacts and pipelines |
+| [Tech dimensioning](docs/pt-br/04-tech-dimensioning.md) | [en-US](docs/en-us/04-tech-dimensioning.md) | Premises, runtime sizing, effort by phase, team composition and seniority, delivery timeline, estimate risks |
+| [AI-assisted development](docs/pt-br/05-ai-development.md) | [en-US](docs/en-us/05-ai-development.md) | Tool choice (Claude Code with Opus 5.5 and Sonnet 5.5), reasons, use in each lifecycle stage, guardrails, session evidence |
 
 ## AI conversation links
 
-Every stage was done with Claude Code; one shared session per stage or step. The full list, with the PR each implementation session produced, is in [AI-assisted development](docs/05-ai-development.md#evidence).
+Every stage was done with Claude Code; one shared session per stage or step. The full list, with the PR each implementation session produced, is in [AI-assisted development](docs/pt-br/05-ai-development.md#evidências).
 
 | Session | Link |
 | --- | --- |
 | Planning: requirements, architecture, execution guide, governance, dimensioning | _add link_ |
 | Repository and documentation organisation | _add link_ |
-| Implementation, one session per step (C01–C58) | see [evidence table](docs/05-ai-development.md#implementation-sessions) |
+| Implementation, one session per step (C01–C58) | see [evidence table](docs/pt-br/05-ai-development.md#sessões-de-implementação) |
 
 ## Architecture at a glance
 
@@ -129,4 +131,4 @@ flowchart TB
 
 ## Contributing
 
-Every change is one step of the execution guide: one branch, one commit, one pull request, merged only when the `ci / gate` check is green and the [Code review guide](docs/03-code-review-guide.md) criteria are met. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). PRs produced with AI link their session and add a row to the [evidence table](docs/05-ai-development.md#implementation-sessions).
+Every change is one step of the execution guide: one branch, one commit, one pull request, merged only when the `ci / gate` check is green and the [Code review guide](docs/pt-br/03-code-review-guide.md) criteria are met. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Documentation changes are made in `docs/pt-br/` first and mirrored in `docs/en-us/`. PRs produced with AI link their session and add a row to the [evidence table](docs/pt-br/05-ai-development.md#sessões-de-implementação).
