@@ -7,12 +7,6 @@ using Orders.Domain.Rules;
 
 namespace Orders.Application.Confirmation;
 
-/// <summary>The active confirmation rules: the latest version of every rule, when that version is active.</summary>
-public interface IConfirmationRuleRepository
-{
-    Task<IReadOnlyList<ConfirmationRule>> GetActiveAsync(CancellationToken cancellationToken);
-}
-
 /// <summary>What the Worker did with a placed order.</summary>
 public enum ConfirmationOutcome
 {
@@ -44,7 +38,7 @@ public sealed class EvaluateConfirmationCommandValidator : AbstractValidator<Eva
 public sealed class EvaluateConfirmationHandler(
     IOrderRepository orders,
     IOrderQueries queries,
-    IConfirmationRuleRepository rules,
+    IActiveConfirmationRules rules,
     IOrderTransaction transaction,
     OrderStatusChangeRecorder recorder,
     TimeProvider clock,
@@ -79,7 +73,7 @@ public sealed class EvaluateConfirmationHandler(
                 return Result.Ok(ConfirmationOutcome.NotPending);
             }
 
-            var hold = ConfirmationRule.FirstMatchingHold(await rules.GetActiveAsync(cancellationToken), await ContextOf(order, cancellationToken));
+            var hold = ConfirmationRule.FirstMatchingHold(await rules.GetAsync(cancellationToken), await ContextOf(order, cancellationToken));
 
             try
             {

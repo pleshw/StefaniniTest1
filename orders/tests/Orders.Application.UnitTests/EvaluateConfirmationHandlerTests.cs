@@ -18,7 +18,7 @@ public sealed class EvaluateConfirmationHandlerTests
 
     private readonly IOrderRepository _orders = Substitute.For<IOrderRepository>();
     private readonly IOrderQueries _queries = Substitute.For<IOrderQueries>();
-    private readonly IConfirmationRuleRepository _rules = Substitute.For<IConfirmationRuleRepository>();
+    private readonly IActiveConfirmationRules _rules = Substitute.For<IActiveConfirmationRules>();
     private readonly IOrderEventLog _log = Substitute.For<IOrderEventLog>();
     private readonly IOrderEventPublisher _events = Substitute.For<IOrderEventPublisher>();
     private readonly IOrderTransaction _transaction = Substitute.For<IOrderTransaction>();
@@ -28,7 +28,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         _transaction.ExecuteAsync(Arg.Any<Func<CancellationToken, Task<Result<ConfirmationOutcome>>>>(), Token)
             .Returns(call => call.Arg<Func<CancellationToken, Task<Result<ConfirmationOutcome>>>>()(Token));
-        _rules.GetActiveAsync(Token).Returns([]);
+        _rules.GetAsync(Token).Returns([]);
         _handler = new EvaluateConfirmationHandler(
             _orders, _queries, _rules, _transaction, new OrderStatusChangeRecorder(_log, _events), new FixedTimeProvider(_now), new EvaluateConfirmationCommandValidator());
     }
@@ -39,7 +39,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         var order = PendingOrder(unitPrice: 6000m);
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         var result = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
 
@@ -58,7 +58,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         var order = PendingOrder(unitPrice: 10m);
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         var result = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
 
@@ -86,7 +86,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         var order = PendingOrder(unitPrice: 6000m);
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
 
@@ -112,7 +112,7 @@ public sealed class EvaluateConfirmationHandlerTests
         var order = PendingOrder(unitPrice: 6000m);
         Move(order, status);
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         var result = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
 
@@ -130,7 +130,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         var order = PendingOrder(unitPrice: 6000m);
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         var first = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
         var second = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
@@ -215,7 +215,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         var order = PendingOrder(unitPrice: 10m);
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("First order review", _firstOrder)]);
+        _rules.GetAsync(Token).Returns([Rule("First order review", _firstOrder)]);
         _queries.ClientHasEarlierOrdersAsync(_client, order.Id, order.CreatedAt, Token).Returns(hasEarlier);
 
         var result = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
@@ -229,7 +229,7 @@ public sealed class EvaluateConfirmationHandlerTests
     {
         var order = Placed(OrderItem.Create("KB-1", "Keyboard", Money.Create(3000m, _brl), 1, 2, Money.Create(1500m, _brl)));
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         var result = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
 
@@ -244,7 +244,7 @@ public sealed class EvaluateConfirmationHandlerTests
         var usd = Currency.Create("USD");
         var order = Placed(OrderItem.Create("KB-1", "Keyboard", Money.Create(9000m, usd), 1, 1));
         Load(order);
-        _rules.GetActiveAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
+        _rules.GetAsync(Token).Returns([Rule("Large BRL order", _largeBrl)]);
 
         var result = await _handler.HandleAsync(new EvaluateConfirmationCommand(order.Id), Token);
 

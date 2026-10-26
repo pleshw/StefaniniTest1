@@ -62,7 +62,9 @@ public static class OrdersPersistenceExtensions
         services.AddSingleton(configuration.GetSection(DiscountOptions.SectionName).Get<DiscountOptions>() ?? new DiscountOptions());
         services.AddScoped<IActiveDiscountRules, CachedActiveDiscountRules>();
         services.AddScoped<IOrderDiscountStore, OrderDiscountStore>();
+        services.AddSingleton(configuration.GetSection(ConfirmationOptions.SectionName).Get<ConfirmationOptions>() ?? new ConfirmationOptions());
         services.AddScoped<IConfirmationRuleRepository, ConfirmationRuleRepository>();
+        services.AddScoped<IActiveConfirmationRules, CachedActiveConfirmationRules>();
         services.AddScoped<IOrderEventLog, OrderEventLog>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);

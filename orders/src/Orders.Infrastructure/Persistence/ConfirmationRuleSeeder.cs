@@ -12,6 +12,12 @@ public sealed record ConfirmationOptions
     /// development compose file turns it on, so staging and production never get it.
     /// </summary>
     public bool SeedEnabled { get; init; }
+
+    /// <summary>
+    /// How long the active confirmation rules stay cached in each process. An admin write empties only the cache of the API
+    /// that handled it, so the Worker, which evaluates the rules, uses a change after at most this long.
+    /// </summary>
+    public TimeSpan CacheDuration { get; init; } = TimeSpan.FromSeconds(5);
 }
 
 internal static class ConfirmationRuleSeeder

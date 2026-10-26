@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Orders.Application.Confirmation;
 using Orders.Application.Ordering;
 using Orders.Domain;
 using Orders.Domain.Confirmation;
@@ -155,6 +156,70 @@ public sealed class ConfirmationPersistenceTests(PostgresFixture postgres) : ICl
         var seeded = (await new ConfirmationRuleRepository(read).GetActiveAsync(Token)).Single(rule => rule.Id == ConfirmationRuleSeeder.LargeOrderRuleId);
         seeded.Name.ShouldBe("Large BRL order");
         seeded.Action.ShouldBe(ConfirmationAction.Hold);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetLatestAsync_ManyVersions_ReturnsTheHighestAndItsJson()
+    {
+        var id = Guid.NewGuid();
+        await Insert(Rule(id, 1, "old"));
+        await Insert(Rule(id, 2, "new", isActive: false));
+
+        await using var context = postgres.NewContext();
+        var latest = await new ConfirmationRuleRepository(context).GetLatestAsync(id, Token);
+
+        latest.ShouldNotBeNull().Version.ShouldBe(2);
+        latest.IsActive.ShouldBeFalse();
+        latest.Action.ShouldBe("Hold");
+        latest.Conditions[0].GetProperty("kind").GetString().ShouldBe("TotalAbove");
+        (await new ConfirmationRuleRepository(context).GetLatestAsync(Guid.NewGuid(), Token)).ShouldBeNull();
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ListLatestAsync_ReturnsOneRowPerRuleAndFiltersOnTheLatestVersion()
+    {
+        var edited = Guid.NewGuid();
+        var deactivated = Guid.NewGuid();
+        await Insert(Rule(edited, 1, "edited", isActive: false));
+        await Insert(Rule(edited, 2, "edited"));
+        await Insert(Rule(deactivated, 1, "deactivated"));
+        await Insert(Rule(deactivated, 2, "deactivated", isActive: false));
+
+        await using var context = postgres.NewContext();
+        var repository = new ConfirmationRuleRepository(context);
+        var all = (await repository.ListLatestAsync(null, Token)).Where(rule => rule.Id == edited || rule.Id == deactivated).ToList();
+        var active = (await repository.ListLatestAsync(true, Token)).Select(rule => rule.Id).ToList();
+        var inactive = (await repository.ListLatestAsync(false, Token)).Select(rule => rule.Id).ToList();
+
+        all.Count.ShouldBe(2);
+        all.Single(rule => rule.Id == edited).Version.ShouldBe(2);
+        active.ShouldContain(edited);
+        active.ShouldNotContain(deactivated);
+        inactive.ShouldContain(deactivated);
+        inactive.ShouldNotContain(edited);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task AddVersionAsync_SameVersionTwice_SecondReturnsFalseAndTheContextStaysUsable()
+    {
+        var id = Guid.NewGuid();
+        var rule = new ConfirmationRuleDto(
+            id, 1, "Rule", "Hold", JsonDocument.Parse(_large).RootElement.Clone(), 1, true, "admin-1", _now);
+        await using var winner = postgres.NewContext();
+        await using var loser = postgres.NewContext();
+
+        var first = await new ConfirmationRuleRepository(winner).AddVersionAsync(rule, Token);
+        var repository = new ConfirmationRuleRepository(loser);
+        var second = await repository.AddVersionAsync(rule, Token);
+        var next = await repository.AddVersionAsync(rule with { Version = 2 }, Token);
+
+        first.ShouldBeTrue();
+        second.ShouldBeFalse();
+        next.ShouldBeTrue();
+        (await repository.GetLatestAsync(id, Token))!.Version.ShouldBe(2);
     }
 
     private async Task<IReadOnlyList<ConfirmationRule>> Active()

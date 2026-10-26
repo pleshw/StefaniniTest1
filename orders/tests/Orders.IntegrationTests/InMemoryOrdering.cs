@@ -1,10 +1,12 @@
 using System.Collections.Concurrent;
 using Orders.Application;
 using Orders.Application.Catalog;
+using Orders.Application.Confirmation;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Domain;
+using Orders.Domain.Confirmation;
 using Orders.Domain.Discounts;
 
 namespace Orders.IntegrationTests;
@@ -325,4 +327,77 @@ internal sealed class InMemoryOrderEventLog : IOrderEventLog
         _entries.Enqueue(domainEvent);
         return Task.CompletedTask;
     }
+}
+
+/// <summary>Confirmation rule versions kept in a list, with the same "latest version wins" reading as the SQL repository.</summary>
+internal sealed class InMemoryConfirmationRuleRepository : IConfirmationRuleRepository
+{
+    private readonly List<ConfirmationRuleDto> _versions = [];
+
+    public IReadOnlyList<ConfirmationRuleDto> Versions
+    {
+        get
+        {
+            lock (_versions)
+            {
+                return _versions.ToList();
+            }
+        }
+    }
+
+    public Task<IReadOnlyList<ConfirmationRule>> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<ConfirmationRule>>(Latest().Where(rule => rule.IsActive).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id)
+                .Select(rule => ConfirmationRule.Create(
+                    rule.Id, rule.Version, rule.Name, Enum.Parse<ConfirmationAction>(rule.Action), rule.Conditions.GetRawText(), rule.Priority, rule.IsActive))
+                .ToList());
+        }
+    }
+
+    public Task<IReadOnlyList<ConfirmationRuleDto>> ListLatestAsync(bool? active, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<ConfirmationRuleDto>>(
+                Latest().Where(rule => active is null || rule.IsActive == active).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id).ToList());
+        }
+    }
+
+    public Task<ConfirmationRuleDto?> GetLatestAsync(Guid id, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult(Latest().FirstOrDefault(rule => rule.Id == id));
+        }
+    }
+
+    public Task<bool> AddVersionAsync(ConfirmationRuleDto rule, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            if (_versions.Any(stored => stored.Id == rule.Id && stored.Version == rule.Version))
+            {
+                return Task.FromResult(false);
+            }
+
+            _versions.Add(rule);
+            return Task.FromResult(true);
+        }
+    }
+
+    private IEnumerable<ConfirmationRuleDto> Latest() => _versions.GroupBy(rule => rule.Id).Select(group => group.MaxBy(rule => rule.Version)!);
+}
+
+/// <summary>Counts how often an admin write emptied the cache.</summary>
+internal sealed class CountingActiveConfirmationRules(IConfirmationRuleRepository repository) : IActiveConfirmationRules
+{
+    private int _invalidations;
+
+    public int Invalidations => Volatile.Read(ref _invalidations);
+
+    public Task<IReadOnlyList<ConfirmationRule>> GetAsync(CancellationToken cancellationToken) => repository.GetActiveAsync(cancellationToken);
+
+    public void Invalidate() => Interlocked.Increment(ref _invalidations);
 }

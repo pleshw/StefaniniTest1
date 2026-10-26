@@ -35,6 +35,11 @@ public static class DependencyInjection
         services.AddScoped<PreviewDiscountRuleHandler>();
         services.AddScoped<OrderStatusChangeRecorder>();
         services.AddScoped<ChangeOrderStatusHandler>();
+        services.AddScoped<ListConfirmationRulesHandler>();
+        services.AddScoped<GetConfirmationRuleHandler>();
+        services.AddScoped<CreateConfirmationRuleHandler>();
+        services.AddScoped<ReplaceConfirmationRuleHandler>();
+        services.AddScoped<DeactivateConfirmationRuleHandler>();
 
         return services;
     }
