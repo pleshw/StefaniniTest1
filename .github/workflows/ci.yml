@@ -112,9 +112,16 @@ jobs:
       - name: Compose file is valid
         run: cp .env.example .env && docker compose config -q
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Bilingual docs are in sync (pt-BR source, en-US mirror)
+        run: node scripts/check-docs.mjs
+
   gate:
     if: always()
-    needs: [dotnet, integration, web, security]
+    needs: [dotnet, integration, web, security, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded

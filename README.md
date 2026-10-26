@@ -1,30 +1,32 @@
-# Orders & Catalog Platform
+# Plataforma de Pedidos e Catálogo
 
-A RESTful order platform built with .NET 10: an **Orders API** (PostgreSQL, CQRS, RabbitMQ), a **Catalog service** (MongoDB), a **BFF** that is the browser's only entry point, and two front-end pages (Shop and Admin) written in plain HTML, TypeScript and Bootstrap.
+🌐 [English (en-US)](README-en-us.md) · **Português (pt-BR)**
 
-> **Status:** planning complete, implementation not started. Work proceeds step by step through the [Execution guide](docs/02-execution-guide.md), starting with step C01. The commands in [Getting started](#getting-started) describe the target setup and become runnable as the steps land (compose in C06–C07, front-end in C45, smoke test in C54).
+Uma plataforma RESTful de pedidos construída com .NET 10: uma **Orders API** (PostgreSQL, CQRS, RabbitMQ), um **serviço Catalog** (MongoDB), um **BFF** que é a única porta de entrada do navegador e duas páginas de front-end (Shop e Admin) escritas em HTML, TypeScript e Bootstrap puros.
 
-## Challenge deliverables
+> **Status:** planejamento concluído, implementação não iniciada. O trabalho avança etapa por etapa pelo [Guia de execução](docs/pt-br/02-execution-guide.md), começando pela etapa C01. Os comandos de [Primeiros passos](#primeiros-passos) descrevem o ambiente final e se tornam executáveis conforme as etapas são entregues (compose em C06–C07, front-end em C45, smoke test em C54).
 
-| Deliverable | Where |
+## Entregáveis do desafio
+
+| Entregável | Onde |
 | --- | --- |
-| Source code of both services, with setup and run instructions | `orders/` (Orders API, Worker, BFF), `catalog/` (Catalog API), `web/` (front-end); instructions in [Getting started](#getting-started) |
-| AI development tool: which, why, and how it was used in each stage | [AI-assisted development](docs/05-ai-development.md) |
-| Code review / governance guide | [Code review guide](docs/03-code-review-guide.md) |
-| Proposal dimensioning (differentials) | [Tech dimensioning](docs/04-tech-dimensioning.md) |
-| Link to the AI chat sessions (mandatory) | [AI conversation links](#ai-conversation-links) and the evidence tables in [AI-assisted development](docs/05-ai-development.md#evidence) |
-| Presentation (desirable) | `docs/presentation/` (produced in step C58) |
+| Código-fonte dos dois serviços, com instruções de configuração e execução | `orders/` (Orders API, Worker, BFF), `catalog/` (Catalog API), `web/` (front-end); instruções em [Primeiros passos](#primeiros-passos) |
+| Ferramenta de desenvolvimento com IA: qual, por quê e como foi usada em cada etapa | [Desenvolvimento assistido por IA](docs/pt-br/05-ai-development.md) (pt-BR) · [en-US](docs/en-us/05-ai-development.md) |
+| Guia de code review / governança | [Guia de code review](docs/pt-br/03-code-review-guide.md) (pt-BR) · [en-US](docs/en-us/03-code-review-guide.md) |
+| Dimensionamento da proposta (diferenciais) | [Dimensionamento técnico](docs/pt-br/04-tech-dimensioning.md) (pt-BR) · [en-US](docs/en-us/04-tech-dimensioning.md) |
+| Link das sessões de chat com IA (obrigatório) | [Links das conversas com IA](#links-das-conversas-com-ia) e as tabelas de evidências em [Desenvolvimento assistido por IA](docs/pt-br/05-ai-development.md#evidências) |
+| Apresentação (desejável) | `docs/pt-br/presentation/` e `docs/en-us/presentation/` (produzida na etapa C58) |
 
-## Getting started
+## Primeiros passos
 
-### Prerequisites
+### Pré-requisitos
 
-- Docker Desktop (WSL 2 on Windows) with at least 6 GB RAM for Docker; 16 GB RAM on the machine
-- .NET SDK 10.0.x (version pinned in `global.json`)
-- Node.js 22 and npm (only to work on the front-end outside Docker)
-- Git; Bash for `scripts/*.sh` (Git Bash on Windows)
+- Docker Desktop (WSL 2 no Windows) com pelo menos 6 GB de RAM para o Docker; 16 GB de RAM na máquina
+- .NET SDK 10.0.x (versão fixada em `global.json`)
+- Node.js 22 e npm (apenas para trabalhar no front-end fora do Docker)
+- Git; Bash para os `scripts/*.sh` (Git Bash no Windows)
 
-### Configure
+### Configurar
 
 ```bash
 git clone <repository-url>
@@ -32,37 +34,37 @@ cd StefaniniTestProject
 cp .env.example .env
 ```
 
-`.env` holds local-only values: database passwords, the RabbitMQ user, and the passwords of the seeded Keycloak users `shopper` and `admin`. Defaults work as they are for local development; never commit `.env`.
+O `.env` guarda valores apenas locais: senhas dos bancos, o usuário do RabbitMQ e as senhas dos usuários `shopper` e `admin` do Keycloak criados na carga inicial. Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
 
-### Run
+### Executar
 
 ```bash
 docker compose up -d --build --wait
 ```
 
-| What | URL |
+| O quê | URL |
 | --- | --- |
-| Shop page | http://localhost:8080/shop.html |
-| Admin page | http://localhost:8080/admin.html |
-| Sign in (seeded users `shopper`, `admin`) | http://localhost:8080/bff/login |
+| Página Shop | http://localhost:8080/shop.html |
+| Página Admin | http://localhost:8080/admin.html |
+| Login (usuários `shopper` e `admin` da carga inicial) | http://localhost:8080/bff/login |
 
-Only nginx publishes a host port; every other service is reached through it. Optional profiles:
+Somente o nginx publica uma porta no host; todos os outros serviços são acessados por meio dele. Perfis opcionais:
 
 ```bash
 docker compose --profile observability up -d --wait
 ```
 
-Adds the OpenTelemetry Collector and the Aspire Dashboard for traces, metrics and logs.
+Adiciona o OpenTelemetry Collector e o Aspire Dashboard para traces, métricas e logs.
 
 ```bash
 docker compose down -v
 ```
 
-Stops everything and deletes the volumes (data is re-seeded on the next start).
+Para tudo e apaga os volumes (os dados são recriados na próxima inicialização).
 
-In compose the Catalog seeds 50 products (BRL and USD) at startup (`Catalog__Seed__Enabled`, never set for staging or production). Building `Catalog.Api` rewrites `catalog/openapi/catalog.v1.json`; commit it when the API changes, because CI fails when it differs from the generated one and Orders generates its Catalog client from it.
+No compose, o Catalog carrega 50 produtos (BRL e USD) na inicialização (`Catalog__Seed__Enabled`, nunca definido em staging ou produção). Compilar o `Catalog.Api` reescreve `catalog/openapi/catalog.v1.json`; faça commit dele quando a API mudar, porque o CI falha quando ele difere do gerado e o Orders gera seu client do Catalog a partir dele.
 
-### Test
+### Testar
 
 ```bash
 dotnet test orders/Orders.slnx
@@ -80,29 +82,31 @@ cd web && npm ci && npm test
 bash scripts/smoke.sh http://localhost:8080
 ```
 
-Integration tests use Testcontainers, so Docker must be running. Filter by category with `--filter Category=Unit`, `Integration`, `Architecture` or `Resilience`.
+Os testes de integração usam Testcontainers, então o Docker precisa estar em execução. Filtre por categoria com `--filter Category=Unit`, `Integration`, `Architecture` ou `Resilience`.
 
-## Documentation
+## Documentação
 
-| Document | What it covers |
+A documentação é mantida em dois idiomas, com os mesmos nomes de arquivo: [`docs/pt-br/`](docs/pt-br/) (português do Brasil, a fonte da verdade) e [`docs/en-us/`](docs/en-us/) (espelho em inglês). As mudanças são escritas primeiro em pt-BR e espelhadas em en-US no mesmo PR; quando divergem, vale o pt-BR. Este README é espelhado por [`README-en-us.md`](README-en-us.md) (en-US). As regras para agentes estão em [AGENTS.md](AGENTS.md).
+
+| Documento (pt-BR) | Inglês | O que cobre |
+| --- | --- | --- |
+| [Plano de implementação](docs/pt-br/01-implementation-plan.md) | [en-US](docs/en-us/01-implementation-plan.md) | Decisões, arquitetura, BFF, superfície da API, modelo de dados e idempotência, regras de desconto e de confirmação, front-end, observabilidade, testes, fases, rastreabilidade |
+| [Guia de execução](docs/pt-br/02-execution-guide.md) | [en-US](docs/en-us/02-execution-guide.md) | 58 etapas do tamanho de um commit (C01–C58) com o prompt do agente, definição de pronto e a configuração de CI/CD no GitHub Actions com o gate de deploy obrigatório |
+| [Guia de code review](docs/pt-br/03-code-review-guide.md) | [en-US](docs/en-us/03-code-review-guide.md) | Governança: princípios de clean code, critérios de aceite de PR, o que bloqueia um PR, fluxo de revisão, checklists por stack, artefatos e pipelines |
+| [Dimensionamento técnico](docs/pt-br/04-tech-dimensioning.md) | [en-US](docs/en-us/04-tech-dimensioning.md) | Premissas, dimensionamento de runtime, esforço por fase, composição e senioridade da equipe, cronograma de entrega, riscos da estimativa |
+| [Desenvolvimento assistido por IA](docs/pt-br/05-ai-development.md) | [en-US](docs/en-us/05-ai-development.md) | Escolha da ferramenta (Claude Code com Opus 5.5 e Sonnet 5.5), motivos, uso em cada etapa do ciclo de vida, salvaguardas, evidências das sessões |
+
+## Links das conversas com IA
+
+Todas as fases foram feitas com o Claude Code; uma sessão compartilhada por fase ou etapa. A lista completa, com o PR que cada sessão de implementação gerou, está em [Desenvolvimento assistido por IA](docs/pt-br/05-ai-development.md#evidências).
+
+| Sessão | Link |
 | --- | --- |
-| [Implementation plan](docs/01-implementation-plan.md) | Decisions, architecture, BFF, API surface, data model and idempotency, discount and confirmation rules, front-end, observability, testing, phases, traceability |
-| [Execution guide](docs/02-execution-guide.md) | 58 commit-sized steps (C01–C58) with the agent prompt, definition of done, and the GitHub Actions CI/CD setup with the mandatory deploy gate |
-| [Code review guide](docs/03-code-review-guide.md) | Governance: clean code principles, PR acceptance criteria, what blocks a PR, review workflow, stack checklists, artifacts and pipelines |
-| [Tech dimensioning](docs/04-tech-dimensioning.md) | Premises, runtime sizing, effort by phase, team composition and seniority, delivery timeline, estimate risks |
-| [AI-assisted development](docs/05-ai-development.md) | Tool choice (Claude Code with Opus 5.5 and Sonnet 5.5), reasons, use in each lifecycle stage, guardrails, session evidence |
+| Planejamento: requisitos, arquitetura, guia de execução, governança, dimensionamento | _add link_ |
+| Organização do repositório e da documentação | _add link_ |
+| Implementação, uma sessão por etapa (C01–C58) | veja a [tabela de evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação) |
 
-## AI conversation links
-
-Every stage was done with Claude Code; one shared session per stage or step. The full list, with the PR each implementation session produced, is in [AI-assisted development](docs/05-ai-development.md#evidence).
-
-| Session | Link |
-| --- | --- |
-| Planning: requirements, architecture, execution guide, governance, dimensioning | _add link_ |
-| Repository and documentation organisation | _add link_ |
-| Implementation, one session per step (C01–C58) | see [evidence table](docs/05-ai-development.md#implementation-sessions) |
-
-## Architecture at a glance
+## Arquitetura em resumo
 
 ```mermaid
 flowchart TB
@@ -119,14 +123,14 @@ flowchart TB
     catalog --> mongo[("MongoDB")]
 ```
 
-## Tech stack
+## Stack tecnológica
 
-- **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, MongoDB C# driver, Wolverine (CQRS handlers, outbox/inbox, RabbitMQ), YARP in the BFF
-- **Data and messaging:** PostgreSQL 17, MongoDB 8 (replica set), RabbitMQ 4 (quorum queues, retries, DLQ)
-- **Front end:** TypeScript (strict), Vite, Vitest, Bootstrap 5.3 and Bootstrap Icons
-- **Quality:** xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest, axe-core, Stryker.NET
-- **Operations:** Docker Compose, OpenTelemetry, GitHub Actions with a deploy gate before every deploy
+- **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, driver C# do MongoDB, Wolverine (handlers CQRS, outbox/inbox, RabbitMQ), YARP no BFF
+- **Dados e mensageria:** PostgreSQL 17, MongoDB 8 (replica set), RabbitMQ 4 (quorum queues, retentativas, DLQ)
+- **Front end:** TypeScript (strict), Vite, Vitest, Bootstrap 5.3 e Bootstrap Icons
+- **Qualidade:** xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest, axe-core, Stryker.NET
+- **Operação:** Docker Compose, OpenTelemetry, GitHub Actions com um gate de deploy antes de cada deploy
 
-## Contributing
+## Contribuindo
 
-Every change is one step of the execution guide: one branch, one commit, one pull request, merged only when the `ci / gate` check is green and the [Code review guide](docs/03-code-review-guide.md) criteria are met. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). PRs produced with AI link their session and add a row to the [evidence table](docs/05-ai-development.md#implementation-sessions).
+Toda mudança é uma etapa do guia de execução: uma branch, um commit, um pull request, com merge somente quando o check `ci / gate` está verde e os critérios do [Guia de code review](docs/pt-br/03-code-review-guide.md) são atendidos. As mensagens de commit seguem [Conventional Commits](https://www.conventionalcommits.org/). As mudanças de documentação são feitas primeiro em `docs/pt-br/` e espelhadas em `docs/en-us/`. PRs produzidos com IA linkam a sessão e adicionam uma linha à [tabela de evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação).

@@ -4,17 +4,17 @@
 
 ## How to use this guide
 
-Run one step per agent session: paste the prompt, replace `{STEP}`, and let Sonnet 5.5 deliver a branch, a single commit and a PR. The next step starts only after the previous PR is merged and `main` is green.
+Run one step per agent session: paste the prompt, replace `{STEP}`, and let Sonnet 5.5 deliver a branch, a single commit and a PR. The next step starts only after the previous PR is merged and `main` is green. The code blocks in this guide, the agent prompt included, are identical in both documentation trees and stay in English; only the surrounding prose is translated.
 
 ### Agent prompt (copy for every step)
 
 ```text
 You are implementing step {STEP} of the Orders & Catalog Platform.
 
-Read before coding:
-- docs/01-implementation-plan.md: Architecture, API surface, Data model and idempotency, Discount rules engine, Front-end.
-- docs/02-execution-guide.md: the rules below (including "Design rules for every step") and step {STEP}.
-- docs/03-code-review-guide.md: acceptance criteria and blockers.
+Read before coding (docs/pt-br/ is the source of truth; docs/en-us/ is its English mirror with the same file names):
+- docs/pt-br/01-implementation-plan.md: Architecture, API surface, Data model and idempotency, Discount rules engine, Front-end.
+- docs/pt-br/02-execution-guide.md: the rules below (including "Design rules for every step") and step {STEP}.
+- docs/pt-br/03-code-review-guide.md: acceptance criteria and blockers.
 
 Do exactly this:
 1. git switch main && git pull, then git switch -c step/{STEP}-<short-slug>.
@@ -23,8 +23,10 @@ Do exactly this:
 4. Run the step's Verify commands plus: dotnet build -warnaserror, dotnet test, and npm test when web/ changed.
 5. Create ONE commit with the step's commit message as the subject and a body listing what changed and how to verify.
 6. Push and open a PR with the repository PR template filled in, including the "AI session" field.
-7. In the same commit, add a row for step {STEP} to the "Implementation sessions" table in docs/05-ai-development.md
-   (model, PR placeholder, notes on decisions you asked about); the human adds the session link before merging.
+7. In the same commit, add a row for step {STEP} to the "Implementation sessions" table in docs/pt-br/05-ai-development.md
+   and the same row, in English, in docs/en-us/05-ai-development.md (model, PR placeholder, notes on decisions you
+   asked about); the human adds the session link before merging.
+8. Every documentation change is written in docs/pt-br/ first and mirrored in docs/en-us/ in the same commit.
 
 Stop and ask instead of guessing when: the step contradicts the plan, a test can only pass by changing an earlier step,
 a package outside the tech stack table seems needed, or a decision is not written in the docs.
@@ -39,6 +41,7 @@ a package outside the tech stack table seems needed, or a decision is not writte
 - TypeScript: `strict: true`, no `any`, ES modules, no framework.
 - No secrets in code or compose files; new settings go to `.env.example` and `appsettings.json` with safe defaults.
 - Every new endpoint appears in OpenAPI and has request validation and ProblemDetails errors.
+- Documentation lives in two trees with the same file names: `docs/pt-br/` (Brazilian Portuguese, the source of truth) and `docs/en-us/` (English mirror). Change pt-BR first, mirror en-US in the same commit; when the two disagree, pt-BR wins and en-US is fixed. Language-neutral artifacts (query plans, images) stay outside both trees, for example `docs/perf/`.
 
 ### Design rules for every step
 
@@ -72,6 +75,7 @@ one of them stops and asks instead of working around it.
 - [ ] Tests named in the step exist and pass; at least one unit test per new code path
 - [ ] Coverage gates and architecture tests pass
 - [ ] OpenAPI, README or `.env.example` updated when behaviour or config changed
+- [ ] Doc changes made in `docs/pt-br/` and mirrored in `docs/en-us/`
 - [ ] AI session link in the PR and a row in the [AI-assisted development](05-ai-development.md#implementation-sessions) evidence table
 - [ ] CI green; required approvals in place (two for Domain, messaging, security or CI changes)
 
@@ -85,7 +89,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C01 `chore: bootstrap repository`**
 
-- Build: `README.md` (purpose, how to run), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (C# and TS style), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` includes `EF1002`), `Directory.Packages.props` (central versions), `.github/pull_request_template.md` (definition of done checklist plus an "AI session" field: model and shared session link), `.github/CODEOWNERS`.
+- Build: `README.md` (pt-BR) and `README-en-us.md` (purpose, how to run), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (C# and TS style), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` includes `EF1002`), `Directory.Packages.props` (central versions), `.github/pull_request_template.md` (definition of done checklist plus an "AI session" field: model and shared session link), `.github/CODEOWNERS`.
 - Tests: none.
 - Verify: `dotnet --version` prints 10.0.x.
 
@@ -127,7 +131,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C08 `ci: add GitHub Actions pipelines and deploy gate`**
 
-- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
+- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; `scripts/check-docs.mjs` (bilingual check used by the `docs` CI job); first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
 - Tests: the pipelines run the existing suites.
 - Verify: the PR shows `ci / gate` and `CodeQL` green; after merge, `cd` builds images, passes `deploy-gate` and deploys staging; a test tag `v0.0.1` stops at the `production` approval.
 
@@ -443,19 +447,19 @@ Ends with every acceptance criterion verified, load targets met, and v1.0.0 depl
 
 **C56 `feat: add custom metrics and alerts`**
 
-- Build: meters `orders.created`, `orders.duplicate_replayed`, `orders.on_hold`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth` (polled), plus `docs/operations/alerts.md` with thresholds (DLQ depth > 0 for 10 min, OnHold older than 4 h, p95 create order > 300 ms).
+- Build: meters `orders.created`, `orders.duplicate_replayed`, `orders.on_hold`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth` (polled), plus `operations/alerts.md` in both `docs/pt-br/` and `docs/en-us/` with thresholds (DLQ depth > 0 for 10 min, OnHold older than 4 h, p95 create order > 300 ms).
 - Tests: metric emission unit tests with `MetricCollector<T>`.
 - Verify: values visible in the Aspire Dashboard under the observability profile.
 
 **C57 `test: add mutation testing baseline`**
 
-- Build: Stryker.NET config for `Orders.Domain` and `Catalog.Domain`, scheduled workflow `mutation.yml` (weekly, report as artifact), baseline score recorded in `docs/quality.md`; threshold `break` at 70%.
+- Build: Stryker.NET config for `Orders.Domain` and `Catalog.Domain`, scheduled workflow `mutation.yml` (weekly, report as artifact), baseline score recorded in `quality.md` in both `docs/pt-br/` and `docs/en-us/`; threshold `break` at 70%.
 - Tests: none new; surviving mutants above the threshold become issues.
 - Verify: `dotnet stryker` in each Domain test project.
 
 **C58 `docs: release v1.0.0`**
 
-- Build: README (run, test, troubleshoot), ADRs in `docs/adr/` (BFF, Wolverine, Mongo replica set, multi-currency, confirmation rules), runbook (DLQ replay, rule changes, rollback), acceptance criteria evidence table linking tests, `docs/05-ai-development.md` evidence tables complete, short presentation in `docs/presentation/` (architecture, decisions, differentials, demo script). Tag `v1.0.0`.
+- Build: README in both languages (run, test, troubleshoot), ADRs in `docs/pt-br/adr/` and `docs/en-us/adr/` (BFF, Wolverine, Mongo replica set, multi-currency, confirmation rules), runbook (DLQ replay, rule changes, rollback), acceptance criteria evidence table linking tests, `05-ai-development.md` evidence tables complete in both languages, short presentation in `docs/pt-br/presentation/` with its English copy in `docs/en-us/presentation/` (architecture, decisions, differentials, demo script). Tag `v1.0.0`.
 - Tests: none new.
 - Verify: the tag triggers `cd.yml`; staging passes smoke; production waits for the gate approval and deploys.
 
@@ -476,7 +480,7 @@ The same images flow from staging to production; only the tag changes.
 
 | File | Trigger | Purpose | Required for |
 | --- | --- | --- | --- |
-| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, then the `gate` job | Merge (branch protection) and every deploy |
+| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, bilingual documentation sync, then the `gate` job | Merge (branch protection) and every deploy |
 | `codeql.yml` | pull request, push to `main`, weekly | CodeQL for C# and TypeScript | Merge |
 | `cd.yml` | `workflow_run` of `ci` succeeded on `main` or a `v*` tag | `main`: build, attest, scan, deploy staging. Tag: promote images, deploy production | - |
 | `deploy.yml` | `workflow_call` from `cd.yml` | Reusable: `deploy-gate` → `deploy` (environment) → smoke → rollback on failure | - |
@@ -590,9 +594,16 @@ jobs:
       - name: Compose file is valid
         run: cp .env.example .env && docker compose config -q
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bilingual docs are in sync (pt-BR source, en-US mirror)
+        run: node scripts/check-docs.mjs
+
   gate:
     if: always()
-    needs: [dotnet, integration, web, security]
+    needs: [dotnet, integration, web, security, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded
