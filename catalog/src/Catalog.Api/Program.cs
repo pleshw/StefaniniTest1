@@ -1,4 +1,5 @@
 using Catalog.Api.Endpoints;
+using Catalog.Api.Security;
 using Catalog.Application.Products;
 using Catalog.Domain;
 using Catalog.Infrastructure.Persistence;
@@ -19,11 +20,17 @@ builder.Services.AddCatalogMongo(builder.Configuration);
 builder.Services.AddScoped<ListProductsHandler>();
 builder.Services.AddScoped<GetProductHandler>();
 builder.Services.AddScoped<QueryPricesHandler>();
+builder.Services.AddScoped<UpsertProductHandler>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddAdminAuthorization();
 
 var app = builder.Build();
 
 app.MapServiceDefaults();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapProductEndpoints();
+app.MapAdminProductEndpoints();
 
 app.Run();
 

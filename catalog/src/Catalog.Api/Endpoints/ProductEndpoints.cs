@@ -70,9 +70,11 @@ internal static class ProductEndpoints
         return TypedResults.Ok(result.Value);
     }
 
-    private static ProblemHttpResult ToProblem(ResultError error) => error.Kind switch
+    internal static ProblemHttpResult ToProblem(ResultError error) => error.Kind switch
     {
         ErrorKind.NotFound => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status404NotFound, title: "Not found"),
+        ErrorKind.PreconditionFailed => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status412PreconditionFailed, title: "Precondition failed"),
+        ErrorKind.PreconditionRequired => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status428PreconditionRequired, title: "Precondition required"),
         _ => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status400BadRequest, title: "Invalid request"),
     };
 }

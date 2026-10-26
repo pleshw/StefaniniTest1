@@ -4,6 +4,8 @@ public enum ErrorKind
 {
     Validation,
     NotFound,
+    PreconditionFailed,
+    PreconditionRequired,
 }
 
 public sealed record ResultError(ErrorKind Kind, string Message);

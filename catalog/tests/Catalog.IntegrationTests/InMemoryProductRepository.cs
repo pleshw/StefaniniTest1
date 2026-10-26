@@ -4,15 +4,22 @@ using Catalog.Domain;
 
 namespace Catalog.IntegrationTests;
 
-/// <summary>Stands in for MongoDB in endpoint tests that exercise HTTP behaviour only.</summary>
+/// <summary>
+/// Stands in for MongoDB in endpoint tests that exercise HTTP behaviour only. It keeps copies, so callers cannot
+/// change stored state without saving, and applies the same version rule as the real repository.
+/// </summary>
 internal sealed class InMemoryProductRepository : IProductRepository
 {
     private readonly ConcurrentDictionary<string, Product> _products = new();
 
-    public void Add(Product product) => _products[product.Sku.Value] = product;
+    public List<PriceHistoryEntry> PriceHistory { get; } = [];
+
+    public Dictionary<string, AuditStamp> Audits { get; } = [];
+
+    public void Add(Product product) => _products[product.Sku.Value] = Copy(product);
 
     public Task<Product?> GetBySkuAsync(Sku sku, CancellationToken cancellationToken) =>
-        Task.FromResult(_products.GetValueOrDefault(sku.Value));
+        Task.FromResult(_products.TryGetValue(sku.Value, out var product) ? Copy(product) : null);
 
     public Task<IReadOnlyList<ProductSummary>> GetManyAsync(IReadOnlyCollection<Sku> skus, CancellationToken cancellationToken)
     {
@@ -37,6 +44,7 @@ internal sealed class InMemoryProductRepository : IProductRepository
             .ThenBy(product => product.Sku.Value, StringComparer.Ordinal)
             .Where(product => search.After is null || IsAfter(product, search.After))
             .Take(search.Limit)
+            .Select(Copy)
             .ToList();
         return Task.FromResult(page);
     }
@@ -48,9 +56,25 @@ internal sealed class InMemoryProductRepository : IProductRepository
         IReadOnlyCollection<PriceHistoryEntry> priceHistory,
         CancellationToken cancellationToken)
     {
-        Add(product);
+        lock (_products)
+        {
+            var stored = _products.GetValueOrDefault(product.Sku.Value);
+
+            if (expectedVersion is null ? stored is not null : stored?.Version != expectedVersion)
+            {
+                throw new ConcurrencyException($"Product {product.Sku} version conflict.");
+            }
+
+            _products[product.Sku.Value] = Copy(product);
+            Audits[product.Sku.Value] = audit;
+            PriceHistory.AddRange(priceHistory);
+        }
+
         return Task.CompletedTask;
     }
+
+    private static Product Copy(Product product) => Product.Restore(
+        product.Sku, product.Name, product.Description, product.Category, product.Attributes, product.Prices, product.IsActive, product.Version);
 
     private static bool IsAfter(Product product, ProductCursor cursor)
     {

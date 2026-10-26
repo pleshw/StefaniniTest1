@@ -1,5 +1,6 @@
 using Catalog.Application.Products;
 using Catalog.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,7 +8,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Catalog.IntegrationTests;
 
-/// <summary>Runs the real Catalog.Api pipeline with an in-memory repository instead of MongoDB.</summary>
+/// <summary>
+/// Runs the real Catalog.Api pipeline with an in-memory repository instead of MongoDB and the header-driven test
+/// authentication scheme instead of the real identity provider.
+/// </summary>
 public sealed class CatalogApiFactory : WebApplicationFactory<Program>
 {
     internal InMemoryProductRepository Products { get; } = new();
@@ -20,6 +24,9 @@ public sealed class CatalogApiFactory : WebApplicationFactory<Program>
             services.Remove(indexer);
             services.RemoveAll<IProductRepository>();
             services.AddSingleton<IProductRepository>(Products);
+
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
         });
     }
 }
