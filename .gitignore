@@ -1,0 +1,45 @@
+# .NET
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+.vs/
+.idea/
+*.DotSettings.user
+TestResults/
+coverage/
+coverage.*.xml
+coverage.cobertura.xml
+*.trx
+*.nupkg
+*.snupkg
+BenchmarkDotNet.Artifacts/
+StrykerOutput/
+.config/dotnet-tools-cache/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vite/
+.eslintcache
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+*.pfx
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
