@@ -1,11 +1,16 @@
 using System.Collections.Concurrent;
 using Orders.Application;
 using Orders.Application.Catalog;
+using Orders.Application.Confirmation;
+using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Domain;
+using Orders.Domain.Confirmation;
 using Orders.Domain.Discounts;
+using Orders.Infrastructure.Messaging;
 
 namespace Orders.IntegrationTests;
 
@@ -14,28 +19,67 @@ namespace Orders.IntegrationTests;
 
 internal sealed class InMemoryOrderRepository : IOrderRepository
 {
-    private readonly ConcurrentDictionary<Guid, Order> _orders = new();
+    private readonly Lock _gate = new();
+    private readonly Dictionary<Guid, Order> _orders = [];
 
-    public IReadOnlyCollection<Order> All => _orders.Values.ToList();
+    /// <summary>The stored orders. Like a database row, a stored order changes only through <see cref="UpdateAsync"/>.</summary>
+    public IReadOnlyCollection<Order> All
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _orders.Values.ToList();
+            }
+        }
+    }
 
     public Task AddAsync(Order order, CancellationToken cancellationToken)
     {
-        _orders[order.Id] = order;
+        lock (_gate)
+        {
+            _orders[order.Id] = Stored(order);
+        }
+
         return Task.CompletedTask;
     }
 
-    public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(_orders.GetValueOrDefault(id));
+    /// <summary>A copy, as a query would materialize it: changing it does not change the stored order.</summary>
+    public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult(_orders.TryGetValue(id, out var order) ? Stored(order) : null);
+        }
+    }
 
-    public Task UpdateAsync(Order order, int expectedRowVersion, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task UpdateAsync(Order order, int expectedRowVersion, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            if (!_orders.TryGetValue(order.Id, out var current) || current.RowVersion != expectedRowVersion)
+            {
+                throw new ConcurrencyException($"Order {order.Number} was changed by someone else (expected row version {expectedRowVersion}).");
+            }
+
+            _orders[order.Id] = Stored(order);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static Order Stored(Order order) => Order.Restore(
+        order.Id, order.Number, order.Client, order.CreatedBy, order.Channel, order.Status, order.Items, order.StatusHistory,
+        order.CreatedAt, order.UpdatedAt, order.RowVersion);
 }
 
 internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
 {
     private readonly ConcurrentDictionary<(Guid Client, Guid Key), IdempotencyRecord> _records = new();
 
+    /// <summary>A reserved key is invisible until it is completed, as an uncommitted row is in PostgreSQL.</summary>
     public Task<IdempotencyRecord?> TryGetAsync(Guid clientId, Guid key, CancellationToken cancellationToken) =>
-        Task.FromResult(_records.GetValueOrDefault((clientId, key)));
+        Task.FromResult(_records.GetValueOrDefault((clientId, key)) is { ResponseStatus: not 0 } completed ? completed : null);
 
     public Task<bool> TryReserveAsync(Guid clientId, Guid key, byte[] requestHash, Guid orderId, CancellationToken cancellationToken) =>
         Task.FromResult(_records.TryAdd((clientId, key), new IdempotencyRecord(clientId, key, requestHash, 0, "{}", orderId)));
@@ -156,6 +200,10 @@ internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOr
     public Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
         Task.FromResult(orders.All.Any(order => order.Client.Id == clientId));
 
+    public Task<bool> ClientHasEarlierOrdersAsync(Guid clientId, Guid orderId, DateTimeOffset placedAt, CancellationToken cancellationToken) =>
+        Task.FromResult(orders.All.Any(order => order.Client.Id == clientId && order.Id != orderId
+            && (order.CreatedAt < placedAt || (order.CreatedAt == placedAt && order.Id.CompareTo(orderId) < 0))));
+
     private Order? Visible(Guid id, Guid? ownerId) =>
         orders.All.SingleOrDefault(order => order.Id == id && (ownerId is null || order.Client.Id == ownerId));
 
@@ -176,9 +224,71 @@ internal sealed class InMemoryActiveDiscountRules : IActiveDiscountRules
     public Task<IReadOnlyList<DiscountRule>> GetAsync(Currency currency, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DiscountRule>>(Rules.Where(rule => rule.CanApplyIn(currency)).ToList());
 
-    public void Invalidate()
+    public int Invalidations { get; private set; }
+
+    public void Invalidate() => Invalidations++;
+}
+
+/// <summary>Rule versions kept in a list, with the same "latest version wins" reading as the SQL repository.</summary>
+internal sealed class InMemoryDiscountRuleRepository : IDiscountRuleRepository
+{
+    private readonly List<DiscountRuleDto> _versions = [];
+
+    public Task<IReadOnlyList<DiscountRule>> GetActiveAsync(CancellationToken cancellationToken)
     {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<DiscountRule>>(Latest().Where(rule => rule.IsActive).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id)
+                .Select(rule => DiscountRule.Create(
+                    rule.Id, rule.Version, rule.Name, Enum.Parse<DiscountType>(rule.Type), rule.Parameters.GetRawText(), rule.Conditions.GetRawText(),
+                    rule.Priority, rule.Stackable, rule.OncePerClient, rule.ValidFrom, rule.ValidTo, rule.IsActive))
+                .ToList());
+        }
     }
+
+    public Task<IReadOnlyList<DiscountRuleDto>> ListLatestAsync(bool? active, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<DiscountRuleDto>>(
+                Latest().Where(rule => active is null || rule.IsActive == active).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id).ToList());
+        }
+    }
+
+    public Task<DiscountRuleDto?> GetLatestAsync(Guid id, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult(Latest().FirstOrDefault(rule => rule.Id == id));
+        }
+    }
+
+    public Task<bool> AddVersionAsync(DiscountRuleDto rule, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            if (_versions.Any(stored => stored.Id == rule.Id && stored.Version == rule.Version))
+            {
+                return Task.FromResult(false);
+            }
+
+            _versions.Add(rule);
+            return Task.FromResult(true);
+        }
+    }
+
+    public IReadOnlyList<DiscountRuleDto> Versions
+    {
+        get
+        {
+            lock (_versions)
+            {
+                return _versions.ToList();
+            }
+        }
+    }
+
+    private IEnumerable<DiscountRuleDto> Latest() => _versions.GroupBy(rule => rule.Id).Select(group => group.MaxBy(rule => rule.Version)!);
 }
 
 /// <summary>Stores applied discounts and enforces once-per-client like the partial unique index.</summary>
@@ -205,5 +315,207 @@ internal sealed class InMemoryOrderDiscountStore : IOrderDiscountStore
         }
 
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// The event log in a list: remembers what was written, in order, and answers the admin queries oldest first by
+/// <c>(occurred_at, id)</c> like the SQL query.
+/// </summary>
+internal sealed class InMemoryOrderEventLog : IOrderEventLog, IOrderEventLogQueries
+{
+    private readonly ConcurrentQueue<IDomainEvent> _entries = new();
+    private readonly ConcurrentQueue<OrderEventLogEntry> _other = new();
+    private static readonly System.Text.Json.JsonSerializerOptions _json = new(System.Text.Json.JsonSerializerDefaults.Web);
+    private readonly List<OrderEventDto> _rows = [];
+
+    public IReadOnlyCollection<IDomainEvent> Entries => _entries.ToList();
+
+    /// <summary>Entries that are not status changes, such as dead letter replays.</summary>
+    public IReadOnlyCollection<OrderEventLogEntry> OtherEntries => _other.ToList();
+
+    public Task AppendAsync(IDomainEvent domainEvent, CancellationToken cancellationToken)
+    {
+        _entries.Enqueue(domainEvent);
+
+        if (domainEvent is OrderStatusChanged changed)
+        {
+            Add(changed.OrderId, "OrderStatusChanged.v1", System.Text.Json.JsonSerializer.Serialize(changed.ToContract(), _json), changed.OccurredAt);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task AppendEntryAsync(OrderEventLogEntry entry, CancellationToken cancellationToken)
+    {
+        _other.Enqueue(entry);
+        Add(entry.OrderId, entry.Type, entry.Payload, entry.OccurredAt);
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<OrderEventDto>> ListAsync(EventFilter filter, CancellationToken cancellationToken)
+    {
+        lock (_rows)
+        {
+            return Task.FromResult<IReadOnlyList<OrderEventDto>>(_rows
+                .Where(row => filter.OrderId is null || row.OrderId == filter.OrderId)
+                .Where(row => filter.Type is null || row.Type == filter.Type)
+                .Where(row => filter.After is null || row.OccurredAt > filter.After.OccurredAt || (row.OccurredAt == filter.After.OccurredAt && row.Id > filter.After.Id))
+                .OrderBy(row => row.OccurredAt)
+                .ThenBy(row => row.Id)
+                .Take(filter.Take)
+                .ToList());
+        }
+    }
+
+    private void Add(Guid orderId, string type, string payload, DateTimeOffset occurredAt)
+    {
+        lock (_rows)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(payload);
+            _rows.Add(new OrderEventDto(_rows.Count + 1, orderId, type, document.RootElement.Clone(), occurredAt));
+        }
+    }
+}
+
+/// <summary>Confirmation rule versions kept in a list, with the same "latest version wins" reading as the SQL repository.</summary>
+internal sealed class InMemoryConfirmationRuleRepository : IConfirmationRuleRepository
+{
+    private readonly List<ConfirmationRuleDto> _versions = [];
+
+    public IReadOnlyList<ConfirmationRuleDto> Versions
+    {
+        get
+        {
+            lock (_versions)
+            {
+                return _versions.ToList();
+            }
+        }
+    }
+
+    public Task<IReadOnlyList<ConfirmationRule>> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<ConfirmationRule>>(Latest().Where(rule => rule.IsActive).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id)
+                .Select(rule => ConfirmationRule.Create(
+                    rule.Id, rule.Version, rule.Name, Enum.Parse<ConfirmationAction>(rule.Action), rule.Conditions.GetRawText(), rule.Priority, rule.IsActive))
+                .ToList());
+        }
+    }
+
+    public Task<IReadOnlyList<ConfirmationRuleDto>> ListLatestAsync(bool? active, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult<IReadOnlyList<ConfirmationRuleDto>>(
+                Latest().Where(rule => active is null || rule.IsActive == active).OrderBy(rule => rule.Priority).ThenBy(rule => rule.Id).ToList());
+        }
+    }
+
+    public Task<ConfirmationRuleDto?> GetLatestAsync(Guid id, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            return Task.FromResult(Latest().FirstOrDefault(rule => rule.Id == id));
+        }
+    }
+
+    public Task<bool> AddVersionAsync(ConfirmationRuleDto rule, CancellationToken cancellationToken)
+    {
+        lock (_versions)
+        {
+            if (_versions.Any(stored => stored.Id == rule.Id && stored.Version == rule.Version))
+            {
+                return Task.FromResult(false);
+            }
+
+            _versions.Add(rule);
+            return Task.FromResult(true);
+        }
+    }
+
+    private IEnumerable<ConfirmationRuleDto> Latest() => _versions.GroupBy(rule => rule.Id).Select(group => group.MaxBy(rule => rule.Version)!);
+}
+
+/// <summary>Counts how often an admin write emptied the cache.</summary>
+internal sealed class CountingActiveConfirmationRules(IConfirmationRuleRepository repository) : IActiveConfirmationRules
+{
+    private int _invalidations;
+
+    public int Invalidations => Volatile.Read(ref _invalidations);
+
+    public Task<IReadOnlyList<ConfirmationRule>> GetAsync(CancellationToken cancellationToken) => repository.GetActiveAsync(cancellationToken);
+
+    public void Invalidate() => Interlocked.Increment(ref _invalidations);
+}
+
+/// <summary>A dead letter queue held in a list: peeking leaves the messages, replaying removes the one it republishes.</summary>
+internal sealed class InMemoryDeadLetters : IDeadLetters
+{
+    private readonly List<DeadLetterDto> _letters = [];
+
+    public bool Unreachable { get; set; }
+
+    public IReadOnlyList<DeadLetterReplay> Replays { get; private set; } = [];
+
+    public void Park(DeadLetterDto letter)
+    {
+        lock (_letters)
+        {
+            _letters.Add(letter);
+        }
+    }
+
+    public Task<IReadOnlyList<DeadLetterDto>> PeekAsync(int limit, CancellationToken cancellationToken)
+    {
+        ThrowIfUnreachable();
+
+        lock (_letters)
+        {
+            return Task.FromResult<IReadOnlyList<DeadLetterDto>>(_letters.Take(limit).ToList());
+        }
+    }
+
+    public async Task<Result<DeadLetterReplay>> ReplayAsync(string messageId, string replayedBy, DeadLetterReplayHooks hooks, CancellationToken cancellationToken)
+    {
+        ThrowIfUnreachable();
+        DeadLetterDto? letter;
+
+        lock (_letters)
+        {
+            letter = _letters.FirstOrDefault(parked => parked.MessageId == messageId);
+        }
+
+        if (letter is null)
+        {
+            return Result.Fail<DeadLetterReplay>(ErrorKind.NotFound, $"No dead letter has the message id {messageId}.");
+        }
+
+        if (await hooks.Check(letter, cancellationToken) is { } veto)
+        {
+            return Result.Fail<DeadLetterReplay>(veto.Kind, veto.Message);
+        }
+
+        var replay = new DeadLetterReplay(letter, Guid.NewGuid().ToString(), "orders.events", "order.placed", replayedBy);
+        await hooks.Record(replay, cancellationToken);
+
+        lock (_letters)
+        {
+            _letters.Remove(letter);
+            Replays = [.. Replays, replay];
+        }
+
+        return Result.Ok(replay);
+    }
+
+    private void ThrowIfUnreachable()
+    {
+        if (Unreachable)
+        {
+            throw new MessagingUnavailableException("The message broker could not be reached; try again shortly.", new InvalidOperationException());
+        }
     }
 }

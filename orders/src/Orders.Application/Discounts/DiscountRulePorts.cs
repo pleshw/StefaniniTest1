@@ -8,6 +8,14 @@ public interface IDiscountRuleRepository
 {
     /// <summary>The latest version of every rule, when that version is active, lowest priority first.</summary>
     Task<IReadOnlyList<DiscountRule>> GetActiveAsync(CancellationToken cancellationToken);
+
+    /// <summary>The latest version of every rule, active or not, lowest priority first; <paramref name="active"/> filters on that version.</summary>
+    Task<IReadOnlyList<DiscountRuleDto>> ListLatestAsync(bool? active, CancellationToken cancellationToken);
+
+    Task<DiscountRuleDto?> GetLatestAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Stores a new version. False when that (id, version) exists already: a concurrent edit took it.</summary>
+    Task<bool> AddVersionAsync(DiscountRuleDto rule, CancellationToken cancellationToken);
 }
 
 /// <summary>

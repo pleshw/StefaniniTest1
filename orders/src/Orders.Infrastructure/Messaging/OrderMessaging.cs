@@ -1,9 +1,12 @@
+using System.Diagnostics;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Logging;
 using Orders.Application.Ordering;
+using Orders.Contracts;
 using Orders.Domain;
 using Orders.Infrastructure.Persistence;
+using Riok.Mapperly.Abstractions;
 using Wolverine;
 using Wolverine.RDBMS;
 using Wolverine.Runtime;
@@ -35,22 +38,56 @@ internal sealed class OrdersTransaction(OrdersDbContext context, IMessageContext
     }
 }
 
+/// <summary>
+/// Publishes the domain events as the versioned contracts of <c>Orders.Contracts</c>. Inside <see cref="OrdersTransaction"/>
+/// the message goes to the outbox with the order and leaves for RabbitMQ after the commit. Each carries the
+/// <c>traceparent</c> of the current activity and the <c>occurred-at</c> time; the AMQP <c>message-id</c> is the envelope id.
+/// </summary>
 internal sealed class WolverineOrderEventPublisher(IMessageContext messages) : IOrderEventPublisher
 {
-    public async Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken) =>
-        await messages.PublishAsync(domainEvent);
+    public const string TraceParentHeader = "traceparent";
+    public const string OccurredAtHeader = "occurred-at";
+
+    public async Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken)
+    {
+        switch (domainEvent)
+        {
+            case OrderPlaced placed:
+                await PublishAsync(placed.ToContract(), placed.OccurredAt);
+                break;
+            case OrderStatusChanged changed:
+                await PublishAsync(changed.ToContract(), changed.OccurredAt);
+                break;
+            default:
+                throw new NotSupportedException($"{domainEvent.GetType().Name} has no published contract.");
+        }
+    }
+
+    private async Task PublishAsync<T>(T message, DateTimeOffset occurredAt)
+        where T : class
+    {
+        var options = new DeliveryOptions().WithHeader(OccurredAtHeader, occurredAt.ToString("O", CultureInfo.InvariantCulture));
+
+        if (Activity.Current?.Id is { } traceParent)
+        {
+            options.WithHeader(TraceParentHeader, traceParent);
+        }
+
+        await messages.PublishAsync(message, options);
+    }
 }
 
-/// <summary>
-/// Consumes the durable local queue that receives <see cref="OrderPlaced"/> until RabbitMQ routing arrives (C31).
-/// It only records that the event was delivered.
-/// </summary>
-public sealed partial class OrderPlacedHandler(ILogger<OrderPlacedHandler> logger)
+/// <summary>Domain event → published contract.</summary>
+[Mapper]
+internal static partial class EventContractMapper
 {
-    public const string LocalQueue = "orders-events";
+    [MapProperty(nameof(OrderPlaced.Total) + "." + nameof(Money.Amount), nameof(OrderPlacedV1.Total))]
+    [MapProperty(nameof(OrderPlaced.Total) + "." + nameof(Money.Currency), nameof(OrderPlacedV1.Currency))]
+    public static partial OrderPlacedV1 ToContract(this OrderPlaced placed);
 
-    public void Handle(OrderPlaced message) => LogOrderPlaced(logger, message.OrderId, message.Number);
+    public static partial OrderStatusChangedV1 ToContract(this OrderStatusChanged changed);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Order {OrderId} ({OrderNumber}) placed.")]
-    private static partial void LogOrderPlaced(ILogger logger, Guid orderId, string orderNumber);
+    private static string ToText(OrderChannel channel) => channel.ToString().ToLowerInvariant();
+
+    private static string ToText(Currency currency) => currency.Code;
 }

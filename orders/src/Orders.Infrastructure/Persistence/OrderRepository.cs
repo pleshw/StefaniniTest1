@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Orders.Application.Ordering;
 using Orders.Domain;
 
@@ -53,8 +54,11 @@ internal sealed class OrderRepository(OrdersDbContext context) : IOrderRepositor
         {
             await context.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (Exception exception) when (exception is DbUpdateConcurrencyException
+            || exception is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } })
         {
+            // A second writer that read the same version inserts the same (order_id, seq) history row before the row version
+            // check can fail, so that primary key violation is the same conflict.
             throw new ConcurrencyException($"Order {order.Number} was changed by someone else (expected row version {expectedRowVersion}).");
         }
     }

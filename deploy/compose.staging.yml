@@ -71,6 +71,7 @@ services:
     image: ${ORDERS_MIGRATOR_IMAGE:?missing in releases/current.env}
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Orders__Messaging__Enabled: "false"  # the migrator only creates tables; it never connects to RabbitMQ
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,6 +81,7 @@ services:
     image: ${ORDERS_API_IMAGE:?missing in releases/current.env}
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,9 +99,14 @@ services:
 
   orders-worker:
     image: ${ORDERS_WORKER_IMAGE:?missing in releases/current.env}
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
+      orders-migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck:

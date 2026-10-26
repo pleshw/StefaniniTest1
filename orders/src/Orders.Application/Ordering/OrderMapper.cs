@@ -8,7 +8,6 @@ public static partial class OrderMapper
 {
     [MapperIgnoreSource(nameof(Order.CreatedBy))]
     [MapperIgnoreSource(nameof(Order.UpdatedAt))]
-    [MapperIgnoreSource(nameof(Order.RowVersion))]
     [MapperIgnoreSource(nameof(Order.StatusHistory))]
     [MapperIgnoreSource(nameof(Order.DomainEvents))]
     public static partial OrderDto ToDto(this Order order);

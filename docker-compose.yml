@@ -74,6 +74,8 @@ services:
       dockerfile: orders/src/Orders.Infrastructure/Migrator.Dockerfile
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Orders__Messaging__Enabled: "false"  # the migrator only creates tables; it never connects to RabbitMQ
+      Orders__Confirmation__SeedEnabled: "true"  # development rule: hold BRL orders above 5,000.00; staging and production never set it
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,6 +87,7 @@ services:
       dockerfile: orders/src/Orders.Api/Dockerfile
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,9 +107,14 @@ services:
     build:
       context: .
       dockerfile: orders/src/Orders.Worker/Dockerfile
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
+      orders-migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck:

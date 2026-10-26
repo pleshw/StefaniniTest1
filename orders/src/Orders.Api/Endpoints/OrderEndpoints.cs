@@ -16,6 +16,9 @@ internal static class OrderEndpoints
     /// <summary>The ProblemDetails type of a 409 for a once-per-client discount already redeemed.</summary>
     public const string DiscountAlreadyUsedType = "discount-already-used";
 
+    /// <summary>The ProblemDetails type of a 409 for a status change the order state machine does not allow.</summary>
+    public const string InvalidTransitionType = "invalid-transition";
+
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
     public static IEndpointRouteBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
@@ -38,7 +41,7 @@ internal static class OrderEndpoints
 
         orders.MapGet("/{id:guid}", GetOrder)
             .WithName("GetOrder")
-            .WithSummary("One order with its items and totals. Another client's order is 404 for a shopper.");
+            .WithSummary("One order with its items and totals; the ETag is its row version, which admins send as If-Match to change its status. Another client's order is 404 for a shopper.");
 
         orders.MapGet("/{id:guid}/history", GetOrderHistory)
             .WithName("GetOrderHistory")
@@ -112,7 +115,7 @@ internal static class OrderEndpoints
     }
 
     private static async Task<Results<Ok<OrderDto>, ProblemHttpResult>> GetOrder(
-        Guid id, ClaimsPrincipal user, GetOrderHandler handler, CancellationToken cancellationToken)
+        Guid id, ClaimsPrincipal user, GetOrderHandler handler, HttpResponse response, CancellationToken cancellationToken)
     {
         if (!TryGetViewer(user, out var viewer))
         {
@@ -121,7 +124,14 @@ internal static class OrderEndpoints
 
         var result = await handler.HandleAsync(new GetOrderQuery(id, viewer), cancellationToken);
 
-        return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
+        if (!result.IsSuccess)
+        {
+            return ToProblem(result.Error!);
+        }
+
+        response.Headers.ETag = EntityTag.For(result.Value.RowVersion);
+
+        return TypedResults.Ok(result.Value);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<OrderStatusChangeDto>>, ProblemHttpResult>> GetOrderHistory(
@@ -179,9 +189,14 @@ internal static class OrderEndpoints
     internal static ProblemHttpResult ToProblem(ResultError error) => error.Kind switch
     {
         ErrorKind.Unprocessable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status422UnprocessableEntity, title: "Unprocessable request"),
+        ErrorKind.MessagingUnavailable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Messaging unavailable"),
         ErrorKind.CatalogUnavailable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Catalog unavailable"),
         ErrorKind.NotFound => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status404NotFound, title: "Not found"),
         ErrorKind.Forbidden => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden"),
+        ErrorKind.PreconditionFailed => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status412PreconditionFailed, title: "Precondition failed"),
+        ErrorKind.PreconditionRequired => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status428PreconditionRequired, title: "Precondition required"),
+        ErrorKind.InvalidTransition => TypedResults.Problem(
+            detail: error.Message, statusCode: StatusCodes.Status409Conflict, title: "Invalid status transition", type: InvalidTransitionType),
         ErrorKind.DiscountAlreadyUsed => TypedResults.Problem(
             detail: error.Message, statusCode: StatusCodes.Status409Conflict, title: "Discount already used", type: DiscountAlreadyUsedType),
         _ => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status400BadRequest, title: "Invalid request"),

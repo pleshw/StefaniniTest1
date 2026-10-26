@@ -24,6 +24,58 @@ namespace Orders.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.ConfirmationRuleRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("action");
+
+                    b.Property<string>("Conditions")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("conditions");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.HasKey("Id", "Version");
+
+                    b.ToTable("confirmation_rules", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_confirmation_rules_action", "action IN ('Hold')");
+                        });
+                });
+
             modelBuilder.Entity("Orders.Infrastructure.Persistence.DiscountRedemptionRecord", b =>
                 {
                     b.Property<Guid>("DiscountRuleId")
@@ -205,6 +257,44 @@ namespace Orders.Infrastructure.Migrations
                     b.HasIndex("DiscountRuleId", "RuleVersion");
 
                     b.ToTable("order_discounts", (string)null);
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderEventLogRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_order_event_log_order");
+
+                    b.HasIndex("OccurredAt", "Id")
+                        .HasDatabaseName("ix_order_event_log_occurred");
+
+                    b.ToTable("order_event_log", (string)null);
                 });
 
             modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderItemRecord", b =>
@@ -430,6 +520,15 @@ namespace Orders.Infrastructure.Migrations
                     b.HasOne("Orders.Infrastructure.Persistence.DiscountRuleRecord", null)
                         .WithMany()
                         .HasForeignKey("DiscountRuleId", "RuleVersion")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Orders.Infrastructure.Persistence.OrderEventLogRecord", b =>
+                {
+                    b.HasOne("Orders.Infrastructure.Persistence.OrderRecord", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

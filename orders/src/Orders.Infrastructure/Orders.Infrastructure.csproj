@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Orders.Application/Orders.Application.csproj" />
+    <ProjectReference Include="../Orders.Contracts/Orders.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +23,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
     <PackageReference Include="Riok.Mapperly" ExcludeAssets="runtime" PrivateAssets="all" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />

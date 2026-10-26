@@ -1,5 +1,6 @@
 using NpgsqlTypes;
 using Orders.Domain;
+using Orders.Domain.Confirmation;
 using Orders.Domain.Discounts;
 
 namespace Orders.Infrastructure.Persistence;
@@ -159,4 +160,39 @@ internal sealed class DiscountRedemptionRecord
     public bool OncePerClient { get; set; }
 
     public DateTimeOffset RedeemedAt { get; set; }
+}
+
+internal sealed class ConfirmationRuleRecord
+{
+    public Guid Id { get; set; }
+
+    public int Version { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public ConfirmationAction Action { get; set; }
+
+    public string Conditions { get; set; } = "[]";
+
+    public int Priority { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public string CreatedBy { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>One row of the append-only <c>order_event_log</c>: what happened to an order, as the published contract.</summary>
+internal sealed class OrderEventLogRecord
+{
+    public long Id { get; set; }
+
+    public Guid OrderId { get; set; }
+
+    public string Type { get; set; } = string.Empty;
+
+    public string Payload { get; set; } = "{}";
+
+    public DateTimeOffset OccurredAt { get; set; }
 }

@@ -29,6 +29,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.54.0" />
+    <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.54.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.54.0" />
     <!-- Catalog client generated from catalog/openapi/catalog.v1.json -->
     <PackageVersion Include="NSwag.ApiDescription.Client" Version="14.7.1" />
@@ -41,6 +42,7 @@
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageVersion Include="Testcontainers.MongoDb" Version="4.16.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.16.0" />
     <PackageVersion Include="WireMock.Net" Version="2.20.0" />
   </ItemGroup>
 

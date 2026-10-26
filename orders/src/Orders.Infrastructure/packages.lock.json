@@ -82,6 +82,17 @@
           "WolverineFx.RDBMS": "6.54.0"
         }
       },
+      "WolverineFx.RabbitMQ": {
+        "type": "Direct",
+        "requested": "[6.54.0, )",
+        "resolved": "6.54.0",
+        "contentHash": "ZeGKj2XBbp+Jo6Pm/akWsDH9T46OxoEybs+tpXqBsgt+QUvWRfdVa6SPxo4JOESa+QeAklyVnpeMxVxFueRNRQ==",
+        "dependencies": {
+          "RabbitMQ.Client": "7.2.2",
+          "WolverineFx": "6.54.0",
+          "WolverineFx.Newtonsoft": "6.54.0"
+        }
+      },
       "WolverineFx.RuntimeCompilation": {
         "type": "Direct",
         "requested": "[6.54.0, )",
@@ -451,6 +462,11 @@
           "Polly.Core": "8.4.2"
         }
       },
+      "RabbitMQ.Client": {
+        "type": "Transitive",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA=="
+      },
       "Spectre.Console": {
         "type": "Transitive",
         "resolved": "0.55.0",
@@ -554,6 +570,15 @@
           "NewId": "4.0.1"
         }
       },
+      "WolverineFx.Newtonsoft": {
+        "type": "Transitive",
+        "resolved": "6.54.0",
+        "contentHash": "WAdbOBzKH3wMX7fHK8HqE0twMoHm47+oQB7234KBbDWqI/V42NMSTbL2Gfsmrnyri0qmuiBwRjLMOmDsKL9YTw==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3",
+          "WolverineFx": "6.54.0"
+        }
+      },
       "WolverineFx.RDBMS": {
         "type": "Transitive",
         "resolved": "6.54.0",
@@ -569,6 +594,9 @@
           "FluentValidation.DependencyInjectionExtensions": "[12.2.0, )",
           "Orders.Domain": "[1.0.0, )"
         }
+      },
+      "orders.contracts": {
+        "type": "Project"
       },
       "orders.domain": {
         "type": "Project",

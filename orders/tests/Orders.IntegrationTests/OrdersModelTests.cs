@@ -40,7 +40,7 @@ public sealed class OrdersModelTests
 
         var tables = context.Model.GetEntityTypes().Select(type => type.GetTableName()).Order().ToList();
 
-        tables.ShouldBe(["discount_redemptions", "discount_rules", "idempotency_requests", "order_discounts", "order_items", "order_status_history", "orders"]);
+        tables.ShouldBe(["confirmation_rules", "discount_redemptions", "discount_rules", "idempotency_requests", "order_discounts", "order_event_log", "order_items", "order_status_history", "orders"]);
     }
 
     [Fact]
@@ -55,6 +55,26 @@ public sealed class OrdersModelTests
         orders.FindProperty(nameof(OrderRecord.Total))!.GetColumnType().ShouldBe("numeric(19,4)");
         orders.FindProperty(nameof(OrderRecord.Currency))!.GetColumnType().ShouldBe("char(3)");
         orders.FindProperty(nameof(OrderRecord.SearchVector))!.GetColumnName().ShouldBe("search_vector");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Model_ConfirmationTables_FollowThePlanDdl()
+    {
+        using var context = NewContext();
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var rules = model.FindEntityType(typeof(ConfirmationRuleRecord))!;
+        var log = model.FindEntityType(typeof(OrderEventLogRecord))!;
+
+        rules.FindPrimaryKey()!.Properties.Select(property => property.GetColumnName()).ShouldBe(["id", "version"]);
+        rules.FindProperty(nameof(ConfirmationRuleRecord.Conditions))!.GetColumnType().ShouldBe("jsonb");
+        rules.FindProperty(nameof(ConfirmationRuleRecord.Action))!.GetColumnName().ShouldBe("action");
+        rules.GetCheckConstraints().Single().Sql.ShouldBe("action IN ('Hold')");
+        log.FindProperty(nameof(OrderEventLogRecord.Payload))!.GetColumnType().ShouldBe("jsonb");
+        log.FindProperty(nameof(OrderEventLogRecord.OccurredAt))!.GetColumnName().ShouldBe("occurred_at");
+        var byTime = log.GetIndexes().Single(index => index.GetDatabaseName() == "ix_order_event_log_occurred");
+        byTime.Properties.Select(property => property.GetColumnName()).ShouldBe(["occurred_at", "id"]);
+        log.GetForeignKeys().Single().DeleteBehavior.ShouldBe(DeleteBehavior.Restrict);
     }
 
     [Fact]

@@ -130,6 +130,7 @@ public sealed class DiscountedOrderPostgresTests : IClassFixture<PostgresFixture
         {
             builder.UseSetting("ConnectionStrings:Orders", connectionString);
             builder.UseSetting("Orders:Persistence:AutoCreateMessageStorage", "true");
+            builder.UseSetting("Orders:Messaging:Enabled", "false");
             builder.UseSetting("Catalog:BaseAddress", catalogUrl);
             builder.UseSetting("Catalog:Client:RetryDelay", "00:00:00.01");
             builder.ConfigureServices(services => services.AddAuthentication(TestAuthHandler.SchemeName)

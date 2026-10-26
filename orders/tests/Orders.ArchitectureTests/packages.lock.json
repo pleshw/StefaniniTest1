@@ -723,6 +723,11 @@
         "resolved": "4.0.1",
         "contentHash": "jegBasNndmG21G3BmT51suFDCIz/sLN81j+IxmkZ4iWoaDi8LygeHiyNnYbXz5OQh9nCRJFIx1+PJrlYi1Gc9Q=="
       },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.3",
+        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+      },
       "Npgsql": {
         "type": "Transitive",
         "resolved": "10.0.3",
@@ -801,6 +806,14 @@
         "contentHash": "ehTImQ/eUyO07VYW2WvwSmU9rRH200SKJ/3jku9rOkyWE0A2JxNFmAVms8dSn49QLSjmjFRRSgfNyOgr/2PSmA==",
         "dependencies": {
           "Polly.Core": "8.4.2",
+          "System.Threading.RateLimiting": "8.0.0"
+        }
+      },
+      "RabbitMQ.Client": {
+        "type": "Transitive",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA==",
+        "dependencies": {
           "System.Threading.RateLimiting": "8.0.0"
         }
       },
@@ -939,6 +952,15 @@
           "NewId": "4.0.1"
         }
       },
+      "WolverineFx.Newtonsoft": {
+        "type": "Transitive",
+        "resolved": "6.54.0",
+        "contentHash": "WAdbOBzKH3wMX7fHK8HqE0twMoHm47+oQB7234KBbDWqI/V42NMSTbL2Gfsmrnyri0qmuiBwRjLMOmDsKL9YTw==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3",
+          "WolverineFx": "6.54.0"
+        }
+      },
       "WolverineFx.RDBMS": {
         "type": "Transitive",
         "resolved": "6.54.0",
@@ -1037,6 +1059,9 @@
           "ServiceDefaults": "[1.0.0, )"
         }
       },
+      "orders.contracts": {
+        "type": "Project"
+      },
       "orders.domain": {
         "type": "Project",
         "dependencies": {
@@ -1050,7 +1075,9 @@
           "Microsoft.Extensions.Http.Resilience": "[10.10.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Orders.Application": "[1.0.0, )",
+          "Orders.Contracts": "[1.0.0, )",
           "WolverineFx.Postgresql": "[6.54.0, )",
+          "WolverineFx.RabbitMQ": "[6.54.0, )",
           "WolverineFx.RuntimeCompilation": "[6.54.0, )"
         }
       },
@@ -1058,6 +1085,7 @@
         "type": "Project",
         "dependencies": {
           "Orders.Application": "[1.0.0, )",
+          "Orders.Contracts": "[1.0.0, )",
           "Orders.Infrastructure": "[1.0.0, )",
           "ServiceDefaults": "[1.0.0, )"
         }
@@ -1208,6 +1236,17 @@
         "dependencies": {
           "Weasel.Postgresql": "9.46.0",
           "WolverineFx.RDBMS": "6.54.0"
+        }
+      },
+      "WolverineFx.RabbitMQ": {
+        "type": "CentralTransitive",
+        "requested": "[6.54.0, )",
+        "resolved": "6.54.0",
+        "contentHash": "ZeGKj2XBbp+Jo6Pm/akWsDH9T46OxoEybs+tpXqBsgt+QUvWRfdVa6SPxo4JOESa+QeAklyVnpeMxVxFueRNRQ==",
+        "dependencies": {
+          "RabbitMQ.Client": "7.2.2",
+          "WolverineFx": "6.54.0",
+          "WolverineFx.Newtonsoft": "6.54.0"
         }
       },
       "WolverineFx.RuntimeCompilation": {

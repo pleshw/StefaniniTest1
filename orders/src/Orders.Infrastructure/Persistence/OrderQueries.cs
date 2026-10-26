@@ -36,6 +36,12 @@ internal sealed class OrderQueries(OrdersDbContext context) : IOrderQueries
     public async Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
         await context.Orders.AsNoTracking().AnyAsync(order => order.ClientId == clientId, cancellationToken);
 
+    public async Task<bool> ClientHasEarlierOrdersAsync(Guid clientId, Guid orderId, DateTimeOffset placedAt, CancellationToken cancellationToken) =>
+        await context.Orders.AsNoTracking().AnyAsync(
+            order => order.ClientId == clientId && order.Id != orderId
+                && (order.CreatedAt < placedAt || (order.CreatedAt == placedAt && order.Id.CompareTo(orderId) < 0)),
+            cancellationToken);
+
     internal IQueryable<OrderSummaryDto> ListQuery(OrderListFilter filter)
     {
         var orders = context.Orders.AsNoTracking();
@@ -121,7 +127,6 @@ internal static partial class OrderQueryMapper
     [MapperIgnoreSource(nameof(OrderRecord.ClientName))]
     [MapperIgnoreSource(nameof(OrderRecord.CreatedBy))]
     [MapperIgnoreSource(nameof(OrderRecord.UpdatedAt))]
-    [MapperIgnoreSource(nameof(OrderRecord.RowVersion))]
     [MapperIgnoreSource(nameof(OrderRecord.SearchVector))]
     [MapperIgnoreSource(nameof(OrderRecord.History))]
     private static partial OrderDto ToDetail(OrderRecord order);

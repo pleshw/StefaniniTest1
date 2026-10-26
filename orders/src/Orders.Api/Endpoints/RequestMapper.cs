@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Orders.Application.Discounts;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
 using Orders.Domain;
@@ -30,6 +32,13 @@ internal static partial class RequestMapper
     [MapProperty(nameof(OrderEndpoints.CreateOrderRequest.Items), nameof(QuoteOrderQuery.Lines))]
     public static partial QuoteOrderQuery ToQuery(
         this OrderEndpoints.CreateOrderRequest request, Guid clientId, string clientName, OrderChannel channel);
+
+    public static partial RuleDefinition ToDefinition(this AdminDiscountRuleEndpoints.DiscountRuleRequest request);
+
+    [MapProperty(nameof(AdminDiscountRuleEndpoints.PreviewRequest.Items), nameof(PreviewDiscountRuleQuery.Lines))]
+    public static partial PreviewDiscountRuleQuery ToQuery(this AdminDiscountRuleEndpoints.PreviewRequest request);
+
+    private static string? ToJsonText(JsonElement? element) => element?.GetRawText();
 
     private static partial CartLine ToCartLine(OrderEndpoints.CreateOrderLine line);
 

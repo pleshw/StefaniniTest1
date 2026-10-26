@@ -3,9 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Orders.Application.Confirmation;
+using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
+using Orders.Application.Retention;
 using Orders.Domain;
 using Orders.Infrastructure.Messaging;
 using Wolverine;
@@ -38,8 +42,10 @@ public static class OrdersPersistenceExtensions
     /// <summary>
     /// Registers the Orders DbContext, the order repository and Wolverine's PostgreSQL message persistence (outbox and
     /// inbox tables live in the <c>wolverine</c> schema and are created by <see cref="OrdersMigrator"/>, not by the host).
+    /// <paramref name="configureMessaging"/> lets a host add its own listeners and error policies.
     /// </summary>
-    public static IServiceCollection AddOrdersPersistence(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddOrdersPersistence(
+        this IServiceCollection services, IConfiguration configuration, Action<WolverineOptions>? configureMessaging = null)
     {
         var options = configuration.GetSection(OrdersPersistenceOptions.SectionName).Get<OrdersPersistenceOptions>() ?? new OrdersPersistenceOptions();
 
@@ -59,6 +65,17 @@ public static class OrdersPersistenceExtensions
         services.AddSingleton(configuration.GetSection(DiscountOptions.SectionName).Get<DiscountOptions>() ?? new DiscountOptions());
         services.AddScoped<IActiveDiscountRules, CachedActiveDiscountRules>();
         services.AddScoped<IOrderDiscountStore, OrderDiscountStore>();
+        services.AddSingleton(configuration.GetSection(ConfirmationOptions.SectionName).Get<ConfirmationOptions>() ?? new ConfirmationOptions());
+        services.AddScoped<IConfirmationRuleRepository, ConfirmationRuleRepository>();
+        services.AddScoped<IActiveConfirmationRules, CachedActiveConfirmationRules>();
+        services.AddScoped<IOrderEventLog, OrderEventLog>();
+        services.AddScoped<IOrderEventLogQueries, OrderEventLogQueries>();
+        services.AddSingleton(configuration.GetSection(RetentionOptions.SectionName).Get<RetentionOptions>() ?? new RetentionOptions());
+        services.AddScoped<IRetentionStore, RetentionStore>();
+        services.AddScoped<RetentionRunner>();
+        services.AddSingleton<IDeadLetters>(provider => configuration.MessagingOptions().Enabled
+            ? new RabbitMqDeadLetters(provider.GetRequiredService<IConfiguration>())
+            : new DisabledDeadLetters());
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IOrderTransaction, OrdersTransaction>();
@@ -67,7 +84,8 @@ public static class OrdersPersistenceExtensions
         {
             wolverine.PersistMessagesWithPostgresql(connectionString, OrdersPersistenceOptions.WolverineSchema);
             wolverine.AutoBuildMessageStorageOnStartup = options.AutoCreateMessageStorage ? JasperFx.AutoCreate.CreateOrUpdate : JasperFx.AutoCreate.None;
-            wolverine.PublishMessage<OrderPlaced>().ToLocalQueue(OrderPlacedHandler.LocalQueue).UseDurableInbox();
+            wolverine.UseOrdersRabbitMq(configuration);
+            configureMessaging?.Invoke(wolverine);
         });
 
         return services;
@@ -90,6 +108,12 @@ public static class OrdersMigrator
         var context = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
 
         await context.Database.MigrateAsync();
+
+        if (host.Services.GetRequiredService<IConfiguration>().GetSection(ConfirmationOptions.SectionName).Get<ConfirmationOptions>()?.SeedEnabled == true)
+        {
+            await ConfirmationRuleSeeder.SeedAsync(context, scope.ServiceProvider.GetRequiredService<TimeProvider>(), CancellationToken.None);
+        }
+
         await host.SetupResources();
 
         return 0;

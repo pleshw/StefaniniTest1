@@ -1,6 +1,10 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Orders.Application.Confirmation;
+using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
+using Orders.Application.Events;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
@@ -25,6 +29,35 @@ public static class DependencyInjection
         services.AddScoped<ListOrdersHandler>();
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<GetOrderHistoryHandler>();
+        services.AddScoped<ListDiscountRulesHandler>();
+        services.AddScoped<GetDiscountRuleHandler>();
+        services.AddScoped<CreateDiscountRuleHandler>();
+        services.AddScoped<ReplaceDiscountRuleHandler>();
+        services.AddScoped<DeactivateDiscountRuleHandler>();
+        services.AddScoped<PreviewDiscountRuleHandler>();
+        services.AddScoped<OrderStatusChangeRecorder>();
+        services.AddScoped<ChangeOrderStatusHandler>();
+        services.AddScoped<ListDeadLettersHandler>();
+        services.AddScoped<ListEventsHandler>();
+        services.AddScoped<ReplayDeadLetterHandler>();
+        services.AddScoped<ListConfirmationRulesHandler>();
+        services.AddScoped<GetConfirmationRuleHandler>();
+        services.AddScoped<CreateConfirmationRuleHandler>();
+        services.AddScoped<ReplaceConfirmationRuleHandler>();
+        services.AddScoped<DeactivateConfirmationRuleHandler>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// What the Worker needs to decide placed orders (and nothing that needs Catalog): the confirmation handler, the status
+    /// change recorder and the validators. The API does not add the handler.
+    /// </summary>
+    public static IServiceCollection AddOrderConfirmation(this IServiceCollection services)
+    {
+        services.AddValidatorsFromAssemblyContaining<CartValidator>();
+        services.TryAddScoped<OrderStatusChangeRecorder>();
+        services.AddScoped<EvaluateConfirmationHandler>();
 
         return services;
     }
