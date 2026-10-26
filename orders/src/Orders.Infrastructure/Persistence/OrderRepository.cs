@@ -13,6 +13,10 @@ internal sealed class OrderRepository(OrdersDbContext context) : IOrderRepositor
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task LockClientAsync(Guid clientId, CancellationToken cancellationToken) =>
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({clientId.ToString()}, 0))", cancellationToken);
+
     public async Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var record = await context.Orders

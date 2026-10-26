@@ -46,6 +46,9 @@ public interface IOrderEventPublisher
     Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken);
 }
 
+/// <summary>The client got an order while this one was drafted as its first; thrown inside the transaction, which rolls back.</summary>
+internal sealed class ClientOrderedMeanwhileException : Exception;
+
 public static class OrderNumbers
 {
     private const int _idCharacters = 12;
@@ -61,6 +64,7 @@ public sealed class CreateOrderHandler(
     IIdempotencyStore idempotencyStore,
     OrderDrafter drafter,
     IOrderRepository orders,
+    IOrderQueries queries,
     IOrderDiscountStore discounts,
     IOrderTransaction transaction,
     IOrderEventPublisher events,
@@ -93,17 +97,38 @@ public sealed class CreateOrderHandler(
             return replay.IsSuccess ? Result.Ok(ToReplay(replay.Value!)) : Fail(replay.Error!);
         }
 
-        var draft = await drafter.DraftAsync(
-            command.ClientId, command.ClientName, command.CreatedBy, command.Channel, command.Currency, command.Lines, cancellationToken);
+        var draft = await DraftAsync(command, cancellationToken);
 
-        return draft.IsSuccess
-            ? await PlaceAsync(command, key.Value, draft.Value, cancellationToken)
-            : Fail(draft.Error!);
+        if (!draft.IsSuccess)
+        {
+            return Fail(draft.Error!);
+        }
+
+        try
+        {
+            return await PlaceAsync(command, key.Value, draft.Value, cancellationToken);
+        }
+        catch (ClientOrderedMeanwhileException)
+        {
+            // The first order was granted to a concurrent request. Draft again: the client now has an order, so this
+            // one is priced without the first-order benefit and cannot hit the exception a second time.
+            var redraft = await DraftAsync(command, cancellationToken);
+
+            return redraft.IsSuccess
+                ? await PlaceAsync(command, key.Value, redraft.Value, cancellationToken)
+                : Fail(redraft.Error!);
+        }
     }
+
+    private Task<Result<OrderDraft>> DraftAsync(CreateOrderCommand command, CancellationToken cancellationToken) =>
+        drafter.DraftAsync(
+            command.ClientId, command.ClientName, command.CreatedBy, command.Channel, command.Currency, command.Lines, cancellationToken);
 
     /// <summary>
     /// One transaction for the idempotency row, the order, its discounts and redemptions, and the outbox event. A
-    /// once-per-client rule redeemed meanwhile rolls everything back and answers 409; the key stays unused.
+    /// once-per-client rule redeemed meanwhile rolls everything back and answers 409; the key stays unused. A draft
+    /// priced as the client's first order takes the client's lock first and checks again, so two concurrent orders of a
+    /// new client cannot both get the first-order benefit: the later one throws <see cref="ClientOrderedMeanwhileException"/>.
     /// </summary>
     private async Task<Result<CreateOrderOutcome>> PlaceAsync(
         CreateOrderCommand command, Guid key, OrderDraft draft, CancellationToken cancellationToken)
@@ -118,6 +143,16 @@ public sealed class CreateOrderHandler(
                     if (!await idempotencyStore.TryReserveAsync(command.ClientId, key, command.RequestHash, order.Id, token))
                     {
                         return await ReplayWinnerAsync(command, key, token);
+                    }
+
+                    if (draft.AssumedFirstOrder)
+                    {
+                        await orders.LockClientAsync(command.ClientId, token);
+
+                        if (await queries.ClientHasOrdersAsync(command.ClientId, token))
+                        {
+                            throw new ClientOrderedMeanwhileException();
+                        }
                     }
 
                     await orders.AddAsync(order, token);

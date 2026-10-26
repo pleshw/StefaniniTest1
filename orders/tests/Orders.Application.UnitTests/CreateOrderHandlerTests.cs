@@ -43,6 +43,7 @@ public sealed class CreateOrderHandlerTests
             new OrderDrafter(
                 new PricingService(_catalog, new CartValidator(new CartLineValidator())), _rules, _queries, new DiscountEngine(clock), clock),
             _orders,
+            _queries,
             _discounts,
             _transaction,
             _events,
@@ -281,7 +282,7 @@ public sealed class CreateOrderHandlerTests
     public async Task HandleAsync_FirstOrderOfClientRule_AppliesOnlyWithoutEarlierOrders()
     {
         _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", conditions: """[{ "kind": "FirstOrderOfClient" }]""")]);
-        _queries.ClientHasOrdersAsync(_client, Token).Returns(false, true);
+        _queries.ClientHasOrdersAsync(_client, Token).Returns(false, false, true);
 
         var first = await _handler.HandleAsync(Command(Line("MS-1", 1)), Token);
         var second = await _handler.HandleAsync(Command(Line("MS-1", 1)) with { IdempotencyKey = Guid.NewGuid().ToString() }, Token);
@@ -290,6 +291,63 @@ public sealed class CreateOrderHandlerTests
         using var secondBody = JsonDocument.Parse(second.Value.Body);
         firstBody.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(1m);
         secondBody.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(0m);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_FirstOrderDraft_LocksTheClientAndChecksAgainBeforePlacing()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", conditions: """[{ "kind": "FirstOrderOfClient" }]""")]);
+        _queries.ClientHasOrdersAsync(_client, Token).Returns(false);
+
+        var result = await _handler.HandleAsync(Command(Line("MS-1", 1)), Token);
+
+        using var body = JsonDocument.Parse(result.Value.Body);
+        body.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(1m);
+        await _orders.Received(1).LockClientAsync(_client, Token);
+        await _queries.Received(2).ClientHasOrdersAsync(_client, Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_ClientOrderedWhileDrafting_DraftsAgainWithoutTheFirstOrderDiscount()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", conditions: """[{ "kind": "FirstOrderOfClient" }]""")]);
+        _queries.ClientHasOrdersAsync(_client, Token).Returns(false, true);
+
+        var result = await _handler.HandleAsync(Command(Line("MS-1", 1)), Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        using var body = JsonDocument.Parse(result.Value.Body);
+        body.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(0m);
+        body.RootElement.GetProperty("total").GetDecimal().ShouldBe(10m);
+        await _transaction.Received(2).ExecuteAsync(Arg.Any<Func<CancellationToken, Task<Result<CreateOrderOutcome>>>>(), Token);
+        await _orders.Received(1).AddAsync(Arg.Is<Order>(order => order.DiscountTotal.Amount == 0m), Token);
+        await _discounts.Received(1).AddAsync(Arg.Any<Order>(), Arg.Is<IReadOnlyList<AppliedDiscount>>(applied => applied.Count == 0), Token);
+        await _events.Received(1).PublishAsync(Arg.Any<IDomainEvent>(), Token);
+        await _orders.Received(1).LockClientAsync(_client, Token);
+        await _catalog.Received(2).GetPricesAsync(_brl, Arg.Any<IReadOnlyCollection<string>>(), Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_ClientWithEarlierOrders_TakesNoClientLock()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", conditions: """[{ "kind": "FirstOrderOfClient" }]""")]);
+        _queries.ClientHasOrdersAsync(_client, Token).Returns(true);
+
+        await _handler.HandleAsync(Command(Line("MS-1", 1)), Token);
+
+        await _orders.DidNotReceiveWithAnyArgs().LockClientAsync(default, Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_NoActiveRules_TakesNoClientLock()
+    {
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        await _orders.DidNotReceiveWithAnyArgs().LockClientAsync(default, Token);
     }
 
     [Fact]

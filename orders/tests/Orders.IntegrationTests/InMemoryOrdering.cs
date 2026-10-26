@@ -24,6 +24,9 @@ internal sealed class InMemoryOrderRepository : IOrderRepository
         return Task.CompletedTask;
     }
 
+    // The in-memory fake has no transactions, so there is nothing to serialize; the Postgres tests cover the lock.
+    public Task LockClientAsync(Guid clientId, CancellationToken cancellationToken) => Task.CompletedTask;
+
     public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(_orders.GetValueOrDefault(id));
 

@@ -6,6 +6,12 @@ public interface IOrderRepository
 {
     Task AddAsync(Order order, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Serializes the orders of one client: blocks until no other open transaction holds the client's lock, then holds
+    /// it until the surrounding transaction ends. Call it inside <see cref="IOrderTransaction"/>.
+    /// </summary>
+    Task LockClientAsync(Guid clientId, CancellationToken cancellationToken);
+
     Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>

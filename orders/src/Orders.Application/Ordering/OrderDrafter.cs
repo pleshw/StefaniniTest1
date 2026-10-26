@@ -6,7 +6,8 @@ using Orders.Domain.Discounts;
 namespace Orders.Application.Ordering;
 
 /// <summary>An unsaved order and the discount rules it used.</summary>
-public sealed record OrderDraft(Order Order, IReadOnlyList<AppliedDiscount> Discounts);
+/// <param name="AssumedFirstOrder">The client had no orders when the draft was priced, so first-order rules were applied.</param>
+public sealed record OrderDraft(Order Order, IReadOnlyList<AppliedDiscount> Discounts, bool AssumedFirstOrder = false);
 
 /// <summary>
 /// The one pricing and discount path shared by order creation and quotes: prices the cart with one Catalog call,
@@ -54,10 +55,10 @@ public sealed class OrderDrafter(
                 client,
                 createdBy,
                 channel,
-                priced.Value.Lines.Select(line => line.ToOrderItem(discounts.LineDiscountFor(line.Sku))),
+                priced.Value.Lines.Select(line => line.ToOrderItem(discounts.Outcome.LineDiscountFor(line.Sku))),
                 now);
 
-            return Result.Ok(new OrderDraft(order, discounts.Applied));
+            return Result.Ok(new OrderDraft(order, discounts.Outcome.Applied, discounts.AssumedFirstOrder));
         }
         catch (DomainException exception)
         {
@@ -65,21 +66,24 @@ public sealed class OrderDrafter(
         }
     }
 
-    private async Task<DiscountOutcome> DiscountAsync(PricedCart priced, Guid clientId, OrderChannel channel, CancellationToken cancellationToken)
+    private async Task<Discounted> DiscountAsync(PricedCart priced, Guid clientId, OrderChannel channel, CancellationToken cancellationToken)
     {
         var rules = await discountRules.GetAsync(priced.Currency, cancellationToken);
 
         if (rules.Count == 0)
         {
-            return new DiscountOutcome(Money.Zero(priced.Currency), [], []);
+            return new Discounted(new DiscountOutcome(Money.Zero(priced.Currency), [], []), AssumedFirstOrder: false);
         }
 
         var cart = DiscountCart.Create(
             priced.Currency, priced.Lines.Select(line => new DiscountLine(line.Sku, line.Category, line.UnitPrice, line.Quantity)));
 
         // No segment source exists yet, so ClientSegment conditions never match.
-        var client = new DiscountClient(clientId, _noSegments, channel, IsFirstOrder: !await orders.ClientHasOrdersAsync(clientId, cancellationToken));
+        var isFirstOrder = !await orders.ClientHasOrdersAsync(clientId, cancellationToken);
+        var client = new DiscountClient(clientId, _noSegments, channel, isFirstOrder);
 
-        return engine.Evaluate(rules, cart, client);
+        return new Discounted(engine.Evaluate(rules, cart, client), isFirstOrder);
     }
+
+    private sealed record Discounted(DiscountOutcome Outcome, bool AssumedFirstOrder);
 }
