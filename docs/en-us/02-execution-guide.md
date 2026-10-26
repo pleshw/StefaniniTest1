@@ -4,7 +4,7 @@
 
 ## How to use this guide
 
-Run one step per agent session: paste the prompt, replace `{STEP}`, and let Sonnet 5.5 deliver a branch, a single commit and a PR. The next step starts only after the previous PR is merged and `main` is green.
+Run one step per agent session: paste the prompt, replace `{STEP}`, and let Sonnet 5.5 deliver a branch, a single commit and a PR. The next step starts only after the previous PR is merged and `main` is green. The code blocks in this guide, the agent prompt included, are identical in both documentation trees and stay in English; only the surrounding prose is translated.
 
 ### Agent prompt (copy for every step)
 
@@ -89,7 +89,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C01 `chore: bootstrap repository`**
 
-- Build: `README.md` (purpose, how to run), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (C# and TS style), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` includes `EF1002`), `Directory.Packages.props` (central versions), `.github/pull_request_template.md` (definition of done checklist plus an "AI session" field: model and shared session link), `.github/CODEOWNERS`.
+- Build: `README.md` (pt-BR) and `README-en-us.md` (purpose, how to run), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (C# and TS style), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` includes `EF1002`), `Directory.Packages.props` (central versions), `.github/pull_request_template.md` (definition of done checklist plus an "AI session" field: model and shared session link), `.github/CODEOWNERS`.
 - Tests: none.
 - Verify: `dotnet --version` prints 10.0.x.
 
@@ -131,7 +131,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C08 `ci: add GitHub Actions pipelines and deploy gate`**
 
-- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
+- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; `scripts/check-docs.mjs` (bilingual check used by the `docs` CI job); first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
 - Tests: the pipelines run the existing suites.
 - Verify: the PR shows `ci / gate` and `CodeQL` green; after merge, `cd` builds images, passes `deploy-gate` and deploys staging; a test tag `v0.0.1` stops at the `production` approval.
 
@@ -459,7 +459,7 @@ Ends with every acceptance criterion verified, load targets met, and v1.0.0 depl
 
 **C58 `docs: release v1.0.0`**
 
-- Build: README (run, test, troubleshoot), ADRs in `docs/pt-br/adr/` and `docs/en-us/adr/` (BFF, Wolverine, Mongo replica set, multi-currency, confirmation rules), runbook (DLQ replay, rule changes, rollback), acceptance criteria evidence table linking tests, `05-ai-development.md` evidence tables complete in both languages, short presentation in `docs/pt-br/presentation/` with its English copy in `docs/en-us/presentation/` (architecture, decisions, differentials, demo script). Tag `v1.0.0`.
+- Build: README in both languages (run, test, troubleshoot), ADRs in `docs/pt-br/adr/` and `docs/en-us/adr/` (BFF, Wolverine, Mongo replica set, multi-currency, confirmation rules), runbook (DLQ replay, rule changes, rollback), acceptance criteria evidence table linking tests, `05-ai-development.md` evidence tables complete in both languages, short presentation in `docs/pt-br/presentation/` with its English copy in `docs/en-us/presentation/` (architecture, decisions, differentials, demo script). Tag `v1.0.0`.
 - Tests: none new.
 - Verify: the tag triggers `cd.yml`; staging passes smoke; production waits for the gate approval and deploys.
 
@@ -480,7 +480,7 @@ The same images flow from staging to production; only the tag changes.
 
 | File | Trigger | Purpose | Required for |
 | --- | --- | --- | --- |
-| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, then the `gate` job | Merge (branch protection) and every deploy |
+| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, bilingual documentation sync, then the `gate` job | Merge (branch protection) and every deploy |
 | `codeql.yml` | pull request, push to `main`, weekly | CodeQL for C# and TypeScript | Merge |
 | `cd.yml` | `workflow_run` of `ci` succeeded on `main` or a `v*` tag | `main`: build, attest, scan, deploy staging. Tag: promote images, deploy production | - |
 | `deploy.yml` | `workflow_call` from `cd.yml` | Reusable: `deploy-gate` → `deploy` (environment) → smoke → rollback on failure | - |
@@ -594,9 +594,16 @@ jobs:
       - name: Compose file is valid
         run: cp .env.example .env && docker compose config -q
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bilingual docs are in sync (pt-BR source, en-US mirror)
+        run: node scripts/check-docs.mjs
+
   gate:
     if: always()
-    needs: [dotnet, integration, web, security]
+    needs: [dotnet, integration, web, security, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded

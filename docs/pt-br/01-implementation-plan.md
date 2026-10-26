@@ -30,17 +30,17 @@ As requisições fluem navegador → nginx → BFF → Orders API, e a Orders AP
 
 ```mermaid
 flowchart TB
-    browser["Navegador<br/>páginas Shop + Admin"] -->|mesma origem :8080| nginx["nginx<br/>arquivos estáticos + proxy"]
-    nginx -->|/bff/*| bff["Orders.Bff<br/>composição, auth, SSE"]
-    bff -->|REST| orders["Orders API<br/>CQRS, idempotência"]
-    bff -->|produtos, escritas de admin| catalog["Catalog API<br/>produtos, preços"]
-    orders -->|preços em lote| catalog
-    orders -->|relay do outbox| rabbit["RabbitMQ<br/>orders.events + DLQ"]
-    rabbit -->|eventos| bff
-    rabbit -->|consumo, retentativa| worker["Orders.Worker<br/>máquina de estados de status"]
-    worker -->|grava| pg[("PostgreSQL<br/>orders, outbox, inbox")]
+    browser["Browser<br/>Shop + Admin pages"] -->|same origin :8080| nginx["nginx<br/>static files + proxy"]
+    nginx -->|/bff/*| bff["Orders.Bff<br/>compose, auth, SSE"]
+    bff -->|REST| orders["Orders API<br/>CQRS, idempotency"]
+    bff -->|products, admin writes| catalog["Catalog API<br/>products, prices"]
+    orders -->|batch prices| catalog
+    orders -->|outbox relay| rabbit["RabbitMQ<br/>orders.events + DLQ"]
+    rabbit -->|events| bff
+    rabbit -->|consume, retry| worker["Orders.Worker<br/>status state machine"]
+    worker -->|writes| pg[("PostgreSQL<br/>orders, outbox, inbox")]
     orders -->|EF Core| pg
-    catalog -->|driver C#| mongo[("MongoDB<br/>products, history")]
+    catalog -->|C# driver| mongo[("MongoDB<br/>products, history")]
 ```
 
 Apenas o nginx é exposto no host; o BFF é a única entrada para o navegador, e o RabbitMQ alimenta tanto o Worker quanto a visão ao vivo do Admin.
@@ -93,28 +93,28 @@ Um único repositório Git contém duas solutions .NET (`.slnx`) e um pacote de 
 
 ```text
 /
-├─ global.json                     # fixa o SDK do .NET 10
-├─ Directory.Build.props           # nullable, warnings como erros, analyzers (EF1002 = erro)
-├─ Directory.Packages.props        # versões centralizadas de pacotes
+├─ global.json                     # pins .NET 10 SDK
+├─ Directory.Build.props           # nullable, warnings as errors, analyzers (EF1002 = error)
+├─ Directory.Packages.props        # central package versions
 ├─ .gitattributes                  # *.sh text eol=lf
 ├─ docker-compose.yml  .env.example
 ├─ deploy/nginx/  deploy/otel/  deploy/mongo/  deploy/rabbitmq/
 ├─ orders/Orders.slnx
-│  ├─ src/Orders.Domain             # agregados, value objects, estratégias de desconto, sem dependências exceto FluentValidation
+│  ├─ src/Orders.Domain             # aggregates, value objects, discount strategies, no dependencies but FluentValidation
 │  ├─ src/Orders.Application        # commands, queries, handlers, ports (ICatalogClient, IClock...)
-│  ├─ src/Orders.Infrastructure     # EF Core, migrations, client do Catalog, outbox/inbox, RabbitMQ
-│  ├─ src/Orders.Api                # endpoints Minimal API, ProblemDetails, auth
-│  ├─ src/Orders.Worker             # consumers do RabbitMQ, máquina de estados de status
-│  ├─ src/Orders.Bff                # host do BFF: YARP, composição, SSE, auth por cookie
-│  ├─ src/Orders.ServiceDefaults    # OTel, health checks e configuração de resiliência compartilhados
+│  ├─ src/Orders.Infrastructure     # EF Core, migrations, Catalog client, outbox/inbox, RabbitMQ
+│  ├─ src/Orders.Api                # Minimal API endpoints, ProblemDetails, auth
+│  ├─ src/Orders.Worker             # RabbitMQ consumers, status state machine
+│  ├─ src/Orders.Bff                # BFF host: YARP, composition, SSE, cookie auth
+│  ├─ src/Orders.ServiceDefaults    # shared OTel, health checks, resilience setup
 │  └─ tests/ Domain.UnitTests  Application.UnitTests  Bff.UnitTests  IntegrationTests  ArchitectureTests
 ├─ catalog/Catalog.slnx
 │  ├─ src/Catalog.Domain  Catalog.Application  Catalog.Infrastructure  Catalog.Api
 │  └─ tests/ Domain.UnitTests  Application.UnitTests  IntegrationTests  ArchitectureTests
 └─ web/
-   ├─ src/shared/  (client de API, models, idempotência, helpers de a11y)
+   ├─ src/shared/  (api client, models, idempotency, a11y helpers)
    ├─ src/shop/    (domain + ui)
-   ├─ src/admin/   (domain + ui, feed SSE)
+   ├─ src/admin/   (domain + ui, SSE feed)
    └─ tests/
 ```
 
@@ -188,20 +188,20 @@ A idempotência é garantida em quatro camadas: o navegador reutiliza uma chave 
 ```sql
 CREATE TABLE orders (
     id              uuid          PRIMARY KEY,
-    number          text          NOT NULL UNIQUE,          -- legível por humanos, ex.: ORD-2026-000123
+    number          text          NOT NULL UNIQUE,          -- human-readable, e.g. ORD-2026-000123
     client_id       uuid          NOT NULL,
     client_name     text          NOT NULL,                 -- snapshot
-    created_by      text          NOT NULL,                 -- id do comprador ou id do admin
+    created_by      text          NOT NULL,                 -- shopper id or admin id
     channel         text          NOT NULL,                 -- shop | admin
     status          text          NOT NULL,                 -- Pending | OnHold | Confirmed | Blocked | Cancelled | Failed
-    item_count      int           NOT NULL CHECK (item_count > 0),   -- AC2 "amount" = quantidade
+    item_count      int           NOT NULL CHECK (item_count > 0),   -- AC2 "amount" = quantity
     currency        char(3)       NOT NULL,
     subtotal        numeric(19,4) NOT NULL,
     discount_total  numeric(19,4) NOT NULL DEFAULT 0,
     total           numeric(19,4) NOT NULL,
     created_at      timestamptz   NOT NULL,
     updated_at      timestamptz   NOT NULL,
-    row_version     int           NOT NULL DEFAULT 0,       -- concorrência otimista
+    row_version     int           NOT NULL DEFAULT 0,       -- optimistic concurrency
     search_vector   tsvector GENERATED ALWAYS AS
         (to_tsvector('simple', number || ' ' || client_name)) STORED
 );
@@ -215,7 +215,7 @@ CREATE TABLE order_items (
     line_no         int           NOT NULL,
     sku             text          NOT NULL,
     product_name    text          NOT NULL,                 -- snapshot
-    unit_price      numeric(19,4) NOT NULL,                 -- snapshot do Catalog
+    unit_price      numeric(19,4) NOT NULL,                 -- snapshot from Catalog
     catalog_version int           NOT NULL,
     quantity        int           NOT NULL CHECK (quantity > 0),
     line_discount   numeric(19,4) NOT NULL DEFAULT 0,
@@ -223,13 +223,13 @@ CREATE TABLE order_items (
     PRIMARY KEY (order_id, line_no)
 );
 
-CREATE TABLE order_status_history (                       -- auditoria
+CREATE TABLE order_status_history (                       -- audit
     order_id    uuid        NOT NULL REFERENCES orders (id),
     seq         int         NOT NULL,
     from_status text,
     to_status   text        NOT NULL,
     reason      text,
-    actor       text        NOT NULL,                     -- id do usuário ou 'system:worker'
+    actor       text        NOT NULL,                     -- user id or 'system:worker'
     trace_id    text,
     changed_at  timestamptz NOT NULL,
     PRIMARY KEY (order_id, seq)
@@ -240,8 +240,8 @@ CREATE TABLE discount_rules (
     version         int         NOT NULL,
     name            text        NOT NULL,
     type            text        NOT NULL,                 -- Percentage | FixedAmount | BuyXGetY | Tiered
-    parameters      jsonb       NOT NULL,                 -- validado por tipo
-    conditions      jsonb       NOT NULL DEFAULT '[]',    -- subtotal mínimo, SKUs, categorias, segmento de cliente
+    parameters      jsonb       NOT NULL,                 -- validated per type
+    conditions      jsonb       NOT NULL DEFAULT '[]',    -- min subtotal, SKUs, categories, client segment
     priority        int         NOT NULL,
     stackable       boolean     NOT NULL DEFAULT false,
     once_per_client boolean     NOT NULL DEFAULT false,
@@ -250,7 +250,7 @@ CREATE TABLE discount_rules (
     is_active       boolean     NOT NULL DEFAULT true,
     created_by      text        NOT NULL,
     created_at      timestamptz NOT NULL,
-    PRIMARY KEY (id, version)                             -- cada edição = nova versão, histórico mantido
+    PRIMARY KEY (id, version)                             -- each edit = new version, history kept
 );
 
 CREATE TABLE order_discounts (
@@ -316,7 +316,7 @@ db.products.createIndex({ sku: 1 }, { unique: true });
 db.products.createIndex({ category: 1, name: 1 });
 db.products.createIndex({ name: "text", description: "text" });
 
-// price_history (auditoria): { sku, oldPrice, newPrice, currency, version, changedBy, changedAt, traceId }
+// price_history (audit): { sku, oldPrice, newPrice, currency, version, changedBy, changedAt, traceId }
 db.price_history.createIndex({ sku: 1, changedAt: -1 });
 
 // idempotency_requests: { scope, key, requestHash, responseStatus, responseBody, resourceId, createdAt, expiresAt }
@@ -378,7 +378,7 @@ CREATE TABLE confirmation_rules (
     version     int         NOT NULL,
     name        text        NOT NULL,
     action      text        NOT NULL CHECK (action IN ('Hold')),
-    conditions  jsonb       NOT NULL,          -- ex.: TotalAbove {amount, currency}, FirstOrderOfClient, ChannelIs
+    conditions  jsonb       NOT NULL,          -- e.g. TotalAbove {amount, currency}, FirstOrderOfClient, ChannelIs
     priority    int         NOT NULL,
     is_active   boolean     NOT NULL DEFAULT true,
     created_by  text        NOT NULL,
@@ -466,7 +466,7 @@ Mantendo os testes enxutos: um comportamento por teste, builders para dados de t
 **Pipeline de Git e CI** (GitHub Actions ou equivalente)
 
 1. Trunk-based: uma etapa do Guia de execução por branch curta e PR para a `main`, Conventional Commits, squash merge, review obrigatório.
-2. `ci.yml` em todo PR: format, build com warnings como erros, testes unitários + de arquitetura com gates de cobertura, testes de integração com Testcontainers, lint + Vitest do front-end, scans de dependências e de segredos e, por fim, o job obrigatório `gate`.
+2. `ci.yml` em todo PR: format, build com warnings como erros, testes unitários + de arquitetura com gates de cobertura, testes de integração com Testcontainers, lint + Vitest do front-end, scans de dependências e de segredos, verificação de que as duas árvores de documentação estão em sincronia (`scripts/check-docs.mjs`) e, por fim, o job obrigatório `gate`.
 3. `cd.yml` depois que o `ci` passa na `main`: build das imagens uma única vez, atestação de proveniência, scan com Trivy, aprovação no `deploy-gate`, deploy em staging, smoke test, rollback em caso de falha.
 4. Tag de release `v*.*.*`: promover as mesmas imagens, passar pelo `deploy-gate` mais a aprovação de produção, fazer deploy em produção, smoke test.
 5. Banco de dados: bundle de migrations do EF Core executado pelo serviço `orders-migrator` antes de o `orders-api` iniciar; as migrations continuam retrocompatíveis (expand, depois contract).

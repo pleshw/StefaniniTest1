@@ -4,32 +4,32 @@
 
 ## Como usar este guia
 
-Execute uma etapa por sessão de agente: cole o prompt, substitua `{STEP}` e deixe o Sonnet 5.5 entregar uma branch, um único commit e um PR. A próxima etapa só começa depois que o PR anterior tiver sido mergeado e a `main` estiver verde.
+Execute uma etapa por sessão de agente: cole o prompt, substitua `{STEP}` e deixe o Sonnet 5.5 entregar uma branch, um único commit e um PR. A próxima etapa só começa depois que o PR anterior tiver sido mergeado e a `main` estiver verde. Os blocos de código deste guia, o prompt do agente inclusive, são idênticos nas duas árvores de documentação e ficam em inglês; apenas o texto ao redor é traduzido.
 
 ### Prompt do agente (copie para cada etapa)
 
 ```text
-Você está implementando a etapa {STEP} da Plataforma de Pedidos e Catálogo.
+You are implementing step {STEP} of the Orders & Catalog Platform.
 
-Leia antes de programar (docs/pt-br/ é a fonte da verdade; docs/en-us/ é o espelho em inglês, com os mesmos nomes de arquivo):
-- docs/pt-br/01-implementation-plan.md: Arquitetura, Superfície da API, Modelo de dados e idempotência, Motor de regras de desconto, Front-end.
-- docs/pt-br/02-execution-guide.md: as regras abaixo (incluindo "Regras de design para todas as etapas") e a etapa {STEP}.
-- docs/pt-br/03-code-review-guide.md: critérios de aceite e bloqueios.
+Read before coding (docs/pt-br/ is the source of truth; docs/en-us/ is its English mirror with the same file names):
+- docs/pt-br/01-implementation-plan.md: Architecture, API surface, Data model and idempotency, Discount rules engine, Front-end.
+- docs/pt-br/02-execution-guide.md: the rules below (including "Design rules for every step") and step {STEP}.
+- docs/pt-br/03-code-review-guide.md: acceptance criteria and blockers.
 
-Faça exatamente isto:
-1. git switch main && git pull, depois git switch -c step/{STEP}-<short-slug>.
-2. Implemente apenas o que a etapa {STEP} lista. Nenhuma funcionalidade extra, nenhuma refatoração fora do escopo.
-3. Escreva primeiro os testes listados na etapa, veja-os falhar e então implemente até que passem.
-4. Rode os comandos de Verificar da etapa e também: dotnet build -warnaserror, dotnet test e npm test quando web/ mudar.
-5. Crie UM commit com a mensagem de commit da etapa como assunto e um corpo listando o que mudou e como verificar.
-6. Faça push e abra um PR com o template de PR do repositório preenchido, incluindo o campo "AI session".
-7. No mesmo commit, adicione uma linha para a etapa {STEP} à tabela "Sessões de implementação" em docs/pt-br/05-ai-development.md
-   e a mesma linha, em inglês, em docs/en-us/05-ai-development.md (modelo, placeholder do PR, notas sobre as decisões que
-   você perguntou); a pessoa revisora adiciona o link da sessão antes do merge.
-8. Toda mudança de documentação é escrita primeiro em docs/pt-br/ e espelhada em docs/en-us/ no mesmo commit.
+Do exactly this:
+1. git switch main && git pull, then git switch -c step/{STEP}-<short-slug>.
+2. Implement only what step {STEP} lists. No extra features, no refactors outside its scope.
+3. Write the tests listed in the step first, see them fail, then implement until they pass.
+4. Run the step's Verify commands plus: dotnet build -warnaserror, dotnet test, and npm test when web/ changed.
+5. Create ONE commit with the step's commit message as the subject and a body listing what changed and how to verify.
+6. Push and open a PR with the repository PR template filled in, including the "AI session" field.
+7. In the same commit, add a row for step {STEP} to the "Implementation sessions" table in docs/pt-br/05-ai-development.md
+   and the same row, in English, in docs/en-us/05-ai-development.md (model, PR placeholder, notes on decisions you
+   asked about); the human adds the session link before merging.
+8. Every documentation change is written in docs/pt-br/ first and mirrored in docs/en-us/ in the same commit.
 
-Pare e pergunte em vez de adivinhar quando: a etapa contradiz o plano, um teste só passa alterando uma etapa anterior,
-parece necessário um pacote fora da tabela de stack tecnológica, ou uma decisão não está escrita nos documentos.
+Stop and ask instead of guessing when: the step contradicts the plan, a test can only pass by changing an earlier step,
+a package outside the tech stack table seems needed, or a decision is not written in the docs.
 ```
 
 ### Regras para todas as etapas
@@ -89,7 +89,7 @@ Termina com um repositório vazio, mas totalmente conectado: duas solutions, pad
 
 **C01 `chore: bootstrap repository`**
 
-- Construir: `README.md` (propósito, como executar), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (estilo de C# e TS), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` inclui `EF1002`), `Directory.Packages.props` (versões centralizadas), `.github/pull_request_template.md` (checklist da definição de pronto mais um campo "AI session": modelo e link compartilhado da sessão), `.github/CODEOWNERS`.
+- Construir: `README.md` (pt-BR) e `README-en-us.md` (propósito, como executar), `.gitignore` (dotnet + node), `.gitattributes` (`* text=auto`, `*.sh text eol=lf`), `.editorconfig` (estilo de C# e TS), `global.json` (SDK 10.0.x, `rollForward: latestFeature`), `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `WarningsAsErrors` inclui `EF1002`), `Directory.Packages.props` (versões centralizadas), `.github/pull_request_template.md` (checklist da definição de pronto mais um campo "AI session": modelo e link compartilhado da sessão), `.github/CODEOWNERS`.
 - Testes: nenhum.
 - Verificar: `dotnet --version` imprime 10.0.x.
 
@@ -131,7 +131,7 @@ Termina com um repositório vazio, mas totalmente conectado: duas solutions, pad
 
 **C08 `ci: add GitHub Actions pipelines and deploy gate`**
 
-- Construir: `.github/workflows/ci.yml` (incluindo o job `integration`), `codeql.yml`, `cd.yml`, `deploy.yml` e `.github/dependabot.yml` exatamente como na seção de CI/CD deste guia; `.config/dotnet-tools.json` com `dotnet-ef`; primeira versão de `scripts/deploy.sh` e de `deploy/compose.staging.yml` / `deploy/compose.production.yml` referenciando as imagens por tag. Aplique as configurações do repositório listadas naquela seção (proteção de branch, environments, permissões do Actions, proteção de tags).
+- Construir: `.github/workflows/ci.yml` (incluindo o job `integration`), `codeql.yml`, `cd.yml`, `deploy.yml` e `.github/dependabot.yml` exatamente como na seção de CI/CD deste guia; `.config/dotnet-tools.json` com `dotnet-ef`; `scripts/check-docs.mjs` (verificação bilíngue usada pelo job `docs` do CI); primeira versão de `scripts/deploy.sh` e de `deploy/compose.staging.yml` / `deploy/compose.production.yml` referenciando as imagens por tag. Aplique as configurações do repositório listadas naquela seção (proteção de branch, environments, permissões do Actions, proteção de tags).
 - Testes: os pipelines executam as suítes existentes.
 - Verificar: o PR mostra `ci / gate` e `CodeQL` verdes; após o merge, o `cd` constrói as imagens, passa pelo `deploy-gate` e faz o deploy em staging; uma tag de teste `v0.0.1` para na aprovação de `production`.
 
@@ -459,7 +459,7 @@ Termina com todos os critérios de aceite verificados, as metas de carga atingid
 
 **C58 `docs: release v1.0.0`**
 
-- Construir: README (executar, testar, solucionar problemas), ADRs em `docs/pt-br/adr/` e `docs/en-us/adr/` (BFF, Wolverine, replica set do Mongo, múltiplas moedas, regras de confirmação), runbook (replay da DLQ, mudanças de regras, rollback), tabela de evidências dos critérios de aceite com links para os testes, tabelas de evidências do `05-ai-development.md` completas nos dois idiomas, apresentação curta em `docs/pt-br/presentation/` com a cópia em inglês em `docs/en-us/presentation/` (arquitetura, decisões, diferenciais, roteiro de demonstração). Tag `v1.0.0`.
+- Construir: README nos dois idiomas (executar, testar, solucionar problemas), ADRs em `docs/pt-br/adr/` e `docs/en-us/adr/` (BFF, Wolverine, replica set do Mongo, múltiplas moedas, regras de confirmação), runbook (replay da DLQ, mudanças de regras, rollback), tabela de evidências dos critérios de aceite com links para os testes, tabelas de evidências do `05-ai-development.md` completas nos dois idiomas, apresentação curta em `docs/pt-br/presentation/` com a cópia em inglês em `docs/en-us/presentation/` (arquitetura, decisões, diferenciais, roteiro de demonstração). Tag `v1.0.0`.
 - Testes: nenhum novo.
 - Verificar: a tag dispara o `cd.yml`; staging passa no smoke; produção aguarda a aprovação do gate e faz o deploy.
 
@@ -480,7 +480,7 @@ As mesmas imagens seguem de staging para produção; só a tag muda.
 
 | Arquivo | Gatilho | Finalidade | Obrigatório para |
 | --- | --- | --- | --- |
-| `ci.yml` | pull request, push na `main`, tags `v*.*.*` | Build, formatação, testes unitários + de arquitetura com cobertura, testes de integração, front-end, scans de segurança e, por fim, o job `gate` | Merge (proteção de branch) e todo deploy |
+| `ci.yml` | pull request, push na `main`, tags `v*.*.*` | Build, formatação, testes unitários + de arquitetura com cobertura, testes de integração, front-end, scans de segurança, sincronia da documentação bilíngue e, por fim, o job `gate` | Merge (proteção de branch) e todo deploy |
 | `codeql.yml` | pull request, push na `main`, semanal | CodeQL para C# e TypeScript | Merge |
 | `cd.yml` | `workflow_run` do `ci` concluído com sucesso na `main` ou em uma tag `v*` | `main`: build, attest, scan, deploy em staging. Tag: promove as imagens, deploy em produção | - |
 | `deploy.yml` | `workflow_call` a partir do `cd.yml` | Reutilizável: `deploy-gate` → `deploy` (environment) → smoke → rollback em caso de falha | - |
@@ -594,9 +594,16 @@ jobs:
       - name: Compose file is valid
         run: cp .env.example .env && docker compose config -q
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bilingual docs are in sync (pt-BR source, en-US mirror)
+        run: node scripts/check-docs.mjs
+
   gate:
     if: always()
-    needs: [dotnet, integration, web, security]
+    needs: [dotnet, integration, web, security, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded
