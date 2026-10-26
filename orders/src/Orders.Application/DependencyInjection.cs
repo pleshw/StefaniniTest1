@@ -1,8 +1,10 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
+using Orders.Domain.Discounts;
 
 namespace Orders.Application;
 
@@ -14,6 +16,9 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<CartValidator>();
         services.AddScoped<PricingService>();
         services.AddScoped<IdempotencyService>();
+        services.AddSingleton(provider => new DiscountEngine(
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetService<DiscountOptions>()?.MaxDiscountPercent ?? DiscountEngine.DefaultMaxDiscountPercent));
         services.AddScoped<OrderDrafter>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<QuoteOrderHandler>();

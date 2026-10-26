@@ -1,9 +1,12 @@
 using System.Text.Json;
+using NSubstitute.ExceptionExtensions;
 using Orders.Application.Catalog;
+using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
 using Orders.Domain;
+using Orders.Domain.Discounts;
 
 namespace Orders.Application.UnitTests;
 
@@ -20,6 +23,9 @@ public sealed class CreateOrderHandlerTests
     private readonly IOrderRepository _orders = Substitute.For<IOrderRepository>();
     private readonly IOrderEventPublisher _events = Substitute.For<IOrderEventPublisher>();
     private readonly IOrderTransaction _transaction = Substitute.For<IOrderTransaction>();
+    private readonly IActiveDiscountRules _rules = Substitute.For<IActiveDiscountRules>();
+    private readonly IOrderQueries _queries = Substitute.For<IOrderQueries>();
+    private readonly IOrderDiscountStore _discounts = Substitute.For<IOrderDiscountStore>();
     private readonly CreateOrderHandler _handler;
 
     public CreateOrderHandlerTests()
@@ -29,11 +35,15 @@ public sealed class CreateOrderHandlerTests
             .Returns(call => call.Arg<Func<CancellationToken, Task<Result<CreateOrderOutcome>>>>()(Token));
         _catalog.GetPricesAsync(_brl, Arg.Any<IReadOnlyCollection<string>>(), Token).Returns(Result.Ok(new CatalogPrices(
             [Price("KB-1", 19.99m, 3), Price("MS-1", 10m, 1)], [])));
+        _rules.GetAsync(_brl, Token).Returns([]);
+        var clock = new FixedTimeProvider(_now);
         _handler = new CreateOrderHandler(
             new IdempotencyService(_store),
             _store,
-            new OrderDrafter(new PricingService(_catalog, new CartValidator(new CartLineValidator())), new FixedTimeProvider(_now)),
+            new OrderDrafter(
+                new PricingService(_catalog, new CartValidator(new CartLineValidator())), _rules, _queries, new DiscountEngine(clock), clock),
             _orders,
+            _discounts,
             _transaction,
             _events,
             new CreateOrderCommandValidator());
@@ -235,6 +245,84 @@ public sealed class CreateOrderHandlerTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task HandleAsync_ActiveRuleApplies_PlacesTheDiscountedOrderAndStoresTheDiscount()
+    {
+        var rule = Rule("""{ "percent": 10, "appliesTo": "order" }""", oncePerClient: true);
+        _rules.GetAsync(_brl, Token).Returns([rule]);
+
+        var result = await _handler.HandleAsync(Command(Line("KB-1", 2), Line("MS-1", 1)), Token);
+
+        using var body = JsonDocument.Parse(result.Value.Body);
+        body.RootElement.GetProperty("subtotal").GetDecimal().ShouldBe(49.98m);
+        body.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(5.00m);
+        body.RootElement.GetProperty("total").GetDecimal().ShouldBe(44.98m);
+        await _orders.Received(1).AddAsync(Arg.Is<Order>(order => order.DiscountTotal.Amount == 5.00m && order.Total.Amount == 44.98m), Token);
+        await _discounts.Received(1).AddAsync(
+            Arg.Is<Order>(order => order.Id == result.Value.OrderId),
+            Arg.Is<IReadOnlyList<AppliedDiscount>>(applied => applied.Count == 1 && applied[0].RuleId == rule.Id
+                && applied[0].RuleVersion == 3 && applied[0].Amount.Amount == 5.00m && applied[0].OncePerClient),
+            Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_NoActiveRules_StoresNoDiscountAndKeepsFullPrices()
+    {
+        var result = await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        using var body = JsonDocument.Parse(result.Value.Body);
+        body.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(0m);
+        await _discounts.Received(1).AddAsync(Arg.Any<Order>(), Arg.Is<IReadOnlyList<AppliedDiscount>>(applied => applied.Count == 0), Token);
+        await _queries.DidNotReceiveWithAnyArgs().ClientHasOrdersAsync(default, Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_FirstOrderOfClientRule_AppliesOnlyWithoutEarlierOrders()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", conditions: """[{ "kind": "FirstOrderOfClient" }]""")]);
+        _queries.ClientHasOrdersAsync(_client, Token).Returns(false, true);
+
+        var first = await _handler.HandleAsync(Command(Line("MS-1", 1)), Token);
+        var second = await _handler.HandleAsync(Command(Line("MS-1", 1)) with { IdempotencyKey = Guid.NewGuid().ToString() }, Token);
+
+        using var firstBody = JsonDocument.Parse(first.Value.Body);
+        using var secondBody = JsonDocument.Parse(second.Value.Body);
+        firstBody.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(1m);
+        secondBody.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(0m);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_OncePerClientDiscountAlreadyRedeemed_ReturnsDiscountAlreadyUsedAndPublishesNothing()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", oncePerClient: true)]);
+        _discounts.AddAsync(default!, default!, Token)
+            .ThrowsAsyncForAnyArgs(new DiscountAlreadyUsedException("used", new InvalidOperationException()));
+
+        var result = await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        result.Error!.Kind.ShouldBe(ErrorKind.DiscountAlreadyUsed);
+        await _events.DidNotReceiveWithAnyArgs().PublishAsync(default!, Token);
+        await _store.DidNotReceiveWithAnyArgs().CompleteAsync(default, default, default, default!, Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_ReplayOfADiscountedOrder_NeverRecalculates()
+    {
+        _store.TryGetAsync(_client, Guid.Parse(_key), Token)
+            .Returns(new IdempotencyRecord(_client, Guid.Parse(_key), _hash, 201, """{"total":44.98}""", Guid.NewGuid()));
+
+        var result = await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        result.Value.Body.ShouldBe("""{"total":44.98}""");
+        await _rules.DidNotReceiveWithAnyArgs().GetAsync(default!, Token);
+        await _discounts.DidNotReceiveWithAnyArgs().AddAsync(default!, default!, Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void OrderNumbers_For_UsesTheYearAndTwelveHexCharactersOfTheId()
     {
         var number = OrderNumbers.For(Guid.Parse("3f9a1c2b-7d40-4e8a-b1c2-9d8e7f6a5b4c"), _now);
@@ -246,6 +334,9 @@ public sealed class CreateOrderHandlerTests
         _client, "Ana", "shopper-1", OrderChannel.Shop, _key, "BRL", lines.Length == 0 ? [Line("KB-1", 1)] : lines, _hash);
 
     private static CartLine Line(string sku, int quantity) => new(sku, quantity);
+
+    private static DiscountRule Rule(string parameters, bool oncePerClient = false, string conditions = "[]") =>
+        DiscountRule.Create(Guid.NewGuid(), 3, "rule", DiscountType.Percentage, parameters, conditions, 1, false, oncePerClient, _now.AddDays(-1), null, true);
 
     private static CatalogPrice Price(string sku, decimal amount, int version) =>
         new(sku, $"Name {sku}", "peripherals", Money.Create(amount, _brl), version, true);

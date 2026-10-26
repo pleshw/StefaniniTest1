@@ -75,6 +75,9 @@ public interface IOrderQueries
 
     /// <param name="ownerId">When set, an order of another client is reported as missing.</param>
     Task<IReadOnlyList<OrderStatusChangeDto>?> GetHistoryAsync(Guid id, Guid? ownerId, CancellationToken cancellationToken);
+
+    /// <summary>Whether the client placed any order before; feeds the <c>FirstOrderOfClient</c> condition.</summary>
+    Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken);
 }
 
 /// <param name="ViewerClientId">The signed-in shopper, who only sees their own orders; null for an admin.</param>

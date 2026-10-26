@@ -7,6 +7,9 @@ public enum ErrorKind
     CatalogUnavailable,
     NotFound,
     Forbidden,
+
+    /// <summary>A once-per-client discount was already redeemed by the client (HTTP 409 discount-already-used).</summary>
+    DiscountAlreadyUsed,
 }
 
 public sealed record ResultError(ErrorKind Kind, string Message);

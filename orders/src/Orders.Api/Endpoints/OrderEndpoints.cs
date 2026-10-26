@@ -13,6 +13,9 @@ namespace Orders.Api.Endpoints;
 
 internal static class OrderEndpoints
 {
+    /// <summary>The ProblemDetails type of a 409 for a once-per-client discount already redeemed.</summary>
+    public const string DiscountAlreadyUsedType = "discount-already-used";
+
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
     public static IEndpointRouteBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
@@ -23,7 +26,7 @@ internal static class OrderEndpoints
 
         orders.MapPost("/", CreateOrder)
             .WithName("CreateOrder")
-            .WithSummary("Place an order for the signed-in shopper. Idempotency-Key (UUID) is required: 400 without it, 422 when it was used with another body, replay of the first response when it was used with the same body.");
+            .WithSummary("Place an order for the signed-in shopper. Idempotency-Key (UUID) is required: 400 without it, 422 when it was used with another body, replay of the first response when it was used with the same body. Active discount rules apply; 409 discount-already-used when a once-per-client discount was redeemed meanwhile.");
 
         orders.MapPost("/quote", QuoteOrder)
             .WithName("QuoteOrder")
@@ -179,6 +182,8 @@ internal static class OrderEndpoints
         ErrorKind.CatalogUnavailable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Catalog unavailable"),
         ErrorKind.NotFound => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status404NotFound, title: "Not found"),
         ErrorKind.Forbidden => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden"),
+        ErrorKind.DiscountAlreadyUsed => TypedResults.Problem(
+            detail: error.Message, statusCode: StatusCodes.Status409Conflict, title: "Discount already used", type: DiscountAlreadyUsedType),
         _ => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status400BadRequest, title: "Invalid request"),
     };
 }

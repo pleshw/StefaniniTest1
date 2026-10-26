@@ -58,6 +58,7 @@ public static class OrdersPersistenceExtensions
         services.AddMemoryCache();
         services.AddSingleton(configuration.GetSection(DiscountOptions.SectionName).Get<DiscountOptions>() ?? new DiscountOptions());
         services.AddScoped<IActiveDiscountRules, CachedActiveDiscountRules>();
+        services.AddScoped<IOrderDiscountStore, OrderDiscountStore>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IOrderTransaction, OrdersTransaction>();

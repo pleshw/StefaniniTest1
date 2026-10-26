@@ -40,17 +40,6 @@ internal static class DiscountRuleMapper
         record.IsActive);
 }
 
-public sealed record DiscountOptions
-{
-    public const string SectionName = "Orders:Discounts";
-
-    /// <summary>How long the active rules stay cached; admin writes invalidate them sooner.</summary>
-    public TimeSpan CacheDuration { get; init; } = TimeSpan.FromSeconds(60);
-
-    /// <summary>The most the engine takes off an order, as a percentage of its subtotal.</summary>
-    public decimal MaxDiscountPercent { get; init; } = DiscountEngine.DefaultMaxDiscountPercent;
-}
-
 /// <summary>
 /// Every active rule under one cache entry, <see cref="IActiveDiscountRules.CacheKey"/>; filtered by currency per call.
 /// The cache is per instance: another instance sees an admin change when its own entry expires.
