@@ -7,6 +7,9 @@
     <Project Path="src/Orders.Infrastructure/Orders.Infrastructure.csproj" />
     <Project Path="src/Orders.Worker/Orders.Worker.csproj" />
   </Folder>
+  <Folder Name="/shared/">
+    <Project Path="../shared/ServiceDefaults/ServiceDefaults.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Orders.Application.UnitTests/Orders.Application.UnitTests.csproj" />
     <Project Path="tests/Orders.ArchitectureTests/Orders.ArchitectureTests.csproj" />
