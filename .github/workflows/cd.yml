@@ -87,6 +87,7 @@ jobs:
       contents: read
       packages: read
       attestations: read
+      checks: read
       deployments: read
     uses: ./.github/workflows/deploy.yml
     with: { environment: staging, sha: '${{ needs.context.outputs.sha }}', repo: '${{ needs.context.outputs.repo }}' }
@@ -119,6 +120,7 @@ jobs:
       contents: read
       packages: read
       attestations: read
+      checks: read
       deployments: read
     uses: ./.github/workflows/deploy.yml
     with: { environment: production, sha: '${{ needs.context.outputs.sha }}', repo: '${{ needs.context.outputs.repo }}' }
