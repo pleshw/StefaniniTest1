@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
 using Wolverine;
 using Wolverine.Postgresql;
@@ -43,6 +44,8 @@ public static class OrdersPersistenceExtensions
 
         services.AddDbContext<OrdersDbContext>(builder => builder.UseNpgsql(connectionString));
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IIdempotencyStore, IdempotencyStore>();
+        services.AddSingleton(TimeProvider.System);
         services.AddWolverine(wolverine =>
         {
             wolverine.PersistMessagesWithPostgresql(connectionString, OrdersPersistenceOptions.WolverineSchema);
