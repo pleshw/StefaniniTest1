@@ -30,6 +30,8 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
 
     internal InMemoryOrderDiscountStore Discounts { get; } = new();
 
+    internal InMemoryOrderEventLog EventLog { get; } = new();
+
     internal InMemoryDiscountRuleRepository DiscountRuleStore { get; } = new();
 
     /// <summary>
@@ -49,6 +51,7 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IOrderQueries>(new InMemoryOrderQueries(Orders));
             services.AddSingleton<IIdempotencyStore>(Idempotency);
             services.AddSingleton<IOrderEventPublisher>(Events);
+            services.AddSingleton<IOrderEventLog>(EventLog);
             services.AddSingleton<IDiscountRuleRepository>(DiscountRuleStore);
 
             if (CachedDiscountRules)

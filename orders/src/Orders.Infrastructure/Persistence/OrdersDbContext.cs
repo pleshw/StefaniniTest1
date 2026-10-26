@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Orders.Domain;
+using Orders.Domain.Confirmation;
 
 namespace Orders.Infrastructure.Persistence;
 
@@ -20,6 +21,10 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
 
     public DbSet<DiscountRedemptionRecord> DiscountRedemptions => Set<DiscountRedemptionRecord>();
 
+    public DbSet<ConfirmationRuleRecord> ConfirmationRules => Set<ConfirmationRuleRecord>();
+
+    public DbSet<OrderEventLogRecord> OrderEventLog => Set<OrderEventLogRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("pg_trgm");
@@ -31,6 +36,8 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
         ConfigureDiscountRules(modelBuilder.Entity<DiscountRuleRecord>());
         ConfigureOrderDiscounts(modelBuilder.Entity<OrderDiscountRecord>());
         ConfigureRedemptions(modelBuilder.Entity<DiscountRedemptionRecord>());
+        ConfigureConfirmationRules(modelBuilder.Entity<ConfirmationRuleRecord>());
+        ConfigureEventLog(modelBuilder.Entity<OrderEventLogRecord>());
     }
 
     private static void ConfigureOrders(EntityTypeBuilder<OrderRecord> order)
@@ -164,5 +171,36 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
             .IsUnique()
             .HasFilter("once_per_client")
             .HasDatabaseName(DiscountRedemptionRecord.OncePerClientIndex);
+    }
+
+    private static void ConfigureConfirmationRules(EntityTypeBuilder<ConfirmationRuleRecord> rule)
+    {
+        rule.ToTable("confirmation_rules", table => table.HasCheckConstraint("ck_confirmation_rules_action", "action IN ('Hold')"));
+        rule.HasKey(record => new { record.Id, record.Version });
+        rule.Property(record => record.Id).HasColumnName("id");
+        rule.Property(record => record.Version).HasColumnName("version");
+        rule.Property(record => record.Name).HasColumnName("name").IsRequired();
+        rule.Property(record => record.Action).HasColumnName("action").HasConversion<string>().IsRequired();
+        rule.Property(record => record.Conditions).HasColumnName("conditions").HasColumnType("jsonb").IsRequired();
+        rule.Property(record => record.Priority).HasColumnName("priority");
+        rule.Property(record => record.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+        rule.Property(record => record.CreatedBy).HasColumnName("created_by").IsRequired();
+        rule.Property(record => record.CreatedAt).HasColumnName("created_at");
+    }
+
+    private static void ConfigureEventLog(EntityTypeBuilder<OrderEventLogRecord> log)
+    {
+        log.ToTable("order_event_log");
+        log.HasKey(record => record.Id);
+        log.Property(record => record.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+        log.Property(record => record.OrderId).HasColumnName("order_id");
+        log.Property(record => record.Type).HasColumnName("type").IsRequired();
+        log.Property(record => record.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
+        log.Property(record => record.OccurredAt).HasColumnName("occurred_at");
+        log.HasIndex(record => new { record.OccurredAt, record.Id }).HasDatabaseName("ix_order_event_log_occurred");
+        log.HasIndex(record => record.OrderId).HasDatabaseName("ix_order_event_log_order");
+
+        // The log outlives anything done to an order: deleting an order must not delete its history.
+        log.HasOne<OrderRecord>().WithMany().HasForeignKey(record => record.OrderId).OnDelete(DeleteBehavior.Restrict);
     }
 }

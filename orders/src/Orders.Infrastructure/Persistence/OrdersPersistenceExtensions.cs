@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Orders.Application.Confirmation;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
@@ -61,6 +62,8 @@ public static class OrdersPersistenceExtensions
         services.AddSingleton(configuration.GetSection(DiscountOptions.SectionName).Get<DiscountOptions>() ?? new DiscountOptions());
         services.AddScoped<IActiveDiscountRules, CachedActiveDiscountRules>();
         services.AddScoped<IOrderDiscountStore, OrderDiscountStore>();
+        services.AddScoped<IConfirmationRuleRepository, ConfirmationRuleRepository>();
+        services.AddScoped<IOrderEventLog, OrderEventLog>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IOrderTransaction, OrdersTransaction>();
@@ -93,6 +96,12 @@ public static class OrdersMigrator
         var context = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
 
         await context.Database.MigrateAsync();
+
+        if (host.Services.GetRequiredService<IConfiguration>().GetSection(ConfirmationOptions.SectionName).Get<ConfirmationOptions>()?.SeedEnabled == true)
+        {
+            await ConfirmationRuleSeeder.SeedAsync(context, scope.ServiceProvider.GetRequiredService<TimeProvider>(), CancellationToken.None);
+        }
+
         await host.SetupResources();
 
         return 0;

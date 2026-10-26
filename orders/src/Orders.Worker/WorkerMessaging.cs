@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Orders.Application;
 using Orders.Infrastructure.Messaging;
 using Orders.Infrastructure.Persistence;
 using Wolverine;
@@ -53,11 +54,16 @@ public static class WorkerMessaging
     public static IServiceCollection AddOrdersWorker(this IServiceCollection services, IConfiguration configuration)
     {
         var worker = configuration.GetSection(WorkerOptions.SectionName).Get<WorkerOptions>() ?? new WorkerOptions();
-        services.TryAddSingleton<IOrderPlacedProcessor, LoggingOrderPlacedProcessor>();
+        services.TryAddScoped<IOrderPlacedProcessor, AutomaticConfirmationProcessor>();
+        services.AddOrderConfirmation();
 
         return services.AddOrdersPersistence(configuration, wolverine =>
         {
             wolverine.Discovery.IncludeAssembly(typeof(OrderPlacedConsumer).Assembly);
+
+            // The handler's dependencies are the internal Infrastructure types (repositories, the transaction), which
+            // Wolverine's generated code cannot construct inline; it resolves them from the message's scoped container instead.
+            wolverine.ServiceLocationPolicy = JasperFx.CodeGeneration.Model.ServiceLocationPolicy.AlwaysAllowed;
             wolverine.Durability.ScheduledJobPollingTime = worker.ScheduledJobPollingInterval;
             wolverine.OnException<Exception>()
                 .ScheduleRetry([.. worker.EffectiveRetryDelays])

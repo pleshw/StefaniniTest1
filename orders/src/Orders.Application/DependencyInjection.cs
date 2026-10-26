@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Orders.Application.Confirmation;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
@@ -31,6 +33,20 @@ public static class DependencyInjection
         services.AddScoped<ReplaceDiscountRuleHandler>();
         services.AddScoped<DeactivateDiscountRuleHandler>();
         services.AddScoped<PreviewDiscountRuleHandler>();
+        services.AddScoped<OrderStatusChangeRecorder>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// What the Worker needs to decide placed orders (and nothing that needs Catalog): the confirmation handler, the status
+    /// change recorder and the validators. The API does not add the handler.
+    /// </summary>
+    public static IServiceCollection AddOrderConfirmation(this IServiceCollection services)
+    {
+        services.AddValidatorsFromAssemblyContaining<CartValidator>();
+        services.TryAddScoped<OrderStatusChangeRecorder>();
+        services.AddScoped<EvaluateConfirmationHandler>();
 
         return services;
     }

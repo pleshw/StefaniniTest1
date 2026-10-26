@@ -75,6 +75,7 @@ services:
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Orders__Messaging__Enabled: "false"  # the migrator only creates tables; it never connects to RabbitMQ
+      Orders__Confirmation__SeedEnabled: "true"  # development rule: hold BRL orders above 5,000.00; staging and production never set it
     depends_on:
       postgres:
         condition: service_healthy

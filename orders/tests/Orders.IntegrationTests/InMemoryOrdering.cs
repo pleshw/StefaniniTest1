@@ -34,8 +34,9 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
 {
     private readonly ConcurrentDictionary<(Guid Client, Guid Key), IdempotencyRecord> _records = new();
 
+    /// <summary>A reserved key is invisible until it is completed, as an uncommitted row is in PostgreSQL.</summary>
     public Task<IdempotencyRecord?> TryGetAsync(Guid clientId, Guid key, CancellationToken cancellationToken) =>
-        Task.FromResult(_records.GetValueOrDefault((clientId, key)));
+        Task.FromResult(_records.GetValueOrDefault((clientId, key)) is { ResponseStatus: not 0 } completed ? completed : null);
 
     public Task<bool> TryReserveAsync(Guid clientId, Guid key, byte[] requestHash, Guid orderId, CancellationToken cancellationToken) =>
         Task.FromResult(_records.TryAdd((clientId, key), new IdempotencyRecord(clientId, key, requestHash, 0, "{}", orderId)));
@@ -156,6 +157,10 @@ internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOr
     public Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
         Task.FromResult(orders.All.Any(order => order.Client.Id == clientId));
 
+    public Task<bool> ClientHasEarlierOrdersAsync(Guid clientId, Guid orderId, DateTimeOffset placedAt, CancellationToken cancellationToken) =>
+        Task.FromResult(orders.All.Any(order => order.Client.Id == clientId && order.Id != orderId
+            && (order.CreatedAt < placedAt || (order.CreatedAt == placedAt && order.Id.CompareTo(orderId) < 0))));
+
     private Order? Visible(Guid id, Guid? ownerId) =>
         orders.All.SingleOrDefault(order => order.Id == id && (ownerId is null || order.Client.Id == ownerId));
 
@@ -266,6 +271,20 @@ internal sealed class InMemoryOrderDiscountStore : IOrderDiscountStore
             _stored.Enqueue((order.Id, discount));
         }
 
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Remembers the events written to the event log, in order.</summary>
+internal sealed class InMemoryOrderEventLog : IOrderEventLog
+{
+    private readonly ConcurrentQueue<IDomainEvent> _entries = new();
+
+    public IReadOnlyCollection<IDomainEvent> Entries => _entries.ToList();
+
+    public Task AppendAsync(IDomainEvent domainEvent, CancellationToken cancellationToken)
+    {
+        _entries.Enqueue(domainEvent);
         return Task.CompletedTask;
     }
 }

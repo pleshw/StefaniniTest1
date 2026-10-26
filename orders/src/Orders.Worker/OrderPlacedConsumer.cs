@@ -1,24 +1,46 @@
+using Orders.Application;
+using Orders.Application.Confirmation;
 using Orders.Contracts;
 
 namespace Orders.Worker;
 
-/// <summary>What the Worker does with an order that was placed. C33 replaces the logging default with the confirmation rules.</summary>
+/// <summary>What the Worker does with an order that was placed.</summary>
 public interface IOrderPlacedProcessor
 {
     Task ProcessAsync(OrderPlacedV1 message, CancellationToken cancellationToken);
 }
 
-internal sealed partial class LoggingOrderPlacedProcessor(ILogger<LoggingOrderPlacedProcessor> logger) : IOrderPlacedProcessor
+/// <summary>
+/// Decides a placed order with the confirmation rules (Hold rules put it OnHold, otherwise Confirmed). An order that is not
+/// Pending any more is left alone. An order that does not exist is logged and dropped: retrying cannot create it. Anything
+/// else throws, so the message is retried and finally dead-lettered.
+/// </summary>
+public sealed partial class AutomaticConfirmationProcessor(EvaluateConfirmationHandler handler, ILogger<AutomaticConfirmationProcessor> logger)
+    : IOrderPlacedProcessor
 {
-    public Task ProcessAsync(OrderPlacedV1 message, CancellationToken cancellationToken)
+    public async Task ProcessAsync(OrderPlacedV1 message, CancellationToken cancellationToken)
     {
-        LogOrderPlaced(logger, message.OrderId, message.Number);
+        var result = await handler.HandleAsync(new EvaluateConfirmationCommand(message.OrderId), cancellationToken);
 
-        return Task.CompletedTask;
+        if (result.IsSuccess)
+        {
+            LogDecided(logger, message.OrderId, result.Value);
+        }
+        else if (result.Error!.Kind == ErrorKind.NotFound)
+        {
+            LogUnknownOrder(logger, message.OrderId);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Order {message.OrderId} could not be decided: {result.Error.Message}");
+        }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Order {OrderId} ({OrderNumber}) placed.")]
-    private static partial void LogOrderPlaced(ILogger logger, Guid orderId, string orderNumber);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Order {OrderId} decided: {Outcome}.")]
+    private static partial void LogDecided(ILogger logger, Guid orderId, ConfirmationOutcome outcome);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Order {OrderId} was announced but does not exist; the message is dropped.")]
+    private static partial void LogUnknownOrder(ILogger logger, Guid orderId);
 }
 
 /// <summary>
