@@ -9,7 +9,16 @@
         }
       },
       "orders.domain": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "FluentValidation": "[12.2.0, )"
+        }
+      },
+      "FluentValidation": {
+        "type": "CentralTransitive",
+        "requested": "[12.2.0, )",
+        "resolved": "12.2.0",
+        "contentHash": "DR3lFbdnKucaaj1/8zMNOACMz/64igzox1yVZSFVsLxYB5mxAB+wFP1WZ8fjwrZnbU1KA1DoMzHKYKxUfuZ4wQ=="
       }
     }
   }
