@@ -1,3 +1,4 @@
+using Orders.Infrastructure.Catalog;
 using Orders.Infrastructure.Persistence;
 using ServiceDefaults;
 
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddOrdersPersistence(builder.Configuration);
+builder.Services.AddCatalogClient(builder.Configuration);
 
 var app = builder.Build();
 

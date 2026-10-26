@@ -527,6 +527,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "[10.0.13, )",
+          "Microsoft.Extensions.Http.Resilience": "[10.10.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Orders.Application": "[1.0.0, )",
           "WolverineFx.Postgresql": "[6.54.0, )",
