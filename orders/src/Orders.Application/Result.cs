@@ -5,6 +5,8 @@ public enum ErrorKind
     Validation,
     Unprocessable,
     CatalogUnavailable,
+    NotFound,
+    Forbidden,
 }
 
 public sealed record ResultError(ErrorKind Kind, string Message);

@@ -25,6 +25,18 @@ internal static class OrderEndpoints
             .WithName("CreateOrder")
             .WithSummary("Place an order for the signed-in shopper. Idempotency-Key (UUID) is required: 400 without it, 422 when it was used with another body, replay of the first response when it was used with the same body.");
 
+        orders.MapGet("/", ListOrders)
+            .WithName("ListOrders")
+            .WithSummary("List orders newest first. Shoppers see only their own orders (403 for another clientId); admins see every client. Filters: clientId, status, from (inclusive), to (exclusive), q (order number or client name); keyset paging with after (the previous page's next) and limit (1-100, default 20).");
+
+        orders.MapGet("/{id:guid}", GetOrder)
+            .WithName("GetOrder")
+            .WithSummary("One order with its items and totals. Another client's order is 404 for a shopper.");
+
+        orders.MapGet("/{id:guid}/history", GetOrderHistory)
+            .WithName("GetOrderHistory")
+            .WithSummary("The status history of one order, oldest first. Another client's order is 404 for a shopper.");
+
         return app;
     }
 
@@ -42,8 +54,7 @@ internal static class OrderEndpoints
     {
         if (!Guid.TryParse(OrdersAuthentication.SubjectOf(user), out var clientId))
         {
-            return TypedResults.Problem(
-                detail: "The signed-in user has no client id.", statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
+            return NoClientId();
         }
 
         var command = request.ToCommand(
@@ -56,6 +67,76 @@ internal static class OrderEndpoints
 
         return await Place(command, handler, response, cancellationToken);
     }
+
+    private static async Task<Results<Ok<OrderPage>, ProblemHttpResult>> ListOrders(
+        ClaimsPrincipal user,
+        ListOrdersHandler handler,
+        CancellationToken cancellationToken,
+        Guid? clientId = null,
+        string? status = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        string? q = null,
+        string? after = null,
+        int? limit = null)
+    {
+        if (!TryGetViewer(user, out var viewer))
+        {
+            return NoClientId();
+        }
+
+        var result = await handler.HandleAsync(new ListOrdersQuery(viewer, clientId, status, from, to, q, after, limit), cancellationToken);
+
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
+    }
+
+    private static async Task<Results<Ok<OrderDto>, ProblemHttpResult>> GetOrder(
+        Guid id, ClaimsPrincipal user, GetOrderHandler handler, CancellationToken cancellationToken)
+    {
+        if (!TryGetViewer(user, out var viewer))
+        {
+            return NoClientId();
+        }
+
+        var result = await handler.HandleAsync(new GetOrderQuery(id, viewer), cancellationToken);
+
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<OrderStatusChangeDto>>, ProblemHttpResult>> GetOrderHistory(
+        Guid id, ClaimsPrincipal user, GetOrderHistoryHandler handler, CancellationToken cancellationToken)
+    {
+        if (!TryGetViewer(user, out var viewer))
+        {
+            return NoClientId();
+        }
+
+        var result = await handler.HandleAsync(new GetOrderHistoryQuery(id, viewer), cancellationToken);
+
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
+    }
+
+    /// <summary>An admin sees every client (viewer null); a shopper is the client named by their sub claim.</summary>
+    private static bool TryGetViewer(ClaimsPrincipal user, out Guid? viewer)
+    {
+        viewer = null;
+
+        if (user.IsInRole(OrdersAuthentication.AdminRole))
+        {
+            return true;
+        }
+
+        if (!Guid.TryParse(OrdersAuthentication.SubjectOf(user), out var clientId))
+        {
+            return false;
+        }
+
+        viewer = clientId;
+        return true;
+    }
+
+    private static ProblemHttpResult NoClientId() =>
+        TypedResults.Problem(detail: "The signed-in user has no client id.", statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
 
     /// <summary>Runs the create-order flow and writes the stored status, body and Location (same for every replay).</summary>
     internal static async Task<Results<ContentHttpResult, ProblemHttpResult>> Place(
@@ -78,6 +159,8 @@ internal static class OrderEndpoints
     {
         ErrorKind.Unprocessable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status422UnprocessableEntity, title: "Unprocessable request"),
         ErrorKind.CatalogUnavailable => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Catalog unavailable"),
+        ErrorKind.NotFound => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status404NotFound, title: "Not found"),
+        ErrorKind.Forbidden => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden"),
         _ => TypedResults.Problem(detail: error.Message, statusCode: StatusCodes.Status400BadRequest, title: "Invalid request"),
     };
 }

@@ -33,5 +33,8 @@ public sealed class OrdersCompositionTests
         scope.ServiceProvider.GetRequiredService<IOrderTransaction>().ShouldNotBeNull();
         scope.ServiceProvider.GetRequiredService<IOrderEventPublisher>().ShouldNotBeNull();
         scope.ServiceProvider.GetRequiredService<IOrderRepository>().ShouldNotBeNull();
+        scope.ServiceProvider.GetRequiredService<ListOrdersHandler>().ShouldNotBeNull();
+        scope.ServiceProvider.GetRequiredService<GetOrderHandler>().ShouldNotBeNull();
+        scope.ServiceProvider.GetRequiredService<GetOrderHistoryHandler>().ShouldNotBeNull();
     }
 }

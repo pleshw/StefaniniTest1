@@ -15,6 +15,9 @@ public static class DependencyInjection
         services.AddScoped<PricingService>();
         services.AddScoped<IdempotencyService>();
         services.AddScoped<CreateOrderHandler>();
+        services.AddScoped<ListOrdersHandler>();
+        services.AddScoped<GetOrderHandler>();
+        services.AddScoped<GetOrderHistoryHandler>();
 
         return services;
     }

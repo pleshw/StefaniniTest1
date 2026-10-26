@@ -117,3 +117,48 @@ internal sealed class FakeCatalogPriceProvider : ICatalogPriceProvider
         return Task.FromResult(Result.Ok(new CatalogPrices(found, skus.Where(sku => !_products.ContainsKey(sku)).ToList())));
     }
 }
+
+/// <summary>Order reads over <see cref="InMemoryOrderRepository"/>, ordered and paged like the SQL queries.</summary>
+internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOrderQueries
+{
+    public Task<IReadOnlyList<OrderSummaryDto>> ListAsync(OrderListFilter filter, CancellationToken cancellationToken)
+    {
+        var found = orders.All
+            .Where(order => filter.ClientId is null || order.Client.Id == filter.ClientId)
+            .Where(order => filter.Status is null || order.Status == filter.Status)
+            .Where(order => filter.From is null || order.CreatedAt >= filter.From)
+            .Where(order => filter.To is null || order.CreatedAt < filter.To)
+            .Where(order => filter.Search is null
+                || order.Number.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)
+                || order.Client.Name.Contains(filter.Search, StringComparison.OrdinalIgnoreCase))
+            .Where(order => filter.After is null
+                || order.CreatedAt < filter.After.CreatedAt
+                || (order.CreatedAt == filter.After.CreatedAt && order.Id.CompareTo(filter.After.Id) > 0))
+            .OrderByDescending(order => order.CreatedAt)
+            .ThenBy(order => order.Id)
+            .Take(filter.Take)
+            .Select(Summary)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<OrderSummaryDto>>(found);
+    }
+
+    public Task<OrderDto?> GetAsync(Guid id, Guid? ownerId, CancellationToken cancellationToken) =>
+        Task.FromResult(Visible(id, ownerId)?.ToDto());
+
+    public Task<IReadOnlyList<OrderStatusChangeDto>?> GetHistoryAsync(Guid id, Guid? ownerId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<OrderStatusChangeDto>?>(Visible(id, ownerId)?.StatusHistory
+            .Select((change, index) => new OrderStatusChangeDto(index + 1, change.From?.ToString(), change.To.ToString(), change.Reason, change.Actor, change.ChangedAt))
+            .ToList());
+
+    private Order? Visible(Guid id, Guid? ownerId) =>
+        orders.All.SingleOrDefault(order => order.Id == id && (ownerId is null || order.Client.Id == ownerId));
+
+    private static OrderSummaryDto Summary(Order order)
+    {
+        var dto = order.ToDto();
+
+        return new OrderSummaryDto(
+            dto.Id, dto.Number, dto.Client, dto.Status, dto.Channel, dto.Currency, dto.ItemCount, dto.Subtotal, dto.DiscountTotal, dto.Total, dto.CreatedAt);
+    }
+}

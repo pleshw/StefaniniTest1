@@ -31,6 +31,7 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<ICatalogPriceProvider>();
             services.AddSingleton<ICatalogPriceProvider>(Catalog);
             services.AddSingleton<IOrderRepository>(Orders);
+            services.AddSingleton<IOrderQueries>(new InMemoryOrderQueries(Orders));
             services.AddSingleton<IIdempotencyStore>(Idempotency);
             services.AddSingleton<IOrderEventPublisher>(Events);
             services.AddSingleton<IOrderTransaction>(new SerializingOrderTransaction());
