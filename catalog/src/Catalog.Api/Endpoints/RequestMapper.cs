@@ -10,5 +10,8 @@ internal static partial class RequestMapper
     public static partial UpsertProductCommand ToCommand(
         this AdminProductEndpoints.UpsertProductRequest request, string sku, string? ifMatch, string updatedBy);
 
+    public static partial ChangePriceCommand ToCommand(
+        this AdminProductEndpoints.ChangePriceRequest request, string sku, string? ifMatch, string updatedBy);
+
     public static partial PriceQuery ToQuery(this ProductEndpoints.PriceQueryRequest request);
 }

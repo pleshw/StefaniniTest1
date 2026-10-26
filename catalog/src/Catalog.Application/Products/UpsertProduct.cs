@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using Catalog.Domain;
 using Catalog.Domain.Validation;
@@ -133,8 +132,7 @@ public sealed class UpsertProductHandler(
         if (product.Version != expectedVersion)
         {
             var audit = AuditFor(command);
-            var history = product.DomainEvents.OfType<PriceChanged>().Select(change => ToHistory(change, audit)).ToList();
-            await repository.SaveAsync(product, expectedVersion, audit, history, cancellationToken);
+            await repository.SaveAsync(product, expectedVersion, audit, ProductChanges.HistoryFor(product, audit), cancellationToken);
         }
 
         return Result.Ok(new UpsertOutcome(product.ToDetailDto(), false));
@@ -142,15 +140,6 @@ public sealed class UpsertProductHandler(
 
     private AuditStamp AuditFor(UpsertProductCommand command) => new(command.UpdatedBy, clock.GetUtcNow());
 
-    private static PriceHistoryEntry ToHistory(PriceChanged change, AuditStamp audit) => new(
-        change.Sku,
-        change.NewPrice.Currency,
-        change.OldPrice?.Amount,
-        change.NewPrice.Amount,
-        change.Version,
-        audit.UpdatedBy,
-        audit.UpdatedAt,
-        Activity.Current?.TraceId.ToString());
 }
 
 internal static class EntityTag

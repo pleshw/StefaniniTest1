@@ -55,6 +55,7 @@ services:
       dockerfile: catalog/src/Catalog.Api/Dockerfile
     environment:
       Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
+      Catalog__Seed__Enabled: "true"  # development catalog; staging and production never set it
     depends_on:
       mongo:
         condition: service_healthy
@@ -66,13 +67,29 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # Applies the EF Core migrations and Wolverine's tables, then exits; orders-api waits for it to complete.
+  orders-migrator:
+    build:
+      context: .
+      dockerfile: orders/src/Orders.Infrastructure/Migrator.Dockerfile
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   orders-api:
     build:
       context: .
       dockerfile: orders/src/Orders.Api/Dockerfile
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
+      orders-migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck:

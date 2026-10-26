@@ -33,10 +33,17 @@ public static class ServiceDefaultsExtensions
 
         builder.Services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
-        if (builder.Environment.IsDevelopment())
+        // Registered in every environment so the build can generate the OpenAPI document; only Development serves it.
+        builder.Services.AddOpenApi(options => options.AddSchemaTransformer((schema, context, _) =>
         {
-            builder.Services.AddOpenApi();
-        }
+            // The default document calls decimals "double", and generated clients then read money as a double and lose cents.
+            if ((Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type) == typeof(decimal))
+            {
+                schema.Format = "decimal";
+            }
+
+            return Task.CompletedTask;
+        }));
 
         return builder;
     }

@@ -1,5 +1,6 @@
 using Catalog.Application.Products;
 using Catalog.Infrastructure.Persistence;
+using Catalog.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -22,6 +23,11 @@ public sealed class CatalogApiFactory : WebApplicationFactory<Program>
         {
             var indexer = services.Single(service => service.ImplementationType == typeof(MongoIndexInitializer));
             services.Remove(indexer);
+            foreach (var seeder in services.Where(service => service.ImplementationType == typeof(CatalogSeeder)).ToList())
+            {
+                services.Remove(seeder);
+            }
+
             services.RemoveAll<IProductRepository>();
             services.AddSingleton<IProductRepository>(Products);
 

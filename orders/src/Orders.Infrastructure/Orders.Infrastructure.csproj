@@ -4,8 +4,38 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- OpenApiReference (the NSwag integration the guide prescribes) comes from a package marked deprecated; nothing else is silenced. -->
+    <NoWarn>$(NoWarn);ASPDEPR001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../Orders.Application/Orders.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="Riok.Mapperly" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="NSwag.ApiDescription.Client" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Catalog contract is committed by Catalog (C15); the client is regenerated whenever it changes. -->
+    <OpenApiReference Include="../../../catalog/openapi/catalog.v1.json" CodeGenerator="NSwagCSharp" Namespace="Orders.Infrastructure.Catalog.Generated" ClassName="CatalogApiClient" Options="/JsonLibrary:SystemTextJson /GenerateClientInterfaces:true /ClientClassAccessModifier:internal /UseBaseUrl:false /GenerateExceptionClasses:true /GenerateOptionalParameters:false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Orders.IntegrationTests" />
   </ItemGroup>
 
 </Project>

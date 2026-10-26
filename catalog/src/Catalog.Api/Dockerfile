@@ -4,7 +4,7 @@ WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY shared/ shared/
 COPY catalog/ catalog/
-RUN dotnet publish catalog/src/Catalog.Api/Catalog.Api.csproj -c Release -o /app /p:UseAppHost=false
+RUN dotnet publish catalog/src/Catalog.Api/Catalog.Api.csproj -c Release -o /app /p:UseAppHost=false /p:OpenApiGenerateDocumentsOnBuild=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
 WORKDIR /app

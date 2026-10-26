@@ -1,6 +1,6 @@
 # Staging stack, deployed by scripts/deploy.sh. Images are referenced by digest through
 # releases/current.env (<SERVICE>_IMAGE variables); settings come from deploy/.env (the ENV_FILE secret).
-# orders-migrator (C17) and the web image (C45) are added to this file together with their images.
+# The web image (C45) is added to this file together with its image.
 name: orders-staging
 
 services:
@@ -67,11 +67,24 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  orders-api:
-    image: ${ORDERS_API_IMAGE:?missing in releases/current.env}
+  orders-migrator:
+    image: ${ORDERS_MIGRATOR_IMAGE:?missing in releases/current.env}
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
+    restart: "no"
+
+  orders-api:
+    image: ${ORDERS_API_IMAGE:?missing in releases/current.env}
+    environment:
+      ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      orders-migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck:
