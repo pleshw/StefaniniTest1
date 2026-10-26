@@ -16,6 +16,9 @@ public enum ErrorKind
 
     /// <summary>An update needs an If-Match header and none was sent (HTTP 428).</summary>
     PreconditionRequired,
+
+    /// <summary>The order state machine does not allow the requested status change (HTTP 409 invalid-transition).</summary>
+    InvalidTransition,
 }
 
 public sealed record ResultError(ErrorKind Kind, string Message);

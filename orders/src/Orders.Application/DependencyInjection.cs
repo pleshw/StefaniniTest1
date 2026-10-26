@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<DeactivateDiscountRuleHandler>();
         services.AddScoped<PreviewDiscountRuleHandler>();
         services.AddScoped<OrderStatusChangeRecorder>();
+        services.AddScoped<ChangeOrderStatusHandler>();
 
         return services;
     }

@@ -127,7 +127,6 @@ internal static partial class OrderQueryMapper
     [MapperIgnoreSource(nameof(OrderRecord.ClientName))]
     [MapperIgnoreSource(nameof(OrderRecord.CreatedBy))]
     [MapperIgnoreSource(nameof(OrderRecord.UpdatedAt))]
-    [MapperIgnoreSource(nameof(OrderRecord.RowVersion))]
     [MapperIgnoreSource(nameof(OrderRecord.SearchVector))]
     [MapperIgnoreSource(nameof(OrderRecord.History))]
     private static partial OrderDto ToDetail(OrderRecord order);

@@ -14,20 +14,58 @@ namespace Orders.IntegrationTests;
 
 internal sealed class InMemoryOrderRepository : IOrderRepository
 {
-    private readonly ConcurrentDictionary<Guid, Order> _orders = new();
+    private readonly Lock _gate = new();
+    private readonly Dictionary<Guid, Order> _orders = [];
 
-    public IReadOnlyCollection<Order> All => _orders.Values.ToList();
+    /// <summary>The stored orders. Like a database row, a stored order changes only through <see cref="UpdateAsync"/>.</summary>
+    public IReadOnlyCollection<Order> All
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _orders.Values.ToList();
+            }
+        }
+    }
 
     public Task AddAsync(Order order, CancellationToken cancellationToken)
     {
-        _orders[order.Id] = order;
+        lock (_gate)
+        {
+            _orders[order.Id] = Stored(order);
+        }
+
         return Task.CompletedTask;
     }
 
-    public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(_orders.GetValueOrDefault(id));
+    /// <summary>A copy, as a query would materialize it: changing it does not change the stored order.</summary>
+    public Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult(_orders.TryGetValue(id, out var order) ? Stored(order) : null);
+        }
+    }
 
-    public Task UpdateAsync(Order order, int expectedRowVersion, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task UpdateAsync(Order order, int expectedRowVersion, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            if (!_orders.TryGetValue(order.Id, out var current) || current.RowVersion != expectedRowVersion)
+            {
+                throw new ConcurrencyException($"Order {order.Number} was changed by someone else (expected row version {expectedRowVersion}).");
+            }
+
+            _orders[order.Id] = Stored(order);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static Order Stored(Order order) => Order.Restore(
+        order.Id, order.Number, order.Client, order.CreatedBy, order.Channel, order.Status, order.Items, order.StatusHistory,
+        order.CreatedAt, order.UpdatedAt, order.RowVersion);
 }
 
 internal sealed class InMemoryIdempotencyStore : IIdempotencyStore

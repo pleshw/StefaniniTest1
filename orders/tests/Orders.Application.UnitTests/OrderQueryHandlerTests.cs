@@ -222,7 +222,7 @@ public sealed class OrderQueryHandlerTests
         new(id, "ORD-2026-000000000001", new ClientDto(_shopper, "Ana"), "Pending", "shop", "BRL", 1, 10m, 0m, 10m, createdAt);
 
     private static OrderDto Detail() =>
-        new(_orderId, "ORD-2026-000000000001", new ClientDto(_shopper, "Ana"), "Pending", "shop", "BRL", 1, 10m, 0m, 10m, [], _now);
+        new(_orderId, "ORD-2026-000000000001", new ClientDto(_shopper, "Ana"), "Pending", "shop", "BRL", 1, 10m, 0m, 10m, [], _now, 0);
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 }
