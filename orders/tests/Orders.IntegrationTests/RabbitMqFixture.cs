@@ -51,10 +51,10 @@ public sealed class RabbitMqFixture : IAsyncLifetime
         (await _management.PostAsync("/api/definitions", content)).EnsureSuccessStatusCode();
     }
 
-    /// <summary>Declares an auto-delete queue and binds it to an exchange with a routing key (retries while the exchange is being declared).</summary>
+    /// <summary>Declares a durable queue (RabbitMQ 4 refuses non-durable, non-exclusive ones) and binds it to an exchange with a routing key (retries while the exchange is being declared).</summary>
     public async Task BindQueueAsync(string queue, string exchange, string routingKey, CancellationToken cancellationToken)
     {
-        (await _management.PutAsJsonAsync($"/api/queues/{_defaultVhost}/{queue}", new { durable = false, auto_delete = false }, cancellationToken)).EnsureSuccessStatusCode();
+        (await _management.PutAsJsonAsync($"/api/queues/{_defaultVhost}/{queue}", new { durable = true, auto_delete = false }, cancellationToken)).EnsureSuccessStatusCode();
 
         for (var attempt = 0; ; attempt++)
         {
