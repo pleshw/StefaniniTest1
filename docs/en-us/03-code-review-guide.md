@@ -29,7 +29,7 @@ A PR is mergeable when every item holds; the PR template carries this list as ch
 - [ ] **Contracts:** API changes are backward compatible or versioned; OpenAPI and event contract snapshots updated; migrations are expand-only.
 - [ ] **Security:** input validated at the edge, authorization on every new endpoint, no secrets, no personal data in logs.
 - [ ] **Observability:** new flows emit traces; errors logged once with context; new metrics documented.
-- [ ] **Docs:** README, ADR, `.env.example` or runbook updated when behaviour, decisions or config changed.
+- [ ] **Docs:** README, ADR, `.env.example` or runbook updated when behaviour, decisions or config changed; every doc change is made in `docs/pt-br/` (source of truth) and mirrored in `docs/en-us/` in the same PR.
 - [ ] **Approvals:** 1 reviewer; 2 (one from CODEOWNERS) for Domain, messaging, security, migrations, `.github/**` and `deploy/**`.
 
 ## What blocks a PR
