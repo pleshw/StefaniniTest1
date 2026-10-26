@@ -1,0 +1,78 @@
+name: orders-platform
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+      - ./deploy/mongo/init-replica.js:/scripts/init-replica.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--file", "/scripts/init-replica.js"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?set RABBITMQ_DEFAULT_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./deploy/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-definitions.conf:ro
+      - ./deploy/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  # Profile "observability": docker compose --profile observability up -d --wait
+  # Both images are distroless, so they have no shell for a healthcheck.
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector:0.163.2
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    volumes:
+      - ./deploy/otel/collector.yaml:/etc/otelcol/collector.yaml:ro
+    depends_on:
+      - aspire-dashboard
+    restart: unless-stopped
+
+  aspire-dashboard:
+    profiles: [observability]
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6
+    environment:
+      DASHBOARD__FRONTEND__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+    ports:
+      - "127.0.0.1:${ASPIRE_DASHBOARD_PORT:-18888}:18888"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  mongo-data:
+  mongo-config:
+  rabbitmq-data:

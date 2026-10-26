@@ -1,0 +1,15 @@
+{
+  "rabbit_version": "4",
+  "vhosts": [{ "name": "/" }],
+  "exchanges": [
+    { "name": "orders.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "orders.retry", "vhost": "/", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "orders.dlx", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+  ],
+  "queues": [
+    { "name": "orders.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-queue-type": "quorum" } }
+  ],
+  "bindings": [
+    { "source": "orders.dlx", "vhost": "/", "destination": "orders.dlq", "destination_type": "queue", "routing_key": "#", "arguments": {} }
+  ]
+}
