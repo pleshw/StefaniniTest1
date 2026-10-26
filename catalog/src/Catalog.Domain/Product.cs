@@ -65,6 +65,28 @@ public sealed class Product
             priceList);
     }
 
+    /// <summary>Rebuilds a stored product; the same invariants as <see cref="Create"/> apply.</summary>
+    public static Product Restore(
+        Sku sku,
+        string name,
+        string description,
+        string category,
+        IReadOnlyDictionary<string, string> attributes,
+        IEnumerable<Money> prices,
+        bool isActive,
+        int version)
+    {
+        if (version < 1)
+        {
+            throw new DomainException("Version must be at least 1.");
+        }
+
+        var product = Create(sku, name, description, category, attributes, prices);
+        product.IsActive = isActive;
+        product.Version = version;
+        return product;
+    }
+
     public void ChangePrice(Money newPrice)
     {
         if (!IsActive)

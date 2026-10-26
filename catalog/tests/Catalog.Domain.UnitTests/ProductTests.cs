@@ -181,4 +181,25 @@ public sealed class ProductTests
 
         product.DomainEvents.ShouldBeEmpty();
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Restore_StoredState_KeepsVersionAndActiveFlagWithoutEvents()
+    {
+        var product = Product.Restore(
+            Sku.Create("S"), "Name", "desc", "cat", new Dictionary<string, string>(), [ProductBuilder.Brl(5m)], false, 7);
+
+        product.Version.ShouldBe(7);
+        product.IsActive.ShouldBeFalse();
+        product.DomainEvents.ShouldBeEmpty();
+        product.Prices.Single().Amount.ShouldBe(5m);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Restore_VersionBelowOne_Throws()
+    {
+        Should.Throw<DomainException>(() => Product.Restore(
+            Sku.Create("S"), "Name", "desc", "cat", new Dictionary<string, string>(), [], true, 0));
+    }
 }
