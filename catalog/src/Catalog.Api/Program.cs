@@ -1,3 +1,4 @@
+using Catalog.Domain;
 using ServiceDefaults;
 
 if (HealthCheckCommand.IsRequested(args))
@@ -8,6 +9,9 @@ if (HealthCheckCommand.IsRequested(args))
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+builder.Services.AddSingleton(new CurrencyPolicy(
+    builder.Configuration.GetSection("Catalog:AllowedCurrencies").Get<string[]>() ?? []));
 
 var app = builder.Build();
 
