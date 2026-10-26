@@ -49,6 +49,91 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  catalog-api:
+    build:
+      context: .
+      dockerfile: catalog/src/Catalog.Api/Dockerfile
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "dotnet", "Catalog.Api.dll", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  orders-api:
+    build:
+      context: .
+      dockerfile: orders/src/Orders.Api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "dotnet", "Orders.Api.dll", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  orders-worker:
+    build:
+      context: .
+      dockerfile: orders/src/Orders.Worker/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "dotnet", "Orders.Worker.dll", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  orders-bff:
+    build:
+      context: .
+      dockerfile: orders/src/Orders.Bff/Dockerfile
+    depends_on:
+      orders-api:
+        condition: service_healthy
+      catalog-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "dotnet", "Orders.Bff.dll", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  # The only service that publishes a host port in the default profile.
+  nginx:
+    image: nginx:1.31-alpine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      orders-bff:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+
   # Profile "observability": docker compose --profile observability up -d --wait
   # Both images are distroless, so they have no shell for a healthcheck.
   otel-collector:

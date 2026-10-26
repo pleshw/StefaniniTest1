@@ -1,7 +1,18 @@
 using ServiceDefaults;
 
-var builder = Host.CreateApplicationBuilder(args);
+if (HealthCheckCommand.IsRequested(args))
+{
+    return await HealthCheckCommand.RunAsync();
+}
+
+var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Build().Run();
+var app = builder.Build();
+
+app.MapServiceDefaults();
+
+app.Run();
+
+return 0;
