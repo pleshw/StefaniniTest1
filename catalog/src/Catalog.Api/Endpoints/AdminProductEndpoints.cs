@@ -39,17 +39,7 @@ internal static class AdminProductEndpoints
         HttpResponse response,
         CancellationToken cancellationToken)
     {
-        var command = new UpsertProductCommand(
-            sku,
-            ifMatch,
-            request.Name,
-            request.Description,
-            request.Category,
-            request.Attributes,
-            request.Prices?.Select(price => new PriceInput(price.Currency, price.Amount)).ToList(),
-            UserId(user));
-
-        var result = await handler.HandleAsync(command, cancellationToken);
+        var result = await handler.HandleAsync(request.ToCommand(sku, ifMatch, UserId(user)), cancellationToken);
 
         if (!result.IsSuccess)
         {

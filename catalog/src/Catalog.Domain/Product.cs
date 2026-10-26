@@ -1,7 +1,12 @@
+using Catalog.Domain.Validation;
+using FluentValidation;
+
 namespace Catalog.Domain;
 
 public sealed class Product
 {
+    private static readonly ContentValidator _contentValidator = new();
+
     private readonly List<Money> _prices;
     private readonly List<IDomainEvent> _domainEvents = [];
 
@@ -50,13 +55,13 @@ public sealed class Product
         IEnumerable<Money> prices)
     {
         var priceList = prices.ToList();
-        EnsureOnePricePerCurrency(priceList);
+        _contentValidator.EnsureValid(new Content(name, category, priceList));
 
         return new Product(
             sku,
-            RequireText(name, "Name"),
+            name!.Trim(),
             description?.Trim() ?? string.Empty,
-            RequireText(category, "Category"),
+            category!.Trim(),
             attributes is null ? new Dictionary<string, string>() : new Dictionary<string, string>(attributes),
             priceList);
     }
@@ -122,12 +127,13 @@ public sealed class Product
         IReadOnlyDictionary<string, string>? attributes,
         IEnumerable<Money> prices)
     {
-        var newName = RequireText(name, "Name");
-        var newCategory = RequireText(category, "Category");
+        var newPrices = prices.ToList();
+        _contentValidator.EnsureValid(new Content(name, category, newPrices));
+
+        var newName = name!.Trim();
+        var newCategory = category!.Trim();
         var newDescription = description?.Trim() ?? string.Empty;
         var newAttributes = attributes is null ? new Dictionary<string, string>() : new Dictionary<string, string>(attributes);
-        var newPrices = prices.ToList();
-        EnsureOnePricePerCurrency(newPrices);
 
         var changedPrices = newPrices
             .Select(price => (Old: _prices.Find(current => current.Currency == price.Currency), New: price))
@@ -162,7 +168,8 @@ public sealed class Product
 
     public void Rename(string? name)
     {
-        var newName = RequireText(name, "Name");
+        _contentValidator.EnsureValid(new Content(name, Category, _prices));
+        var newName = name!.Trim();
 
         if (newName == Name)
         {
@@ -186,24 +193,22 @@ public sealed class Product
 
     public void ClearDomainEvents() => _domainEvents.Clear();
 
-    private static void EnsureOnePricePerCurrency(List<Money> prices)
-    {
-        if (prices.Select(price => price.Currency).Distinct().Count() != prices.Count)
-        {
-            throw new DomainException("A product can have only one price per currency.");
-        }
-    }
-
     private bool SameAttributes(Dictionary<string, string> other) =>
         other.Count == Attributes.Count
         && other.All(pair => Attributes.TryGetValue(pair.Key, out var value) && value == pair.Value);
 
-    private static string RequireText(string? value, string field)
-    {
-        var trimmed = value?.Trim();
+    /// <summary>The caller-supplied content checked before a product is created or changed.</summary>
+    private sealed record Content(string? Name, string? Category, IReadOnlyList<Money> Prices);
 
-        return string.IsNullOrEmpty(trimmed)
-            ? throw new DomainException($"{field} must not be empty.")
-            : trimmed;
+    private sealed class ContentValidator : AbstractValidator<Content>
+    {
+        public ContentValidator()
+        {
+            RuleFor(content => content.Name).NotEmpty().WithMessage("Name must not be empty.");
+            RuleFor(content => content.Category).NotEmpty().WithMessage("Category must not be empty.");
+            RuleFor(content => content.Prices)
+                .Must(prices => prices.Select(price => price.Currency).Distinct().Count() == prices.Count)
+                .WithMessage("A product can have only one price per currency.");
+        }
     }
 }

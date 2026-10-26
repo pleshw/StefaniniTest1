@@ -13,7 +13,7 @@ You are implementing step {STEP} of the Orders & Catalog Platform.
 
 Read before coding:
 - docs/01-implementation-plan.md: Architecture, API surface, Data model and idempotency, Discount rules engine, Front-end.
-- docs/02-execution-guide.md: the rules below and step {STEP}.
+- docs/02-execution-guide.md: the rules below (including "Design rules for every step") and step {STEP}.
 - docs/03-code-review-guide.md: acceptance criteria and blockers.
 
 Do exactly this:
@@ -39,6 +39,32 @@ a package outside the tech stack table seems needed, or a decision is not writte
 - TypeScript: `strict: true`, no `any`, ES modules, no framework.
 - No secrets in code or compose files; new settings go to `.env.example` and `appsettings.json` with safe defaults.
 - Every new endpoint appears in OpenAPI and has request validation and ProblemDetails errors.
+
+### Design rules for every step
+
+These rules bind every implementation agent and every human contributor, in both solutions. A step that cannot follow
+one of them stops and asks instead of working around it.
+
+- **Commands and queries are `public sealed record`s** (`*Command`, `*Query`) in the Application project. An
+  architecture test fails on a command or query that is a class, non-public or not sealed, or that has no validator.
+- **FluentValidation is the only validation mechanism.** No hand-written `RequireText`-style guards, `if`/`return
+  Invalid(...)` chains or `Validate`/`Ensure` helpers for required fields, formats, ranges or lengths.
+  - Application: one `AbstractValidator<T>` per command and query, declared next to it in the feature file, injected
+    into the handler as `IValidator<T>` and run first; a failure becomes `validation.ToFailure<T>()` (a 400
+    ProblemDetails with every message). Nested inputs get their own validator (`SetValidator`).
+  - Domain: value objects and aggregates validate their raw input with a private validator and
+    `validator.EnsureValid(value)` (throws `DomainException`). Behaviour rules that depend on state, such as "a
+    deactivated product cannot change price", stay plain domain logic.
+  - Reuse shared rules instead of repeating them: catalog identifiers through `CatalogRules` (`ValidSku()`,
+    `SupportedCurrency(policy)`) in `Catalog.Domain.Validation`; a new cross-cutting rule goes there (or in the
+    equivalent `Orders.Domain.Validation`) as a rule-builder extension.
+  - Validators are registered with `AddValidatorsFromAssemblyContaining<...>()` inside the Application's
+    `Add<Service>Application()` extension, never one by one in `Program.cs`.
+- **Mapperly does all object mapping** (DTOs, request to command, document to read model). Mappers are
+  `[Mapper] static partial` classes; no hand-written `From(...)`/`ToDocument(...)` member-by-member copies. An unmapped
+  member is a build error: ignore it explicitly with `[MapperIgnoreSource]`/`[MapperIgnoreTarget]`. Aggregates are
+  rebuilt only through their domain factory (`Product.Restore`) so invariants run on every read. AutoMapper is not
+  used (licence and advisory, see the tech stack table).
 
 ### Definition of done (checked in each PR)
 

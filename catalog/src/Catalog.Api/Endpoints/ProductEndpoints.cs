@@ -33,7 +33,7 @@ internal static class ProductEndpoints
         QueryPricesHandler handler,
         CancellationToken cancellationToken)
     {
-        var result = await handler.HandleAsync(new PriceQuery(request.Currency, request.Skus), cancellationToken);
+        var result = await handler.HandleAsync(request.ToQuery(), cancellationToken);
 
         return result.IsSuccess ? TypedResults.Ok(result.Value) : ToProblem(result.Error!);
     }

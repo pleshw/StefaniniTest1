@@ -2,6 +2,8 @@ using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
 using Catalog.Domain;
+using Catalog.Domain.Validation;
+using FluentValidation;
 
 namespace Catalog.Application.Products;
 
@@ -15,23 +17,7 @@ public sealed record ProductDto(
     IReadOnlyDictionary<string, string> Attributes,
     PriceDto? Price,
     bool IsActive,
-    int Version)
-{
-    public static ProductDto From(Product product, Currency currency)
-    {
-        var price = product.Prices.FirstOrDefault(candidate => candidate.Currency == currency);
-
-        return new ProductDto(
-            product.Sku.Value,
-            product.Name,
-            product.Description,
-            product.Category,
-            product.Attributes,
-            price is null ? null : new PriceDto(price.Amount, price.Currency.Code),
-            product.IsActive,
-            product.Version);
-    }
-}
+    int Version);
 
 public sealed record ProductPage(IReadOnlyList<ProductDto> Items, string? Next);
 
@@ -69,33 +55,48 @@ public sealed record ListProductsQuery(string? Q, string? Category, string? Curr
 
 public sealed record GetProductQuery(string Sku, string? Currency);
 
-public sealed class ListProductsHandler(IProductRepository repository, CurrencyPolicy currencies)
+public sealed class ListProductsQueryValidator : AbstractValidator<ListProductsQuery>
+{
+    public ListProductsQueryValidator(CurrencyPolicy currencies)
+    {
+        RuleFor(query => query.Limit)
+            .InclusiveBetween(1, ListProductsHandler.MaxLimit)
+            .WithMessage($"limit must be between 1 and {ListProductsHandler.MaxLimit}.");
+        RuleFor(query => query.Currency).SupportedCurrency(currencies).When(query => query.Currency is not null);
+        RuleFor(query => query.After)
+            .Must(after => ProductCursor.TryDecode(after!, out _))
+            .When(query => query.After is not null)
+            .WithMessage("after is not a valid cursor.");
+    }
+}
+
+public sealed class GetProductQueryValidator : AbstractValidator<GetProductQuery>
+{
+    public GetProductQueryValidator(CurrencyPolicy currencies)
+    {
+        RuleFor(query => query.Sku).ValidSku();
+        RuleFor(query => query.Currency).SupportedCurrency(currencies).When(query => query.Currency is not null);
+    }
+}
+
+public sealed class ListProductsHandler(
+    IProductRepository repository, CurrencyPolicy currencies, IValidator<ListProductsQuery> validator)
 {
     public const int DefaultLimit = 20;
     public const int MaxLimit = 100;
 
     public async Task<Result<ProductPage>> HandleAsync(ListProductsQuery query, CancellationToken cancellationToken)
     {
+        var validation = await validator.ValidateAsync(query, cancellationToken);
+
+        if (!validation.IsValid)
+        {
+            return validation.ToFailure<ProductPage>();
+        }
+
         var limit = query.Limit ?? DefaultLimit;
-
-        if (limit is < 1 or > MaxLimit)
-        {
-            return Result.Fail<ProductPage>(ErrorKind.Validation, $"limit must be between 1 and {MaxLimit}.");
-        }
-
-        var currency = query.Currency is null ? currencies.Default : null;
-
-        if (query.Currency is not null && !currencies.TryParse(query.Currency, out currency))
-        {
-            return Result.Fail<ProductPage>(ErrorKind.Validation, $"Currency {query.Currency} is not supported.");
-        }
-
-        ProductCursor? after = null;
-
-        if (query.After is not null && !ProductCursor.TryDecode(query.After, out after))
-        {
-            return Result.Fail<ProductPage>(ErrorKind.Validation, "after is not a valid cursor.");
-        }
+        var currency = query.Currency is null ? currencies.Default : currencies.Parse(query.Currency);
+        var after = query.After is not null && ProductCursor.TryDecode(query.After, out var cursor) ? cursor : null;
 
         var found = await repository.SearchAsync(
             new ProductSearch(query.Q, query.Category, after, limit + 1), cancellationToken);
@@ -103,30 +104,28 @@ public sealed class ListProductsHandler(IProductRepository repository, CurrencyP
         var page = found.Take(limit).ToList();
         var next = found.Count > limit ? new ProductCursor(page[^1].Name, page[^1].Sku.Value).Encode() : null;
 
-        return Result.Ok(new ProductPage(page.Select(product => ProductDto.From(product, currency!)).ToList(), next));
+        return Result.Ok(new ProductPage(page.Select(product => product.ToDto(currency)).ToList(), next));
     }
 }
 
-public sealed class GetProductHandler(IProductRepository repository, CurrencyPolicy currencies)
+public sealed class GetProductHandler(
+    IProductRepository repository, CurrencyPolicy currencies, IValidator<GetProductQuery> validator)
 {
     public async Task<Result<ProductDto>> HandleAsync(GetProductQuery query, CancellationToken cancellationToken)
     {
-        if (!Sku.TryCreate(query.Sku, out var sku))
+        var validation = await validator.ValidateAsync(query, cancellationToken);
+
+        if (!validation.IsValid)
         {
-            return Result.Fail<ProductDto>(ErrorKind.Validation, "sku is not valid.");
+            return validation.ToFailure<ProductDto>();
         }
 
-        var currency = query.Currency is null ? currencies.Default : null;
-
-        if (query.Currency is not null && !currencies.TryParse(query.Currency, out currency))
-        {
-            return Result.Fail<ProductDto>(ErrorKind.Validation, $"Currency {query.Currency} is not supported.");
-        }
-
-        var product = await repository.GetBySkuAsync(sku!, cancellationToken);
+        var sku = Sku.Create(query.Sku);
+        var currency = query.Currency is null ? currencies.Default : currencies.Parse(query.Currency);
+        var product = await repository.GetBySkuAsync(sku, cancellationToken);
 
         return product is null
             ? Result.Fail<ProductDto>(ErrorKind.NotFound, $"Product {sku} was not found.")
-            : Result.Ok(ProductDto.From(product, currency!));
+            : Result.Ok(product.ToDto(currency));
     }
 }

@@ -10,7 +10,7 @@ public sealed class QueryPricesHandlerTests
 
     public QueryPricesHandlerTests()
     {
-        _handler = new QueryPricesHandler(_repository, ProductTestData.Currencies);
+        _handler = new QueryPricesHandler(_repository, ProductTestData.Currencies, new PriceQueryValidator(ProductTestData.Currencies));
         _repository.GetManyAsync(Arg.Any<IReadOnlyCollection<Sku>>(), Arg.Any<CancellationToken>()).Returns([]);
     }
 

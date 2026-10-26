@@ -1,9 +1,14 @@
+using Catalog.Domain.Validation;
+using FluentValidation;
+
 namespace Catalog.Domain;
 
 /// <summary>An ISO 4217 alphabetic currency code. Which codes the catalog accepts is decided by <see cref="CurrencyPolicy"/>.</summary>
 public sealed record Currency
 {
     private const int _codeLength = 3;
+
+    private static readonly CodeValidator _validator = new();
 
     private Currency(string code)
     {
@@ -14,15 +19,30 @@ public sealed record Currency
 
     public static Currency Create(string? code)
     {
-        var normalized = code?.Trim().ToUpperInvariant();
-
-        if (normalized is not { Length: _codeLength } || !normalized.All(char.IsAsciiLetterUpper))
-        {
-            throw new DomainException("Currency must be a three-letter ISO 4217 code.");
-        }
+        var normalized = code?.Trim().ToUpperInvariant() ?? string.Empty;
+        _validator.EnsureValid(normalized);
 
         return new Currency(normalized);
     }
 
+    public static bool TryCreate(string? code, out Currency? currency)
+    {
+        var normalized = code?.Trim().ToUpperInvariant() ?? string.Empty;
+        currency = _validator.Validate(normalized).IsValid ? new Currency(normalized) : null;
+
+        return currency is not null;
+    }
+
     public override string ToString() => Code;
+
+    private sealed class CodeValidator : AbstractValidator<string>
+    {
+        public CodeValidator()
+        {
+            RuleFor(code => code)
+                .Must(code => code.Length == _codeLength && code.All(char.IsAsciiLetterUpper))
+                .WithMessage("Currency must be a three-letter ISO 4217 code.")
+                .OverridePropertyName(nameof(Currency));
+        }
+    }
 }

@@ -9,7 +9,7 @@ public sealed class ListProductsHandlerTests
 
     public ListProductsHandlerTests()
     {
-        _handler = new ListProductsHandler(_repository, ProductTestData.Currencies);
+        _handler = new ListProductsHandler(_repository, ProductTestData.Currencies, new ListProductsQueryValidator(ProductTestData.Currencies));
         _repository.SearchAsync(Arg.Any<ProductSearch>(), Arg.Any<CancellationToken>()).Returns([]);
     }
 
