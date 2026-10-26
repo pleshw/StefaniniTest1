@@ -24,6 +24,12 @@ public sealed record OrdersPersistenceOptions
 
     /// <summary>Turned off only by tests that start a host without a database.</summary>
     public bool Enabled { get; init; } = true;
+
+    /// <summary>
+    /// Lets the host create Wolverine's tables itself when it starts. Off by default: the migrator owns the schema.
+    /// Turned on only by tests that start the API on a fresh database.
+    /// </summary>
+    public bool AutoCreateMessageStorage { get; init; }
 }
 
 public static class OrdersPersistenceExtensions
@@ -53,7 +59,7 @@ public static class OrdersPersistenceExtensions
         services.AddWolverine(wolverine =>
         {
             wolverine.PersistMessagesWithPostgresql(connectionString, OrdersPersistenceOptions.WolverineSchema);
-            wolverine.AutoBuildMessageStorageOnStartup = JasperFx.AutoCreate.None;
+            wolverine.AutoBuildMessageStorageOnStartup = options.AutoCreateMessageStorage ? JasperFx.AutoCreate.CreateOrUpdate : JasperFx.AutoCreate.None;
             wolverine.PublishMessage<OrderPlaced>().ToLocalQueue(OrderPlacedHandler.LocalQueue).UseDurableInbox();
         });
 

@@ -6,8 +6,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Orders.Infrastructure.Persistence;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -32,12 +30,14 @@ public sealed class CreateOrderPostgresTests : IClassFixture<PostgresFixture>, I
         _postgres = postgres;
     }
 
-    public async ValueTask InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         _catalog.Given(Request.Create().WithPath("/api/v1/products/prices:query").UsingPost())
             .RespondWith(Response.Create().WithStatusCode(200).WithHeader("Content-Type", "application/json").WithBody(_pricesBody));
         _factory = new PostgresApiFactory(_postgres.ConnectionString, _catalog.Url!);
-        await OrdersMigrator.RunAsync(_factory.Services.GetRequiredService<IHost>());
+        _ = _factory.Services;
+
+        return ValueTask.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()
@@ -108,6 +108,7 @@ public sealed class CreateOrderPostgresTests : IClassFixture<PostgresFixture>, I
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseSetting("ConnectionStrings:Orders", connectionString);
+            builder.UseSetting("Orders:Persistence:AutoCreateMessageStorage", "true");
             builder.UseSetting("Catalog:BaseAddress", catalogUrl);
             builder.UseSetting("Catalog:Client:RetryDelay", "00:00:00.01");
             builder.ConfigureServices(services => services.AddAuthentication(TestAuthHandler.SchemeName)
