@@ -74,6 +74,8 @@ Use the checklist of each stack the PR touches, on top of the acceptance criteri
 - [ ] Money as `decimal` via `Money`; time via `TimeProvider`; no static mutable state
 - [ ] EF Core: `AsNoTracking` for reads, projections instead of loading graphs, no queries in loops, `FromSql` interpolation only
 - [ ] Endpoints return `TypedResults`, validate input, map errors to ProblemDetails, declare authorization
+- [ ] Commands and queries are `public sealed record`s with a FluentValidation validator; no hand-written required-field or format checks ([design rules](02-execution-guide.md#design-rules-for-every-step))
+- [ ] Mapping through Mapperly `[Mapper]` classes; no hand-written member-by-member copies; no AutoMapper
 - [ ] Logging through source-generated `LoggerMessage`; no string interpolation in log calls
 
 **TypeScript front-end**

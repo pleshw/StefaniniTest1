@@ -10,4 +10,8 @@
     <ProjectReference Include="../Catalog.Infrastructure/Catalog.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Riok.Mapperly" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
 </Project>

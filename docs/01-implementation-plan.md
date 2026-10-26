@@ -80,6 +80,8 @@ Rules that keep the BFF thin: no domain logic, no database, no price or discount
 | Resilience | Microsoft.Extensions.Http.Resilience | Timeout, retry, circuit breaker on Catalog calls |
 | Gateway in BFF | YARP | Pass-through routes |
 | API docs | Microsoft.AspNetCore.OpenApi + Scalar | OpenAPI 3.1 |
+| Validation | FluentValidation 12 (Apache-2.0) | The only way to validate input, in every layer; see [Design rules](02-execution-guide.md#design-rules-for-every-step) |
+| Object mapping | Mapperly (Riok.Mapperly, MIT, source-generated) | Chosen over AutoMapper: 14.x (last MIT) has advisory GHSA-rvv3-g6hj-g44x and fails the build, 15+ is commercial |
 | Errors | ProblemDetails (RFC 9457) | Same shape in all services |
 | Observability | OpenTelemetry → OTel Collector → Aspire Dashboard | Compose profile `observability` |
 | Back-end tests | xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest | Avoid FluentAssertions v8 (commercial licence) |
@@ -98,7 +100,7 @@ One Git repository holds two .NET solutions (`.slnx`) and one front-end package.
 ├─ docker-compose.yml  .env.example
 ├─ deploy/nginx/  deploy/otel/  deploy/mongo/  deploy/rabbitmq/
 ├─ orders/Orders.slnx
-│  ├─ src/Orders.Domain             # aggregates, value objects, discount strategies, no dependencies
+│  ├─ src/Orders.Domain             # aggregates, value objects, discount strategies, no dependencies but FluentValidation
 │  ├─ src/Orders.Application        # commands, queries, handlers, ports (ICatalogClient, IClock...)
 │  ├─ src/Orders.Infrastructure     # EF Core, migrations, Catalog client, outbox/inbox, RabbitMQ
 │  ├─ src/Orders.Api                # Minimal API endpoints, ProblemDetails, auth
@@ -442,7 +444,7 @@ Every service exports OpenTelemetry traces, metrics and logs; audit lives in eac
 
 - BFF: cookie session (HttpOnly, Secure, SameSite=Strict) + antiforgery header on unsafe methods. For local development a seeded dev identity provider (Keycloak container) issues users `shopper` and `admin`; credentials live in `.env.example`, never in code.
 - BFF → services: the user's token is exchanged for a downstream JWT (Keycloak token exchange), so the user identity reaches each service; Orders and Catalog validate issuer, audience and role. Services are not published on host ports except through nginx.
-- Input validation at the API edge (FluentValidation or endpoint filters), limits on page size (100) and batch size (100 SKUs).
+- Input validation with FluentValidation: one validator per command and query, run by its handler before any I/O; limits on page size (100) and batch size (100 SKUs).
 - Queries: EF Core LINQ or `FromSql` interpolation only (parameterized); `FromSqlRaw` with concatenation is banned and EF1002 is a build error (AC6). Mongo uses typed `Builders<T>` filters only.
 
 ## Testing and CI/CD

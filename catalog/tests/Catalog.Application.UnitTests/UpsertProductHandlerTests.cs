@@ -12,7 +12,11 @@ public sealed class UpsertProductHandlerTests
 
     public UpsertProductHandlerTests()
     {
-        _handler = new UpsertProductHandler(_repository, ProductTestData.Currencies, new FixedTimeProvider(_now));
+        _handler = new UpsertProductHandler(
+            _repository,
+            ProductTestData.Currencies,
+            new FixedTimeProvider(_now),
+            new UpsertProductCommandValidator(new PriceInputValidator(ProductTestData.Currencies)));
     }
 
     [Fact]

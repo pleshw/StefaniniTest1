@@ -10,7 +10,7 @@ public sealed class GetProductHandlerTests
 
     public GetProductHandlerTests()
     {
-        _handler = new GetProductHandler(_repository, ProductTestData.Currencies);
+        _handler = new GetProductHandler(_repository, ProductTestData.Currencies, new GetProductQueryValidator(ProductTestData.Currencies));
     }
 
     [Fact]

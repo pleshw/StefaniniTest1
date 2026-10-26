@@ -28,15 +28,7 @@ public sealed class CurrencyPolicy
 
     public bool TryParse(string? code, out Currency? currency)
     {
-        try
-        {
-            var parsed = Currency.Create(code);
-            currency = _allowed.Contains(parsed) ? parsed : null;
-        }
-        catch (DomainException)
-        {
-            currency = null;
-        }
+        currency = Currency.TryCreate(code, out var parsed) && _allowed.Contains(parsed!) ? parsed : null;
 
         return currency is not null;
     }

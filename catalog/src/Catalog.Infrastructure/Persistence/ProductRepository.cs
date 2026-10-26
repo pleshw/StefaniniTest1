@@ -25,7 +25,7 @@ public sealed class ProductRepository : IProductRepository
 
         var document = await _products.Find(filter).FirstOrDefaultAsync(cancellationToken);
 
-        return document is null ? null : ToDomain(document);
+        return document is null ? null : document.ToDomain();
     }
 
     public async Task<IReadOnlyList<Product>> SearchAsync(ProductSearch search, CancellationToken cancellationToken)
@@ -57,7 +57,7 @@ public sealed class ProductRepository : IProductRepository
             .Limit(search.Limit)
             .ToListAsync(cancellationToken);
 
-        return documents.Select(ToDomain).ToList();
+        return documents.Select(DocumentMapper.ToDomain).ToList();
     }
 
     public async Task<IReadOnlyList<ProductSummary>> GetManyAsync(
@@ -75,15 +75,7 @@ public sealed class ProductRepository : IProductRepository
 
         var documents = await _products.Find(filter).Project<ProductDocument>(projection).ToListAsync(cancellationToken);
 
-        return documents
-            .Select(document => new ProductSummary(
-                Sku.Create(document.Sku),
-                document.Name,
-                document.Category,
-                document.IsActive,
-                document.Version,
-                document.Prices.Select(ToMoney).ToList()))
-            .ToList();
+        return documents.Select(DocumentMapper.ToSummary).ToList();
     }
 
     public async Task SaveAsync(
@@ -102,7 +94,7 @@ public sealed class ProductRepository : IProductRepository
                 {
                     if (expectedVersion is null)
                     {
-                        await _products.InsertOneAsync(transactionSession, ToDocument(product, audit), cancellationToken: token);
+                        await _products.InsertOneAsync(transactionSession, product.ToDocument(audit), cancellationToken: token);
                     }
                     else
                     {
@@ -112,7 +104,7 @@ public sealed class ProductRepository : IProductRepository
                     if (priceHistory.Count > 0)
                     {
                         await _priceHistory.InsertManyAsync(
-                            transactionSession, priceHistory.Select(ToDocument), cancellationToken: token);
+                            transactionSession, priceHistory.Select(DocumentMapper.ToDocument), cancellationToken: token);
                     }
 
                     return true;
@@ -131,7 +123,7 @@ public sealed class ProductRepository : IProductRepository
         var filter = Builders<ProductDocument>.Filter.And(
             Builders<ProductDocument>.Filter.Eq(document => document.Sku, product.Sku.Value),
             Builders<ProductDocument>.Filter.Eq(document => document.Version, expectedVersion));
-        var changes = ToDocument(product, audit);
+        var changes = product.ToDocument(audit);
         var update = Builders<ProductDocument>.Update
             .Set(document => document.Name, changes.Name)
             .Set(document => document.Description, changes.Description)
@@ -150,42 +142,4 @@ public sealed class ProductRepository : IProductRepository
             throw new ConcurrencyException($"Product {product.Sku} was changed by someone else (expected version {expectedVersion}).");
         }
     }
-
-    private static ProductDocument ToDocument(Product product, AuditStamp audit) => new()
-    {
-        Sku = product.Sku.Value,
-        Name = product.Name,
-        Description = product.Description,
-        Category = product.Category,
-        Attributes = product.Attributes.ToDictionary(pair => pair.Key, pair => pair.Value),
-        Prices = product.Prices.Select(price => new PriceDocument { Currency = price.Currency.Code, Amount = price.Amount }).ToList(),
-        IsActive = product.IsActive,
-        Version = product.Version,
-        UpdatedAt = audit.UpdatedAt.UtcDateTime,
-        UpdatedBy = audit.UpdatedBy,
-    };
-
-    private static PriceHistoryDocument ToDocument(PriceHistoryEntry entry) => new()
-    {
-        Sku = entry.Sku.Value,
-        Currency = entry.Currency.Code,
-        OldPrice = entry.OldPrice,
-        NewPrice = entry.NewPrice,
-        Version = entry.Version,
-        ChangedBy = entry.ChangedBy,
-        ChangedAt = entry.ChangedAt.UtcDateTime,
-        TraceId = entry.TraceId,
-    };
-
-    private static Product ToDomain(ProductDocument document) => Product.Restore(
-        Sku.Create(document.Sku),
-        document.Name,
-        document.Description,
-        document.Category,
-        document.Attributes,
-        document.Prices.Select(ToMoney),
-        document.IsActive,
-        document.Version);
-
-    private static Money ToMoney(PriceDocument price) => Money.Create(price.Amount, Currency.Create(price.Currency));
 }
