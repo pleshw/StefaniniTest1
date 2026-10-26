@@ -1,11 +1,13 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Orders.Application.Idempotency;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -57,7 +59,9 @@ public sealed class CreateOrderPostgresTests : IClassFixture<PostgresFixture>, I
         var responses = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Post(client, key, quantity: 2)));
 
         responses.ShouldAllBe(response => response.Status == HttpStatusCode.Created);
-        responses.Select(response => response.Body).Distinct().Count().ShouldBe(1);
+        // The first response is the serialized DTO; replays read it back from a jsonb column, which reformats the text
+        // (key order, spaces) but not the content, so the responses are compared as JSON.
+        responses.Select(response => Convert.ToHexString(CanonicalRequestHash.Compute(JsonNode.Parse(response.Body)))).Distinct().Count().ShouldBe(1);
         (await CountOrders()).ShouldBe(ordersBefore + 1);
         await using var context = _postgres.NewContext();
         (await context.IdempotencyRequests.CountAsync(request => request.IdempotencyKey == Guid.Parse(key), Token)).ShouldBe(1);
