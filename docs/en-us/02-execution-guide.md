@@ -131,7 +131,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C08 `ci: add GitHub Actions pipelines and deploy gate`**
 
-- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
+- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; `scripts/check-docs.mjs` (bilingual check used by the `docs` CI job); first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
 - Tests: the pipelines run the existing suites.
 - Verify: the PR shows `ci / gate` and `CodeQL` green; after merge, `cd` builds images, passes `deploy-gate` and deploys staging; a test tag `v0.0.1` stops at the `production` approval.
 
@@ -480,7 +480,7 @@ The same images flow from staging to production; only the tag changes.
 
 | File | Trigger | Purpose | Required for |
 | --- | --- | --- | --- |
-| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, then the `gate` job | Merge (branch protection) and every deploy |
+| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, bilingual documentation sync, then the `gate` job | Merge (branch protection) and every deploy |
 | `codeql.yml` | pull request, push to `main`, weekly | CodeQL for C# and TypeScript | Merge |
 | `cd.yml` | `workflow_run` of `ci` succeeded on `main` or a `v*` tag | `main`: build, attest, scan, deploy staging. Tag: promote images, deploy production | - |
 | `deploy.yml` | `workflow_call` from `cd.yml` | Reusable: `deploy-gate` → `deploy` (environment) → smoke → rollback on failure | - |
@@ -594,9 +594,16 @@ jobs:
       - name: Compose file is valid
         run: cp .env.example .env && docker compose config -q
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bilingual docs are in sync (pt-BR source, en-US mirror)
+        run: node scripts/check-docs.mjs
+
   gate:
     if: always()
-    needs: [dotnet, integration, web, security]
+    needs: [dotnet, integration, web, security, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded

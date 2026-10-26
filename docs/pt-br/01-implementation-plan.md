@@ -466,7 +466,7 @@ Mantendo os testes enxutos: um comportamento por teste, builders para dados de t
 **Pipeline de Git e CI** (GitHub Actions ou equivalente)
 
 1. Trunk-based: uma etapa do Guia de execução por branch curta e PR para a `main`, Conventional Commits, squash merge, review obrigatório.
-2. `ci.yml` em todo PR: format, build com warnings como erros, testes unitários + de arquitetura com gates de cobertura, testes de integração com Testcontainers, lint + Vitest do front-end, scans de dependências e de segredos e, por fim, o job obrigatório `gate`.
+2. `ci.yml` em todo PR: format, build com warnings como erros, testes unitários + de arquitetura com gates de cobertura, testes de integração com Testcontainers, lint + Vitest do front-end, scans de dependências e de segredos, verificação de que as duas árvores de documentação estão em sincronia (`scripts/check-docs.mjs`) e, por fim, o job obrigatório `gate`.
 3. `cd.yml` depois que o `ci` passa na `main`: build das imagens uma única vez, atestação de proveniência, scan com Trivy, aprovação no `deploy-gate`, deploy em staging, smoke test, rollback em caso de falha.
 4. Tag de release `v*.*.*`: promover as mesmas imagens, passar pelo `deploy-gate` mais a aprovação de produção, fazer deploy em produção, smoke test.
 5. Banco de dados: bundle de migrations do EF Core executado pelo serviço `orders-migrator` antes de o `orders-api` iniciar; as migrations continuam retrocompatíveis (expand, depois contract).

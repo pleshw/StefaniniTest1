@@ -466,7 +466,7 @@ Keeping tests lean: one behaviour per test, builders for test data, no testing o
 **Git and CI pipeline** (GitHub Actions or equivalent)
 
 1. Trunk-based: one step of the Execution guide per short branch and PR to `main`, Conventional Commits, squash merge, required review.
-2. `ci.yml` on every PR: format, build with warnings as errors, unit + architecture tests with coverage gates, integration tests with Testcontainers, front-end lint + Vitest, dependency and secret scans, then the required `gate` job.
+2. `ci.yml` on every PR: format, build with warnings as errors, unit + architecture tests with coverage gates, integration tests with Testcontainers, front-end lint + Vitest, dependency and secret scans, a check that the two documentation trees are in sync (`scripts/check-docs.mjs`), then the required `gate` job.
 3. `cd.yml` after `ci` passes on `main`: build images once, attest provenance, scan with Trivy, pass `deploy-gate`, deploy staging, smoke test, roll back on failure.
 4. Release tag `v*.*.*`: promote the same images, pass `deploy-gate` plus the production approval, deploy production, smoke test.
 5. Database: EF Core migrations bundle run by the `orders-migrator` service before `orders-api` starts; migrations stay backward compatible (expand, then contract).
