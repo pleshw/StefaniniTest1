@@ -17,13 +17,19 @@ internal sealed class OrderEventLog(OrdersDbContext context) : IOrderEventLog
 
     public async Task AppendAsync(IDomainEvent domainEvent, CancellationToken cancellationToken)
     {
-        var (orderId, type, payload, occurredAt) = domainEvent switch
+        var entry = domainEvent switch
         {
-            OrderStatusChanged changed => (changed.OrderId, StatusChangedType, JsonSerializer.Serialize(changed.ToContract(), _json), changed.OccurredAt),
+            OrderStatusChanged changed => new OrderEventLogEntry(
+                changed.OrderId, StatusChangedType, JsonSerializer.Serialize(changed.ToContract(), _json), changed.OccurredAt),
             _ => throw new NotSupportedException($"{domainEvent.GetType().Name} is not written to the event log."),
         };
 
-        context.OrderEventLog.Add(new OrderEventLogRecord { OrderId = orderId, Type = type, Payload = payload, OccurredAt = occurredAt });
+        await AppendEntryAsync(entry, cancellationToken);
+    }
+
+    public async Task AppendEntryAsync(OrderEventLogEntry entry, CancellationToken cancellationToken)
+    {
+        context.OrderEventLog.Add(new OrderEventLogRecord { OrderId = entry.OrderId, Type = entry.Type, Payload = entry.Payload, OccurredAt = entry.OccurredAt });
         await context.SaveChangesAsync(cancellationToken);
     }
 }

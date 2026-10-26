@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orders.Application.Catalog;
 using Orders.Application.Confirmation;
+using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
@@ -35,6 +36,8 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
 
     internal InMemoryConfirmationRuleRepository ConfirmationRuleStore { get; } = new();
 
+    internal InMemoryDeadLetters DeadLetters { get; } = new();
+
     internal CountingActiveConfirmationRules ConfirmationRules { get; }
 
     internal InMemoryDiscountRuleRepository DiscountRuleStore { get; } = new();
@@ -63,6 +66,7 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IOrderEventPublisher>(Events);
             services.AddSingleton<IOrderEventLog>(EventLog);
             services.AddSingleton<IConfirmationRuleRepository>(ConfirmationRuleStore);
+            services.AddSingleton<IDeadLetters>(DeadLetters);
             services.AddSingleton<IActiveConfirmationRules>(ConfirmationRules);
             services.AddSingleton<IDiscountRuleRepository>(DiscountRuleStore);
 

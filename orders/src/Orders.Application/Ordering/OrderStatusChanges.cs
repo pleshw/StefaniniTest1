@@ -6,7 +6,14 @@ namespace Orders.Application.Ordering;
 public interface IOrderEventLog
 {
     Task AppendAsync(IDomainEvent domainEvent, CancellationToken cancellationToken);
+
+    /// <summary>Appends something that is not a status change, such as a dead letter replay.</summary>
+    Task AppendEntryAsync(OrderEventLogEntry entry, CancellationToken cancellationToken);
 }
+
+/// <param name="Type">A versioned name such as <c>DeadLetterReplayed.v1</c>.</param>
+/// <param name="Payload">JSON.</param>
+public sealed record OrderEventLogEntry(Guid OrderId, string Type, string Payload, DateTimeOffset OccurredAt);
 
 /// <summary>
 /// Records the events an order raised while it changed status: one <c>order_event_log</c> row and one outbox message

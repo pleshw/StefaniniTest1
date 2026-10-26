@@ -19,6 +19,9 @@ public enum ErrorKind
 
     /// <summary>The order state machine does not allow the requested status change (HTTP 409 invalid-transition).</summary>
     InvalidTransition,
+
+    /// <summary>The message broker could not be reached (HTTP 503).</summary>
+    MessagingUnavailable,
 }
 
 public sealed record ResultError(ErrorKind Kind, string Message);

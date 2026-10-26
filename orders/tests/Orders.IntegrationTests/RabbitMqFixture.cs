@@ -26,12 +26,29 @@ public sealed class RabbitMqFixture : IAsyncLifetime
         _management.BaseAddress = new Uri($"http://{_container.Hostname}:{_container.GetMappedPublicPort(_managementPort)}");
         _management.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{RabbitMqBuilder.DefaultUsername}:{RabbitMqBuilder.DefaultPassword}")));
+        await ImportDefinitionsAsync();
     }
 
     public async ValueTask DisposeAsync()
     {
         _management.Dispose();
         await _container.DisposeAsync();
+    }
+
+    /// <summary>Loads <c>deploy/rabbitmq/definitions.json</c>, so the tests run on the topology and policies compose starts with.</summary>
+    private async Task ImportDefinitionsAsync()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "deploy", "rabbitmq", "definitions.json")))
+        {
+            directory = directory.Parent;
+        }
+
+        directory.ShouldNotBeNull("deploy/rabbitmq/definitions.json was not found above the test output directory");
+        using var content = new StringContent(
+            await File.ReadAllTextAsync(Path.Combine(directory.FullName, "deploy", "rabbitmq", "definitions.json")), Encoding.UTF8, "application/json");
+        (await _management.PostAsync("/api/definitions", content)).EnsureSuccessStatusCode();
     }
 
     /// <summary>Declares an auto-delete queue and binds it to an exchange with a routing key (retries while the exchange is being declared).</summary>
@@ -84,12 +101,17 @@ public sealed class RabbitMqFixture : IAsyncLifetime
         }
     }
 
-    /// <summary>The number of messages waiting in a queue.</summary>
+    /// <summary>
+    /// How many messages are waiting in a queue, up to 100. It reads them with a get that puts them back: the queue totals
+    /// of the management API are sampled every few seconds and lag behind.
+    /// </summary>
     public async Task<int> CountAsync(string queue, CancellationToken cancellationToken)
     {
-        var info = await _management.GetFromJsonAsync<JsonElement>($"/api/queues/{_defaultVhost}/{queue}", cancellationToken);
+        var response = await _management.PostAsJsonAsync(
+            $"/api/queues/{_defaultVhost}/{queue}/get", new { count = 100, ackmode = "ack_requeue_true", encoding = "auto" }, cancellationToken);
+        response.EnsureSuccessStatusCode();
 
-        return info.GetProperty("messages").GetInt32();
+        return (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken)).GetArrayLength();
     }
 
     /// <summary>Takes up to <paramref name="count"/> messages off the queue (acknowledging them).</summary>

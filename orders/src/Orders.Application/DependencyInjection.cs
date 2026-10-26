@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orders.Application.Confirmation;
+using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
@@ -35,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<PreviewDiscountRuleHandler>();
         services.AddScoped<OrderStatusChangeRecorder>();
         services.AddScoped<ChangeOrderStatusHandler>();
+        services.AddScoped<ListDeadLettersHandler>();
+        services.AddScoped<ReplayDeadLetterHandler>();
         services.AddScoped<ListConfirmationRulesHandler>();
         services.AddScoped<GetConfirmationRuleHandler>();
         services.AddScoped<CreateConfirmationRuleHandler>();

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Orders.Application;
 using Orders.Application.Catalog;
 using Orders.Application.Confirmation;
+using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
 using Orders.Application.Ordering;
@@ -320,11 +321,22 @@ internal sealed class InMemoryOrderEventLog : IOrderEventLog
 {
     private readonly ConcurrentQueue<IDomainEvent> _entries = new();
 
+    private readonly ConcurrentQueue<OrderEventLogEntry> _other = new();
+
     public IReadOnlyCollection<IDomainEvent> Entries => _entries.ToList();
+
+    /// <summary>Entries that are not status changes, such as dead letter replays.</summary>
+    public IReadOnlyCollection<OrderEventLogEntry> OtherEntries => _other.ToList();
 
     public Task AppendAsync(IDomainEvent domainEvent, CancellationToken cancellationToken)
     {
         _entries.Enqueue(domainEvent);
+        return Task.CompletedTask;
+    }
+
+    public Task AppendEntryAsync(OrderEventLogEntry entry, CancellationToken cancellationToken)
+    {
+        _other.Enqueue(entry);
         return Task.CompletedTask;
     }
 }
@@ -400,4 +412,72 @@ internal sealed class CountingActiveConfirmationRules(IConfirmationRuleRepositor
     public Task<IReadOnlyList<ConfirmationRule>> GetAsync(CancellationToken cancellationToken) => repository.GetActiveAsync(cancellationToken);
 
     public void Invalidate() => Interlocked.Increment(ref _invalidations);
+}
+
+/// <summary>A dead letter queue held in a list: peeking leaves the messages, replaying removes the one it republishes.</summary>
+internal sealed class InMemoryDeadLetters : IDeadLetters
+{
+    private readonly List<DeadLetterDto> _letters = [];
+
+    public bool Unreachable { get; set; }
+
+    public IReadOnlyList<DeadLetterReplay> Replays { get; private set; } = [];
+
+    public void Park(DeadLetterDto letter)
+    {
+        lock (_letters)
+        {
+            _letters.Add(letter);
+        }
+    }
+
+    public Task<IReadOnlyList<DeadLetterDto>> PeekAsync(int limit, CancellationToken cancellationToken)
+    {
+        ThrowIfUnreachable();
+
+        lock (_letters)
+        {
+            return Task.FromResult<IReadOnlyList<DeadLetterDto>>(_letters.Take(limit).ToList());
+        }
+    }
+
+    public async Task<Result<DeadLetterReplay>> ReplayAsync(string messageId, string replayedBy, DeadLetterReplayHooks hooks, CancellationToken cancellationToken)
+    {
+        ThrowIfUnreachable();
+        DeadLetterDto? letter;
+
+        lock (_letters)
+        {
+            letter = _letters.FirstOrDefault(parked => parked.MessageId == messageId);
+        }
+
+        if (letter is null)
+        {
+            return Result.Fail<DeadLetterReplay>(ErrorKind.NotFound, $"No dead letter has the message id {messageId}.");
+        }
+
+        if (await hooks.Check(letter, cancellationToken) is { } veto)
+        {
+            return Result.Fail<DeadLetterReplay>(veto.Kind, veto.Message);
+        }
+
+        var replay = new DeadLetterReplay(letter, Guid.NewGuid().ToString(), "orders.events", "order.placed", replayedBy);
+        await hooks.Record(replay, cancellationToken);
+
+        lock (_letters)
+        {
+            _letters.Remove(letter);
+            Replays = [.. Replays, replay];
+        }
+
+        return Result.Ok(replay);
+    }
+
+    private void ThrowIfUnreachable()
+    {
+        if (Unreachable)
+        {
+            throw new MessagingUnavailableException("The message broker could not be reached; try again shortly.", new InvalidOperationException());
+        }
+    }
 }
