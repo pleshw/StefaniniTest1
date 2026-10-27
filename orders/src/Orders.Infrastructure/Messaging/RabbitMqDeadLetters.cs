@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Orders.Application;
 using Orders.Application.DeadLetters;
+using Orders.Application.Observability;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 
@@ -173,7 +174,14 @@ internal sealed class RabbitMqDeadLetters(IConfiguration configuration) : IDeadL
         _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
     };
 
-    private async Task<T> Broker<T>(Func<IChannel, Task<T>> work)
+    private Task<T> Broker<T>(Func<IChannel, Task<T>> work) =>
+        RabbitMqBroker.RunAsync(configuration, new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), work);
+}
+
+/// <summary>One short-lived connection and channel to the broker of <c>ConnectionStrings:RabbitMq</c>, for the rare admin calls and the metrics poll.</summary>
+internal static class RabbitMqBroker
+{
+    public static async Task<T> RunAsync<T>(IConfiguration configuration, CreateChannelOptions? channelOptions, Func<IChannel, Task<T>> work)
     {
         var connectionString = configuration.GetConnectionString(OrdersMessagingOptions.ConnectionStringName) ?? OrdersMessagingOptions.DefaultConnectionString;
         var factory = new ConnectionFactory { Uri = new Uri(connectionString), RequestedConnectionTimeout = TimeSpan.FromSeconds(5) };
@@ -181,7 +189,7 @@ internal sealed class RabbitMqDeadLetters(IConfiguration configuration) : IDeadL
         try
         {
             await using var connection = await factory.CreateConnectionAsync();
-            await using var channel = await connection.CreateChannelAsync(new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true));
+            await using var channel = await connection.CreateChannelAsync(channelOptions);
 
             return await work(channel);
         }
@@ -190,6 +198,32 @@ internal sealed class RabbitMqDeadLetters(IConfiguration configuration) : IDeadL
             throw new MessagingUnavailableException("The message broker could not be reached; try again shortly.", exception);
         }
     }
+}
+
+/// <summary>
+/// How many messages wait in <c>orders.dlq</c>, read with a passive declare: the broker answers with the queue's own count
+/// (the management API's totals are sampled and lag behind) and no message is touched. A missing queue is null, not an error.
+/// </summary>
+internal sealed class RabbitMqDeadLetterDepth(IConfiguration configuration) : IDeadLetterDepthProbe
+{
+    public async Task<long?> ReadAsync(CancellationToken cancellationToken) =>
+        await RabbitMqBroker.RunAsync<long?>(configuration, null, async channel =>
+        {
+            try
+            {
+                return (await channel.QueueDeclarePassiveAsync(RabbitMqDeadLetters.Queue, cancellationToken)).MessageCount;
+            }
+            catch (OperationInterruptedException exception) when (exception.ShutdownReason?.ReplyCode == 404)
+            {
+                return null;
+            }
+        });
+}
+
+/// <summary>Stands in when messaging is switched off: there is no dead letter queue to measure.</summary>
+internal sealed class DisabledDeadLetterDepth : IDeadLetterDepthProbe
+{
+    public Task<long?> ReadAsync(CancellationToken cancellationToken) => Task.FromResult<long?>(null);
 }
 
 /// <summary>Stands in when messaging is switched off: there is no dead letter queue to look at.</summary>

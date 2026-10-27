@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Orders.Application.Catalog;
+using Orders.Application.Observability;
 using Orders.Infrastructure.Catalog.Generated;
 using Polly;
 
@@ -73,6 +75,7 @@ public static class CatalogClientExtensions
                 pipeline.CircuitBreaker.BreakDuration = resilience.CircuitBreaker.BreakDuration;
                 pipeline.TotalRequestTimeout.Timeout = (resilience.AttemptTimeout + resilience.RetryDelay) * (resilience.MaxRetryAttempts + 1);
             });
+        services.TryAddSingleton<OrdersMetrics>();
         services.AddScoped<ICatalogPriceProvider, CatalogPriceProvider>();
 
         return services;

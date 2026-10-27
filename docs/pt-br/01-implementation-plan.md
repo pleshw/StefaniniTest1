@@ -437,7 +437,7 @@ Todo serviço exporta traces, métricas e logs via OpenTelemetry; a auditoria fi
 - O projeto `ServiceDefaults` configura o OTel para ASP.NET Core, HttpClient, EF Core/Npgsql, driver do MongoDB e RabbitMQ, exportando OTLP para o Collector. Visualização local: container do Aspire Dashboard (`docker compose --profile observability up`).
 - O contexto de trace atravessa o HTTP automaticamente e o RabbitMQ por meio do header `traceparent` armazenado nas linhas de outbox.
 - Logs: `ILogger` com `LoggerMessage` via source generator, saída JSON no console, trace id em toda entrada. Nada de dados pessoais ou corpos completos de requisição nos logs.
-- Métricas customizadas: `orders.created`, `orders.duplicate_replayed`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth`.
+- Métricas customizadas: `orders.created`, `orders.duplicate_replayed`, `orders.on_hold`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth`, com os limites de alerta em [Métricas e alertas](operations/alerts.md).
 - Health: `/health/live` e `/health/ready` (DB, broker, Catalog acessível), usados pelos healthchecks do compose.
 
 **Auditoria**

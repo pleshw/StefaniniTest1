@@ -6,6 +6,7 @@ using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
 using Orders.Application.Events;
 using Orders.Application.Idempotency;
+using Orders.Application.Observability;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
 using Orders.Domain.Discounts;
@@ -18,6 +19,7 @@ public static class DependencyInjection
     public static IServiceCollection AddOrdersApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<CartValidator>();
+        services.TryAddSingleton<OrdersMetrics>();
         services.AddScoped<PricingService>();
         services.AddScoped<IdempotencyService>();
         services.AddSingleton(provider => new DiscountEngine(
@@ -58,6 +60,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<CartValidator>();
         services.TryAddScoped<OrderStatusChangeRecorder>();
         services.AddScoped<EvaluateConfirmationHandler>();
+        services.TryAddSingleton<OrdersMetrics>();
+        services.AddScoped<OperationalMetricsRunner>();
 
         return services;
     }

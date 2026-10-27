@@ -1,8 +1,10 @@
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Orders.Application;
 using Orders.Application.Catalog;
+using Orders.Application.Observability;
 using Orders.Domain;
 using Orders.Infrastructure.Catalog;
 using ServiceDefaults;
@@ -176,6 +178,60 @@ public sealed class CatalogPriceProviderTests : IDisposable
 
     private void Respond(IResponseBuilder response) =>
         _catalog.Given(Request.Create().WithPath(_pricesPath).UsingPost()).RespondWith(response);
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetPricesAsync_CatalogAnswers_RecordsTheLookupDurationAsOk()
+    {
+        Respond(Response.Create().WithStatusCode(200).WithHeader("Content-Type", "application/json").WithBody(_twoItemsBody));
+        await using var provider = BuildProvider();
+        using var listener = Listen(provider.GetRequiredService<OrdersMetrics>(), out var lookups);
+
+        await Provider(provider).GetPricesAsync(Brl, ["KB-1", "MS-1"], Token);
+
+        var (milliseconds, outcome) = lookups.ShouldHaveSingleItem();
+        milliseconds.ShouldBeGreaterThan(0);
+        outcome.ShouldBe("ok");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetPricesAsync_ServerErrorEveryTime_RecordsOneLookupAsErrorForTheWholeCallIncludingRetries()
+    {
+        Respond(Response.Create().WithStatusCode(500));
+        await using var provider = BuildProvider();
+        using var listener = Listen(provider.GetRequiredService<OrdersMetrics>(), out var lookups);
+
+        await Provider(provider).GetPricesAsync(Brl, ["KB-1"], Token);
+
+        lookups.ShouldHaveSingleItem().Outcome.ShouldBe("error");
+    }
+
+    private static MeterListener Listen(OrdersMetrics metrics, out List<(double Milliseconds, string? Outcome)> lookups)
+    {
+        var recorded = new List<(double Milliseconds, string? Outcome)>();
+        var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (ReferenceEquals(instrument.Meter, metrics.Meter) && instrument.Name == "catalog.price_lookup.duration")
+                {
+                    meterListener.EnableMeasurementEvents(instrument);
+                }
+            },
+        };
+        listener.SetMeasurementEventCallback<double>((_, value, tags, _) =>
+        {
+            lock (recorded)
+            {
+                recorded.Add((value, tags.ToArray().SingleOrDefault(tag => tag.Key == "outcome").Value as string));
+            }
+        });
+        listener.Start();
+        lookups = recorded;
+
+        return listener;
+    }
 
     private ServiceProvider BuildProvider(params (string Key, string Value)[] overrides)
     {
