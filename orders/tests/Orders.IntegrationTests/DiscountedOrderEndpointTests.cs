@@ -58,7 +58,7 @@ public sealed class DiscountedOrderEndpointTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task PostOrder_OncePerClientRuleUsedByAnEarlierOrder_Returns409DiscountAlreadyUsed()
+    public async Task PostOrder_OncePerClientRuleUsedByAnEarlierOrder_PlacesTheOrderWithoutThatDiscount()
     {
         _factory.DiscountRules.Rules.Add(Rule("""{ "percent": 10, "appliesTo": "order" }""", oncePerClient: true));
         var first = await Send("/api/v1/orders", Guid.NewGuid().ToString());
@@ -66,11 +66,11 @@ public sealed class DiscountedOrderEndpointTests : IAsyncDisposable
         var second = await Send("/api/v1/orders", Guid.NewGuid().ToString());
 
         first.StatusCode.ShouldBe(HttpStatusCode.Created);
-        second.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        second.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
-        var problem = await second.Content.ReadFromJsonAsync<JsonElement>(Token);
-        problem.GetProperty("type").GetString().ShouldBe("discount-already-used");
-        problem.GetProperty("status").GetInt32().ShouldBe(409);
+        second.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var order = await second.Content.ReadFromJsonAsync<JsonElement>(Token);
+        order.GetProperty("discountTotal").GetDecimal().ShouldBe(0m);
+        order.GetProperty("total").GetDecimal().ShouldBe(order.GetProperty("subtotal").GetDecimal());
+        _factory.Discounts.Stored.ShouldHaveSingleItem();
     }
 
     [Fact]

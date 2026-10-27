@@ -79,6 +79,9 @@ public interface IOrderQueries
     /// <summary>Whether the client placed any order before; feeds the <c>FirstOrderOfClient</c> condition.</summary>
     Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken);
 
+    /// <summary>Ids of the once-per-client rules the client has redeemed already; the engine must not offer them again.</summary>
+    Task<IReadOnlySet<Guid>> RedeemedOncePerClientRuleIdsAsync(Guid clientId, CancellationToken cancellationToken);
+
     /// <summary>Whether the client has an order other than <paramref name="orderId"/> placed before <paramref name="placedAt"/> (ties broken by id).</summary>
     Task<bool> ClientHasEarlierOrdersAsync(Guid clientId, Guid orderId, DateTimeOffset placedAt, CancellationToken cancellationToken);
 }

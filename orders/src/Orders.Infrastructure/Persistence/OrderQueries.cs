@@ -36,6 +36,14 @@ internal sealed class OrderQueries(OrdersDbContext context) : IOrderQueries
     public async Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
         await context.Orders.AsNoTracking().AnyAsync(order => order.ClientId == clientId, cancellationToken);
 
+    public async Task<IReadOnlySet<Guid>> RedeemedOncePerClientRuleIdsAsync(Guid clientId, CancellationToken cancellationToken) =>
+        (await context.DiscountRedemptions
+            .AsNoTracking()
+            .Where(redemption => redemption.ClientId == clientId && redemption.OncePerClient)
+            .Select(redemption => redemption.DiscountRuleId)
+            .ToListAsync(cancellationToken))
+        .ToHashSet();
+
     public async Task<bool> ClientHasEarlierOrdersAsync(Guid clientId, Guid orderId, DateTimeOffset placedAt, CancellationToken cancellationToken) =>
         await context.Orders.AsNoTracking().AnyAsync(
             order => order.ClientId == clientId && order.Id != orderId

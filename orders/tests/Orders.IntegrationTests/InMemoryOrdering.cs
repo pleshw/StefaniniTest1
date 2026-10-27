@@ -165,7 +165,7 @@ internal sealed class FakeCatalogPriceProvider : ICatalogPriceProvider
 }
 
 /// <summary>Order reads over <see cref="InMemoryOrderRepository"/>, ordered and paged like the SQL queries.</summary>
-internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOrderQueries
+internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders, InMemoryOrderDiscountStore? discounts = null) : IOrderQueries
 {
     public Task<IReadOnlyList<OrderSummaryDto>> ListAsync(OrderListFilter filter, CancellationToken cancellationToken)
     {
@@ -199,6 +199,9 @@ internal sealed class InMemoryOrderQueries(InMemoryOrderRepository orders) : IOr
 
     public Task<bool> ClientHasOrdersAsync(Guid clientId, CancellationToken cancellationToken) =>
         Task.FromResult(orders.All.Any(order => order.Client.Id == clientId));
+
+    public Task<IReadOnlySet<Guid>> RedeemedOncePerClientRuleIdsAsync(Guid clientId, CancellationToken cancellationToken) =>
+        Task.FromResult(discounts?.RedeemedBy(clientId) ?? new HashSet<Guid>());
 
     public Task<bool> ClientHasEarlierOrdersAsync(Guid clientId, Guid orderId, DateTimeOffset placedAt, CancellationToken cancellationToken) =>
         Task.FromResult(orders.All.Any(order => order.Client.Id == clientId && order.Id != orderId
@@ -298,6 +301,9 @@ internal sealed class InMemoryOrderDiscountStore : IOrderDiscountStore
     private readonly ConcurrentQueue<(Guid OrderId, AppliedDiscount Discount)> _stored = new();
 
     public IReadOnlyCollection<(Guid OrderId, AppliedDiscount Discount)> Stored => _stored.ToList();
+
+    public IReadOnlySet<Guid> RedeemedBy(Guid clientId) =>
+        _oncePerClient.Keys.Where(key => key.Client == clientId).Select(key => key.Rule).ToHashSet();
 
     public Task AddAsync(Order order, IReadOnlyList<AppliedDiscount> discounts, CancellationToken cancellationToken)
     {

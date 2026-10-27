@@ -74,12 +74,19 @@ public sealed class OrderDrafter(
             return new DiscountOutcome(Money.Zero(priced.Currency), [], []);
         }
 
+        // A once-per-client rule the client already redeemed is left out, so the order is priced without it instead of
+        // being priced with it and then refused when the redemption is stored.
+        var redeemed = await orders.RedeemedOncePerClientRuleIdsAsync(clientId, cancellationToken);
+        var offered = redeemed.Count == 0
+            ? rules
+            : rules.Where(rule => !(rule.OncePerClient && redeemed.Contains(rule.Id))).ToList();
+
         var cart = DiscountCart.Create(
             priced.Currency, priced.Lines.Select(line => new DiscountLine(line.Sku, line.Category, line.UnitPrice, line.Quantity)));
 
         // No segment source exists yet, so ClientSegment conditions never match.
         var client = new DiscountClient(clientId, _noSegments, channel, IsFirstOrder: !await orders.ClientHasOrdersAsync(clientId, cancellationToken));
 
-        return engine.Evaluate(rules, cart, client);
+        return engine.Evaluate(offered, cart, client);
     }
 }
