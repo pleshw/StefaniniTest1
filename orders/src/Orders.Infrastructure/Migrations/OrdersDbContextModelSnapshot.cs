@@ -445,6 +445,10 @@ namespace Orders.Infrastructure.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
+                    b.HasIndex("CreatedAt", "Id")
+                        .IsDescending(true, false)
+                        .HasDatabaseName("ix_orders_created");
+
                     b.HasIndex("ClientId", "CreatedAt", "Id")
                         .IsDescending(false, true, false)
                         .HasDatabaseName("ix_orders_client_created");

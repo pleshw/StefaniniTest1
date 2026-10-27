@@ -87,6 +87,7 @@ Regras que mantêm o BFF enxuto: nenhuma lógica de domínio, nenhum banco de da
 | Erros | ProblemDetails (RFC 9457) | Mesmo formato em todos os serviços |
 | Observabilidade | OpenTelemetry → OTel Collector → Aspire Dashboard | Profile `observability` do Compose |
 | Testes de back-end | xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest | Evitar FluentAssertions v8 (licença comercial) |
+| Teste de carga | k6 (imagem `grafana/k6`, profile `load` do Compose) | Roda `tests/load/orders.js` com o perfil de pico do dimensionamento; sem pacote npm ou NuGet; os thresholds são as metas de latência |
 | Front-end | TypeScript, Vite, Vitest + jsdom, Bootstrap 5.3 + Bootstrap Icons via npm | axe-core para verificações de acessibilidade; ferramentas de desenvolvimento: ESLint (typescript-eslint) + Prettier, @testing-library/dom, MSW para stubs do BFF, @vitest/coverage-v8 |
 
 ## Estrutura do repositório e das solutions

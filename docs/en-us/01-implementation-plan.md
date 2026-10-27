@@ -87,6 +87,7 @@ Rules that keep the BFF thin: no domain logic, no database, no price or discount
 | Errors | ProblemDetails (RFC 9457) | Same shape in all services |
 | Observability | OpenTelemetry → OTel Collector → Aspire Dashboard | Compose profile `observability` |
 | Back-end tests | xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest | Avoid FluentAssertions v8 (commercial licence) |
+| Load test | k6 (`grafana/k6` image, Compose profile `load`) | Runs `tests/load/orders.js` with the sizing document's peak profile; no npm or NuGet package; the thresholds are the latency targets |
 | Front-end | TypeScript, Vite, Vitest + jsdom, Bootstrap 5.3 + Bootstrap Icons via npm | axe-core for accessibility checks; development tools: ESLint (typescript-eslint) + Prettier, @testing-library/dom, MSW for BFF stubs, @vitest/coverage-v8 |
 
 ## Repository and solution structure

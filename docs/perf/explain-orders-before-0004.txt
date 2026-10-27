@@ -1,0 +1,26 @@
+BEGIN
+DROP INDEX
+=== 4 (before migration 0004). List: admin, no filter
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=27621.42..27623.87 rows=21 width=51) (actual time=92.896..97.276 rows=21 loops=1)
+   Buffers: shared hit=9519 read=7950 dirtied=1
+   ->  Gather Merge  (cost=27621.42..85958.83 rows=500000 width=51) (actual time=92.893..97.270 rows=21 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=9519 read=7950 dirtied=1
+         ->  Sort  (cost=26621.40..27246.40 rows=250000 width=51) (actual time=89.965..89.968 rows=21 loops=3)
+               Sort Key: created_at DESC, id
+               Sort Method: top-N heapsort  Memory: 27kB
+               Buffers: shared hit=9519 read=7950 dirtied=1
+               Worker 0:  Sort Method: top-N heapsort  Memory: 27kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 27kB
+               ->  Parallel Seq Scan on orders o  (cost=0.00..19881.00 rows=250000 width=51) (actual time=0.017..45.464 rows=200000 loops=3)
+                     Buffers: shared hit=9431 read=7950 dirtied=1
+ Planning:
+   Buffers: shared hit=175
+ Planning Time: 0.770 ms
+ Execution Time: 97.403 ms
+(18 rows)
+
+ROLLBACK
