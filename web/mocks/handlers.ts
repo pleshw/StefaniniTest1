@@ -61,4 +61,50 @@ export const handlers = [
       next: start + limit < matching.length ? String(start + limit) : null,
     });
   }),
+
+  // The quote prices the lines from the stub products and takes 5% off a subtotal above 2000.
+  http.post('*/bff/shop/cart/quote', async ({ request }) => {
+    const body = (await request.json()) as {
+      currency: string;
+      items: { sku: string; quantity: number }[];
+    };
+    const priced = body.items.flatMap(({ sku, quantity }) => {
+      const product = products.find((candidate) => candidate.sku === sku);
+      return product === undefined ? [] : [{ product, quantity }];
+    });
+    const subtotal = priced.reduce(
+      (sum, { product, quantity }) => sum + product.price * quantity,
+      0,
+    );
+    const rate = subtotal > 2000 ? 0.05 : 0;
+
+    return HttpResponse.json({
+      currency: body.currency,
+      itemCount: priced.reduce((sum, { quantity }) => sum + quantity, 0),
+      subtotal,
+      discountTotal: subtotal * rate,
+      total: subtotal * (1 - rate),
+      items: priced.map(({ product, quantity }) => ({
+        sku: product.sku,
+        productName: product.name,
+        unitPrice: product.price,
+        catalogVersion: 1,
+        quantity,
+        lineDiscount: product.price * quantity * rate,
+        lineTotal: product.price * quantity * (1 - rate),
+      })),
+    });
+  }),
+
+  http.post('*/bff/shop/orders', () =>
+    HttpResponse.json(
+      {
+        id: 'b6c1f0a2-0000-4000-8000-000000000001',
+        number: 'ORD-2026-STUB00000001',
+        status: 'Pending',
+        currency: 'BRL',
+      },
+      { status: 201 },
+    ),
+  ),
 ];
