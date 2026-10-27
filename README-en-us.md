@@ -62,7 +62,7 @@ docker compose down -v
 
 Stops everything and deletes the volumes (data is re-seeded on the next start).
 
-In compose the Catalog seeds 50 products (BRL and USD) at startup (`Catalog__Seed__Enabled`, never set for staging or production). Building `Catalog.Api` rewrites `catalog/openapi/catalog.v1.json`; commit it when the API changes, because CI fails when it differs from the generated one and Orders generates its Catalog client from it.
+In compose the Catalog seeds 50 products (BRL and USD) at startup (`Catalog__Seed__Enabled`, never set for staging or production). Building `Catalog.Api` rewrites `catalog/openapi/catalog.v1.json`; commit it when the API changes, because CI fails when it differs from the generated one and Orders generates its Catalog client from it. Likewise, building `Orders.Api` rewrites `orders/openapi/orders.v1.json`, from which `Orders.Bff` generates its Orders client (and its Catalog client, from `catalog.v1.json`).
 
 ### Test
 

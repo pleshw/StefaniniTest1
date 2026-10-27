@@ -31,6 +31,8 @@
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.54.0" />
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.54.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.54.0" />
+    <!-- BFF gateway (pass-through routes) -->
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
     <!-- Catalog client generated from catalog/openapi/catalog.v1.json -->
     <PackageVersion Include="NSwag.ApiDescription.Client" Version="14.7.1" />
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Client" Version="10.0.13" />

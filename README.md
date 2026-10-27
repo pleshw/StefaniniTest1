@@ -62,7 +62,7 @@ docker compose down -v
 
 Para tudo e apaga os volumes (os dados são recriados na próxima inicialização).
 
-No compose, o Catalog carrega 50 produtos (BRL e USD) na inicialização (`Catalog__Seed__Enabled`, nunca definido em staging ou produção). Compilar o `Catalog.Api` reescreve `catalog/openapi/catalog.v1.json`; faça commit dele quando a API mudar, porque o CI falha quando ele difere do gerado e o Orders gera seu client do Catalog a partir dele.
+No compose, o Catalog carrega 50 produtos (BRL e USD) na inicialização (`Catalog__Seed__Enabled`, nunca definido em staging ou produção). Compilar o `Catalog.Api` reescreve `catalog/openapi/catalog.v1.json`; faça commit dele quando a API mudar, porque o CI falha quando ele difere do gerado e o Orders gera seu client do Catalog a partir dele. Da mesma forma, compilar o `Orders.Api` reescreve `orders/openapi/orders.v1.json`, do qual o `Orders.Bff` gera seu client do Orders (e o do Catalog, a partir de `catalog.v1.json`).
 
 ### Testar
 

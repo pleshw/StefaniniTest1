@@ -4,8 +4,29 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- OpenApiReference (the NSwag integration Orders.Infrastructure uses too) comes from a package marked deprecated; nothing else is silenced. -->
+    <NoWarn>$(NoWarn);ASPDEPR001</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../../../shared/ServiceDefaults/ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" />
+    <PackageReference Include="NSwag.ApiDescription.Client" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Both documents are committed by their services (orders/openapi, catalog/openapi); the clients are regenerated whenever they change. -->
+    <OpenApiReference Include="../../openapi/orders.v1.json" CodeGenerator="NSwagCSharp" Namespace="Orders.Bff.Clients.Orders" ClassName="OrdersApiClient" NSwagGenerateExceptionClasses="true" Options="/JsonLibrary:SystemTextJson /GenerateClientInterfaces:true /ClientClassAccessModifier:internal /UseBaseUrl:false /GenerateOptionalParameters:false" />
+    <OpenApiReference Include="../../../catalog/openapi/catalog.v1.json" CodeGenerator="NSwagCSharp" Namespace="Orders.Bff.Clients.Catalog" ClassName="CatalogApiClient" NSwagGenerateExceptionClasses="true" Options="/JsonLibrary:SystemTextJson /GenerateClientInterfaces:true /ClientClassAccessModifier:internal /UseBaseUrl:false /GenerateOptionalParameters:false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Orders.Bff.UnitTests" />
   </ItemGroup>
 
 </Project>

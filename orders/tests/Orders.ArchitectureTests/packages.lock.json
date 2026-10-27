@@ -888,6 +888,11 @@
         "resolved": "10.0.0",
         "contentHash": "uaFRda9NjtbJRkdx311eXlAA3n2em7223c1A8d1VWyl+4FL9vkG7y2lpPfBU9HYdj/9KgdRNdn1vFK8ZYCYT/A=="
       },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA=="
+      },
       "System.Linq.Dynamic.Core": {
         "type": "Transitive",
         "resolved": "1.7.4",
@@ -1056,7 +1061,8 @@
       "orders.bff": {
         "type": "Project",
         "dependencies": {
-          "ServiceDefaults": "[1.0.0, )"
+          "ServiceDefaults": "[1.0.0, )",
+          "Yarp.ReverseProxy": "[2.3.0, )"
         }
       },
       "orders.contracts": {
@@ -1257,6 +1263,15 @@
         "dependencies": {
           "JasperFx.RuntimeCompiler": "5.0.0",
           "WolverineFx": "6.54.0"
+        }
+      },
+      "Yarp.ReverseProxy": {
+        "type": "CentralTransitive",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "gxtkN3a+9biu9V9Zd5NaTO6VZWXAnS2mhQ0R/VXmSPoTuiQNZsakKikrKpDtKxrL5nUYzbRsHtl40WNq+ZBKKg==",
+        "dependencies": {
+          "System.IO.Hashing": "8.0.0"
         }
       }
     }

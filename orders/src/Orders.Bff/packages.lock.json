@@ -2,6 +2,31 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "Microsoft.Extensions.ApiDescription.Client": {
+        "type": "Direct",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "bhb07T4WSi8F5xznSglr1HFsaVK7L2pEG47H3V/GmZnmUQRQ/1eR1RzxrzKpdqng3efXoKZ2KzO0wnEpzpdhkA=="
+      },
+      "NSwag.ApiDescription.Client": {
+        "type": "Direct",
+        "requested": "[14.7.1, )",
+        "resolved": "14.7.1",
+        "contentHash": "Nus+Bhpl/eqY4LN9x1NGBJLuuHyRlOIA/bZqilzxctwRzvb1PWZ6Av+fY4ojOQkIjbPL28wn7yX4J/7AuI5S5A==",
+        "dependencies": {
+          "Microsoft.Extensions.ApiDescription.Client": "8.0.14",
+          "NSwag.MSBuild": "14.7.1"
+        }
+      },
+      "Yarp.ReverseProxy": {
+        "type": "Direct",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "gxtkN3a+9biu9V9Zd5NaTO6VZWXAnS2mhQ0R/VXmSPoTuiQNZsakKikrKpDtKxrL5nUYzbRsHtl40WNq+ZBKKg==",
+        "dependencies": {
+          "System.IO.Hashing": "8.0.0"
+        }
+      },
       "Microsoft.Extensions.AmbientMetadata.Application": {
         "type": "Transitive",
         "resolved": "10.10.0",
@@ -64,6 +89,11 @@
         "resolved": "2.12.2",
         "contentHash": "ZkT7qiJe0Kj0+DTZOZo+xrDy1kNmdsWFQVPIQLNx9ZJ0T9cB2LG7r+Bi60so8/+yg1nkS7QCPadrzsTG4VPKrA=="
       },
+      "NSwag.MSBuild": {
+        "type": "Transitive",
+        "resolved": "14.7.1",
+        "contentHash": "4ks/+vtuFoP5D1Vsc0h7yCYyL8Rhhmnvwb9iHEm1//1y9oluQViQD9spqLaGjPv2Itjz5TQPLdkeky/wgRx8dg=="
+      },
       "OpenTelemetry": {
         "type": "Transitive",
         "resolved": "1.20.0",
@@ -105,6 +135,11 @@
         "dependencies": {
           "Polly.Core": "8.4.2"
         }
+      },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA=="
       },
       "servicedefaults": {
         "type": "Project",

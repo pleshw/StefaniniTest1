@@ -4,6 +4,22 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Build writes the OpenAPI document to orders/openapi/orders.v1.json (the BFF generates its Orders client from it); CI fails when it differs from the committed one. -->
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../../openapi</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name orders</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
+
+  <!-- The generator rejects dots in the file name and writes the v1 document as orders.json; publish it as orders.v1.json. -->
+  <Target Name="NameOpenApiDocument" AfterTargets="GenerateOpenApiDocuments">
+    <Copy SourceFiles="$(OpenApiDocumentsDirectory)/orders.json" DestinationFiles="$(OpenApiDocumentsDirectory)/orders.v1.json" Condition="Exists('$(OpenApiDocumentsDirectory)/orders.json')" />
+    <Delete Files="$(OpenApiDocumentsDirectory)/orders.json" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- dotnet ef migrations script runs with this project as the startup project (deploy gate). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
