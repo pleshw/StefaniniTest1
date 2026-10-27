@@ -85,6 +85,7 @@ Use the checklist of each stack the PR touches, on top of the acceptance criteri
 - [ ] DOM built with `textContent` or templates, never `innerHTML` with data
 - [ ] Every control has a label, focus is visible, keyboard path works, `aria-live` for async updates
 - [ ] Bootstrap utilities over custom CSS; no inline styles
+- [ ] No inline script and no script, style or font from another origin: nginx's `Content-Security-Policy` (`deploy/nginx/nginx.conf`) blocks them
 
 **SQL and MongoDB**
 

@@ -19,7 +19,7 @@ flowchart TB
     catalog --> mongo[("MongoDB")]
 ```
 
-- The browser talks only to the BFF, through nginx, on the same origin; Catalog is never exposed.
+- The browser talks only to the BFF, through nginx, on the same origin; Catalog is never exposed. nginx sends CSP and security headers on every response.
 - Orders stores orders in PostgreSQL and publishes events through a transactional outbox; the Worker confirms or holds each order by rules; the BFF shows the events live in the Admin.
 - Catalog is the price authority; Orders asks for prices in a single batch call.
 

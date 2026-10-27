@@ -85,6 +85,7 @@ Use o checklist de cada stack que o PR altera, além dos critérios de aceite.
 - [ ] DOM construído com `textContent` ou templates, nunca `innerHTML` com dados
 - [ ] Todo controle tem rótulo, o foco é visível, a navegação por teclado funciona, `aria-live` para atualizações assíncronas
 - [ ] Utilitários do Bootstrap em vez de CSS customizado; sem estilos inline
+- [ ] Nenhum script inline nem script, estilo ou fonte de outra origem: a `Content-Security-Policy` do nginx (`deploy/nginx/nginx.conf`) os bloqueia
 
 **SQL e MongoDB**
 

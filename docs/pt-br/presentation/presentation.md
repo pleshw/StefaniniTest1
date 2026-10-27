@@ -19,7 +19,7 @@ flowchart TB
     catalog --> mongo[("MongoDB")]
 ```
 
-- O navegador fala só com o BFF, pelo nginx, na mesma origem; o Catalog nunca é exposto.
+- O navegador fala só com o BFF, pelo nginx, na mesma origem; o Catalog nunca é exposto. O nginx envia CSP e headers de segurança em toda resposta.
 - O Orders guarda os pedidos no PostgreSQL e publica eventos por um outbox transacional; o Worker confirma ou retém cada pedido por regras; o BFF mostra os eventos ao vivo no Admin.
 - O Catalog é a autoridade de preços; o Orders pergunta os preços em uma única chamada em lote.
 
