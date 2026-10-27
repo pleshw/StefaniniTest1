@@ -86,6 +86,8 @@ bash scripts/smoke.sh http://localhost:8080
 
 Os testes de integração usam Testcontainers, então o Docker precisa estar em execução. Filtre por categoria com `--filter Category=Unit`, `Integration`, `Architecture` ou `Resilience`.
 
+O smoke test (`scripts/smoke.sh`) passa só pelo BFF: entra como `shopper` e como `admin` pelo login de desenvolvimento, faz um pedido, confere que ele chega ao stream de eventos do admin e termina em `Confirmed` ou `OnHold`, e repete a mesma `Idempotency-Key` para receber o mesmo número de pedido. Com a pilha de desenvolvimento no ar basta rodá-lo; com `--up` ele sobe a pilha antes (`docker compose up -d --build --wait`). Ele depende do login de desenvolvimento, que só o `docker-compose.yml` liga, então ainda não roda contra staging nem produção.
+
 ## Documentação
 
 A documentação é mantida em dois idiomas, com os mesmos nomes de arquivo: [`docs/pt-br/`](docs/pt-br/) (português do Brasil, a fonte da verdade) e [`docs/en-us/`](docs/en-us/) (espelho em inglês). As mudanças são escritas primeiro em pt-BR e espelhadas em en-US no mesmo PR; quando divergem, vale o pt-BR. Este README é espelhado por [`README-en-us.md`](README-en-us.md) (en-US). As regras para agentes estão em [AGENTS.md](AGENTS.md).
