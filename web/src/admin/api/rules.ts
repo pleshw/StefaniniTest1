@@ -98,13 +98,18 @@ export async function deactivateDiscountRule(
 }
 
 /** Prices the sample cart with a rule that is not stored yet (or the stored rule `ruleId` replaced by it). */
+/** Prices a sample cart with the active rules, plus `rule` (in place of `ruleId`'s stored version) when given. */
 export async function previewDiscountRule(
   http: HttpClient,
   cart: PreviewCart,
-  rule: object,
+  rule?: object,
   ruleId?: string,
 ): Promise<RulePreview> {
-  const body = { ...cart, rule, ...(ruleId === undefined ? {} : { ruleId }) };
+  const body = {
+    ...cart,
+    ...(rule === undefined ? {} : { rule }),
+    ...(ruleId === undefined ? {} : { ruleId }),
+  };
 
   return (await http.send<RulePreview>(`${discountPath}/preview`, { method: 'POST', body })).data;
 }

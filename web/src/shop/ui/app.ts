@@ -1,6 +1,7 @@
 import { createHttpClient, type HttpClient } from '../../shared/api/http';
 import { createIdempotencyKeys } from '../../shared/domain/idempotency';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { renderShell } from '../../shared/ui/layout';
 import { pageLinks } from '../../shared/ui/pages';
 import { createCart } from '../domain/cart';
@@ -47,8 +48,8 @@ export function mountShop(
   });
   const orders = mountOrders(ordersSection, { http: dependencies.http });
 
-  const shopButton = sectionButton('Loja');
-  const ordersButton = sectionButton('Meus pedidos');
+  const shopButton = sectionButton('Loja', 'bi-bag');
+  const ordersButton = sectionButton('Meus pedidos', 'bi-receipt');
   const show = (section: 'shop' | 'orders'): void => {
     shopping.hidden = section !== 'shop';
     ordersSection.hidden = section !== 'orders';
@@ -80,6 +81,10 @@ export function mountShop(
   show('shop');
 }
 
-function sectionButton(label: string): HTMLButtonElement {
-  return h('button', { className: 'nav-link', text: label, attrs: { type: 'button' } });
+function sectionButton(label: string, icon: string): HTMLButtonElement {
+  return withIcon(
+    h('button', { className: 'nav-link', text: label, attrs: { type: 'button' } }),
+    icon,
+    'me-1',
+  );
 }

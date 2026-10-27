@@ -17,6 +17,7 @@ import { PreconditionFailedError } from '../../shared/api/errors';
 import type { HttpClient } from '../../shared/api/http';
 import { confirmAction } from '../../shared/ui/dialog';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import {
   actionButton,
@@ -82,11 +83,14 @@ export function mountConfirmationRules(
     h(
       'section',
       { attrs: { 'aria-labelledby': 'confirmation-heading' } },
-      h('h2', {
-        className: 'h4',
-        text: 'Regras de confirmação',
-        attrs: { id: 'confirmation-heading' },
-      }),
+      withIcon(
+        h('h2', {
+          className: 'h4',
+          text: 'Regras de confirmação',
+          attrs: { id: 'confirmation-heading' },
+        }),
+        'bi-shield-check',
+      ),
       h('p', {
         className: 'text-body-secondary',
         text: 'Um novo pedido que casa com uma regra Reter ativa fica na fila Em espera; qualquer outro pedido é confirmado.',

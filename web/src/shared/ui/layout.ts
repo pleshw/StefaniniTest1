@@ -1,6 +1,13 @@
+import { withIcon } from './icons';
+
+/** The icon next to the site's name. */
+export const brandIcon = 'bi-box-seam';
+
 export interface NavLink {
   readonly label: string;
   readonly href: string;
+  /** A Bootstrap Icons name shown before the label. */
+  readonly icon: string;
 }
 
 export interface PageShell {
@@ -20,11 +27,11 @@ export function renderShell(
   const skip = element('a', 'visually-hidden-focusable', 'Pular para o conteúdo');
   skip.href = '#content';
 
-  const brand = element('span', 'navbar-brand', 'Pedidos e Catálogo');
+  const brand = withIcon(element('span', 'navbar-brand', 'Pedidos e Catálogo'), brandIcon);
   const list = element('ul', 'navbar-nav');
   for (const link of links) {
     const item = element('li', 'nav-item');
-    const anchor = element('a', 'nav-link', link.label);
+    const anchor = withIcon(element('a', 'nav-link', link.label), link.icon, 'me-1');
     anchor.href = link.href;
     if (link.label === title) {
       anchor.setAttribute('aria-current', 'page');

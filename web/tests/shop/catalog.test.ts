@@ -69,7 +69,7 @@ describe('catalog view', () => {
     expect(items[0]?.textContent).toContain('R$\u00a01.999,90');
     expect(items[0]?.textContent).toContain('Adjustable height.');
     expect(
-      getByRole(container, 'button', { name: 'Adicionar Standing desk ao carrinho' }),
+      getByRole(container, 'button', { name: 'Adicionar ao carrinho: Standing desk' }),
     ).toBeTruthy();
     expect(getByRole(container, 'status').textContent).toBe('2 produtos');
   });
@@ -98,7 +98,7 @@ describe('catalog view', () => {
     const { container } = mount({ onAdd });
 
     fireEvent.click(
-      await findByRole(container, 'button', { name: 'Adicionar Coffee mug ao carrinho' }),
+      await findByRole(container, 'button', { name: 'Adicionar ao carrinho: Coffee mug' }),
     );
 
     expect(onAdd).toHaveBeenCalledExactlyOnceWith(mug);
@@ -110,7 +110,7 @@ describe('catalog view', () => {
     const { container } = mount();
 
     const button = await findByRole(container, 'button', {
-      name: 'Adicionar Old lamp ao carrinho',
+      name: 'Adicionar ao carrinho: Old lamp',
     });
     expect(button.hasAttribute('disabled')).toBe(true);
     expect(container.textContent).toContain('Preço indisponível');

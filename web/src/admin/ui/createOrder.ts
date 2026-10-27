@@ -3,6 +3,7 @@ import type { HttpClient } from '../../shared/api/http';
 import type { Client } from '../../shared/api/orders';
 import type { IdempotencyKeys } from '../../shared/domain/idempotency';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import type { Cart } from '../../shop/domain/cart';
 import { mountCart } from '../../shop/ui/cart';
 import { mountCatalog } from '../../shop/ui/catalog';
@@ -30,11 +31,14 @@ export function mountCreateOrder(container: HTMLElement, options: CreateOrderOpt
   const section = h(
     'section',
     { attrs: { 'aria-labelledby': 'create-heading' } },
-    h('h2', {
-      className: 'h4',
-      text: 'Criar pedido para um cliente',
-      attrs: { id: 'create-heading' },
-    }),
+    withIcon(
+      h('h2', {
+        className: 'h4',
+        text: 'Criar pedido para um cliente',
+        attrs: { id: 'create-heading' },
+      }),
+      'bi-cart-plus',
+    ),
     status,
   );
   container.append(section);

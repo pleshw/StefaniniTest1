@@ -21,11 +21,14 @@ public sealed record DevLoginOptions
     public string AdminPassword { get; init; } = string.Empty;
 }
 
-/// <summary>One signed-in identity: Orders reads the shopper's client id from <c>sub</c>, so subjects are fixed GUIDs.</summary>
-internal sealed record DevUser(string UserName, Guid Subject, string Role)
+/// <summary>
+/// One signed-in identity: Orders reads the shopper's client id from <c>sub</c>, so subjects are fixed GUIDs. The home
+/// page is where a sign-in without a return URL lands.
+/// </summary>
+internal sealed record DevUser(string UserName, Guid Subject, string Role, string HomePage)
 {
-    public static readonly DevUser Shopper = new("shopper", Guid.Parse("5b0a3c1e-7d42-4f6a-9c1b-2e8f0d6a4b11"), BffAuthentication.ShopperRole);
-    public static readonly DevUser Admin = new("admin", Guid.Parse("a1d3e5f7-2b4c-4d6e-8f01-3c5e7a9b0d22"), BffAuthentication.AdminRole);
+    public static readonly DevUser Shopper = new("shopper", Guid.Parse("5b0a3c1e-7d42-4f6a-9c1b-2e8f0d6a4b11"), BffAuthentication.ShopperRole, "/shop.html");
+    public static readonly DevUser Admin = new("admin", Guid.Parse("a1d3e5f7-2b4c-4d6e-8f01-3c5e7a9b0d22"), BffAuthentication.AdminRole, "/admin.html");
 
     public ClaimsPrincipal ToPrincipal() => new(new ClaimsIdentity(
         [new Claim(BffAuthentication.SubjectClaim, Subject.ToString()), new Claim(BffAuthentication.NameClaim, UserName), new Claim(ClaimTypes.Role, Role)],

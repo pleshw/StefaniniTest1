@@ -88,7 +88,7 @@ function mount() {
 
 async function addDesk(container: HTMLElement): Promise<void> {
   fireEvent.click(
-    await findByRole(container, 'button', { name: 'Adicionar Standing desk ao carrinho' }),
+    await findByRole(container, 'button', { name: 'Adicionar ao carrinho: Standing desk' }),
   );
   await findByRole(container, 'button', { name: 'Remover Standing desk' });
 }

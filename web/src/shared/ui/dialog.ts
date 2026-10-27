@@ -1,4 +1,5 @@
 import { h } from './dom';
+import { withIcon } from './icons';
 
 export interface ReasonDialog {
   readonly title: string;
@@ -32,16 +33,24 @@ export function askReason(options: ReasonDialog): Promise<string | null> {
     className: 'invalid-feedback',
     attrs: { id: `${id}-error`, role: 'alert' },
   });
-  const confirm = h('button', {
-    className: 'btn btn-primary',
-    text: options.confirmLabel,
-    attrs: { type: 'submit' },
-  });
-  const cancel = h('button', {
-    className: 'btn btn-outline-secondary',
-    text: 'Cancelar',
-    attrs: { type: 'button' },
-  });
+  const confirm = withIcon(
+    h('button', {
+      className: 'btn btn-primary',
+      text: options.confirmLabel,
+      attrs: { type: 'submit' },
+    }),
+    'bi-check-lg',
+    'me-1',
+  );
+  const cancel = withIcon(
+    h('button', {
+      className: 'btn btn-outline-secondary',
+      text: 'Cancelar',
+      attrs: { type: 'button' },
+    }),
+    'bi-x-lg',
+    'me-1',
+  );
   const form = h(
     'form',
     { attrs: { novalidate: '' } },
@@ -107,16 +116,24 @@ export interface ConfirmDialog {
 export function confirmAction(options: ConfirmDialog): Promise<boolean> {
   const id = `confirm-dialog-${String(++dialogCount)}`;
   const opener = document.activeElement;
-  const confirm = h('button', {
-    className: 'btn btn-primary',
-    text: options.confirmLabel,
-    attrs: { type: 'button' },
-  });
-  const cancel = h('button', {
-    className: 'btn btn-outline-secondary',
-    text: 'Cancelar',
-    attrs: { type: 'button' },
-  });
+  const confirm = withIcon(
+    h('button', {
+      className: 'btn btn-primary',
+      text: options.confirmLabel,
+      attrs: { type: 'button' },
+    }),
+    'bi-check-lg',
+    'me-1',
+  );
+  const cancel = withIcon(
+    h('button', {
+      className: 'btn btn-outline-secondary',
+      text: 'Cancelar',
+      attrs: { type: 'button' },
+    }),
+    'bi-x-lg',
+    'me-1',
+  );
   const dialog = h(
     'dialog',
     {

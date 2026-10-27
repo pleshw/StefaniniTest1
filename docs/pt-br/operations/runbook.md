@@ -19,7 +19,7 @@ Se a lista não abre, o Orders ou o RabbitMQ está fora do ar (a tela mostra a m
 As regras de desconto e de confirmação são dados editados no Admin (seções "Regras de desconto" e "Regras de confirmação").
 
 - **Cada gravação cria uma nova versão** da regra; a versão aberta na tela é a que vai no `If-Match`. Se outra pessoa gravou antes, a tela avisa ("Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.") e recarrega a lista.
-- **Descontos:** use "Simular regra" antes de ativar; ela mostra a cotação com a regra, sem gravar. Um pedido já criado não é recalculado, e uma repetição da mesma `Idempotency-Key` devolve a resposta guardada.
+- **Descontos:** antes de ativar, use "Simular esta regra" no editor (ou o item "Simulação", abaixo de "Regras de desconto" no menu do Admin); ela mostra a cotação de um carrinho de exemplo com a regra e diz se ela se aplicou, sem gravar. Um pedido já criado não é recalculado, e uma repetição da mesma `Idempotency-Key` devolve a resposta guardada.
 - **Regras de confirmação:** a API passa a usar a nova regra na hora; o Worker, depois de `Orders__Confirmation__CacheDuration` (5 s por padrão). Pedidos já retidos continuam retidos até um admin agir.
 - **Para desfazer:** grave de novo os valores anteriores (isso cria outra versão) ou desative a regra ("Desativar"). Não há exclusão.
 - Depois de ativar uma regra de confirmação que retém pedidos, acompanhe `orders.on_hold` e a fila "Em espera": alguém precisa tratá-la (veja o alerta de 4 h).

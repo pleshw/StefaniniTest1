@@ -76,13 +76,40 @@ public sealed class SessionTests : IAsyncDisposable
     [InlineData("/\t/evil.example/")]
     [InlineData("/\n/evil.example/")]
     [Trait("Category", "Unit")]
-    public async Task Login_ReturnUrlOffSite_RedirectsHome(string returnUrl)
+    public async Task Login_ReturnUrlOffSite_RedirectsToTheUsersPage(string returnUrl)
     {
         var browser = _factory.CreateBrowser();
 
         var response = await BffFactory.SignInAsync(browser, "shopper", BffFactory.ShopperPassword, returnUrl);
 
-        response.Headers.Location!.OriginalString.ShouldBe("/");
+        response.Headers.Location!.OriginalString.ShouldBe("/shop.html");
+    }
+
+    [Theory]
+    [InlineData("shopper", BffFactory.ShopperPassword, null, "/shop.html")]
+    [InlineData("shopper", BffFactory.ShopperPassword, "", "/shop.html")]
+    [InlineData("admin", BffFactory.AdminPassword, null, "/admin.html")]
+    [InlineData("admin", BffFactory.AdminPassword, "", "/admin.html")]
+    [Trait("Category", "Unit")]
+    public async Task Login_WithoutAReturnUrl_RedirectsToTheUsersPage(string user, string password, string? returnUrl, string page)
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await BffFactory.SignInAsync(browser, user, password, returnUrl);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location!.OriginalString.ShouldBe(page);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginForm_WithoutAReturnUrl_LeavesTheReturnUrlFieldEmpty()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var form = await browser.GetStringAsync("/bff/login", Token);
+
+        form.ShouldContain("""<input name="returnUrl" type="hidden" value="">""");
     }
 
     [Theory]
@@ -100,6 +127,89 @@ public sealed class SessionTests : IAsyncDisposable
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         response.Headers.Contains("Set-Cookie").ShouldBeFalse();
         (await browser.GetAsync("/bff/user", Token)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task Login_WrongPassword_KeepsTheUserNameAndShowsTheErrorOnBothFields()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await BffFactory.SignInAsync(browser, "admin", "wrong");
+        var page = await response.Content.ReadAsStringAsync(Token);
+
+        page.ShouldContain("""<html lang="pt-BR">""");
+        page.ShouldContain("""<div id="login-error" class="error" role="alert">""");
+        page.ShouldContain("""id="username" name="username" value="admin" autocomplete="username" """);
+        page.ShouldContain("""type="password" autocomplete="current-password" required aria-invalid="true" aria-describedby="login-error" autofocus>""");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginForm_UserNameAfterAFailure_IsEncoded()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await BffFactory.SignInAsync(browser, "\"><script>", "wrong");
+        var page = await response.Content.ReadAsStringAsync(Token);
+
+        page.ShouldNotContain("\"><script>");
+        page.ShouldContain("value=\"&quot;&gt;&lt;script&gt;\"");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginBackground_IsAWebpImageTheBrowserCaches()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await browser.GetAsync("/bff/login/background.webp", Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("image/webp");
+        response.Headers.CacheControl!.MaxAge.ShouldBe(TimeSpan.FromDays(1));
+        var image = await response.Content.ReadAsByteArrayAsync(Token);
+        image[..4].ShouldBe("RIFF"u8.ToArray());
+        image[8..12].ShouldBe("WEBP"u8.ToArray());
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginForm_HasNoInlineStyleOrScript_SoTheContentSecurityPolicyAllowsIt()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var page = await browser.GetStringAsync("/bff/login", Token);
+
+        page.ShouldNotContain("<style");
+        page.ShouldNotContain("style=");
+        page.ShouldNotContain("<script>");
+        page.ShouldMatch("""<link rel="stylesheet" href="/bff/login/login\.css\?v=[0-9a-f]{12}">""");
+        page.ShouldMatch("""<script src="/bff/login/login\.js\?v=[0-9a-f]{12}" defer></script>""");
+    }
+
+    [Theory]
+    [InlineData("login.css", "text/css")]
+    [InlineData("login.js", "text/javascript")]
+    [Trait("Category", "Unit")]
+    public async Task LoginAssets_AreServedWithTheirType(string file, string mediaType)
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await browser.GetAsync($"/bff/login/{file}", Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe(mediaType);
+        (await response.Content.ReadAsStringAsync(Token)).ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginAssets_UnknownFile_IsNotFound()
+    {
+        var browser = _factory.CreateBrowser();
+
+        (await browser.GetAsync("/bff/login/other.js", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -124,6 +234,8 @@ public sealed class SessionTests : IAsyncDisposable
         var browser = factory.CreateBrowser();
 
         (await browser.GetAsync("/bff/login", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await browser.GetAsync("/bff/login/background.webp", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await browser.GetAsync("/bff/login/login.css", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
