@@ -72,6 +72,9 @@ public sealed class SessionTests : IAsyncDisposable
     [Theory]
     [InlineData("https://evil.example/")]
     [InlineData("//evil.example/")]
+    [InlineData("/\\evil.example/")]
+    [InlineData("/\t/evil.example/")]
+    [InlineData("/\n/evil.example/")]
     [Trait("Category", "Unit")]
     public async Task Login_ReturnUrlOffSite_RedirectsHome(string returnUrl)
     {
