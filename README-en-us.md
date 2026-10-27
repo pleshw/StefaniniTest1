@@ -36,6 +36,20 @@ cp .env.example .env
 
 `.env` holds local-only values: the PostgreSQL user and password (the local MongoDB has no authentication), the key the BFF signs the tokens it sends to the services with (`SERVICE_TOKEN_SIGNING_KEY`), the RabbitMQ user, and the passwords of the BFF's development sign-in users `shopper` and `admin` (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`), plus two optional values: `LOAD_DURATION` (load test duration) and `ASPIRE_DASHBOARD_PORT` (Aspire Dashboard port). Defaults work as they are for local development; never commit `.env`.
 
+#### For reviewers: `.env` and credentials
+
+`.env.example` is committed and holds local development values only, with no real secret; `.env` (ignored by Git) is the copy `docker-compose.yml` reads. To evaluate the project, just run `cp .env.example .env` and start the stack, without editing anything. If a required variable is missing, compose stops with the message "set ... in .env".
+
+| Credential | Default value (`.env.example`) | Where it is used |
+| --- | --- | --- |
+| `shopper` / `BFF_SHOPPER_PASSWORD` | `shopper_local_password` | Sign-in at http://localhost:8080/bff/login and access to the Shop page |
+| `admin` / `BFF_ADMIN_PASSWORD` | `admin_local_password` | Sign-in at http://localhost:8080/bff/login and access to the Admin page |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` | `orders` / `orders_local_password` | Orders database (not published on the host) |
+| `RABBITMQ_DEFAULT_USER` / `RABBITMQ_DEFAULT_PASS` | `orders` / `orders_local_password` | Message broker (not published on the host) |
+| `SERVICE_TOKEN_SIGNING_KEY` | `local_service_token_signing_key_change_me_0123456789` | HMAC key the BFF signs the 5-minute service JWTs with |
+
+The values are fictitious and valid locally only; in staging and production they come from GitHub Environment secrets, never from a file. The commented variables in `.env.example` are optional and already have defaults in the `appsettings.json` files.
+
 ### Run
 
 ```bash
