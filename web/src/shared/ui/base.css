@@ -1,0 +1,7 @@
+/*
+ * Bootstrap's display utilities (d-flex and the like) are !important and come after its own [hidden] rule, so an
+ * element with both would stay visible. The views hide and show parts with the hidden attribute; this keeps it working.
+ */
+[hidden] {
+  display: none !important;
+}
