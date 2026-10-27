@@ -10,6 +10,8 @@ export interface MenuItem<S extends string> {
   readonly icon: string;
   /** What the section is for, under the label and as the button's description. */
   readonly hint: string;
+  /** Sections that belong to this one, listed under it, indented. */
+  readonly children?: readonly MenuItem<S>[];
 }
 
 export interface MenuGroup<S extends string> {
@@ -61,6 +63,31 @@ export function renderAdminShell<S extends string>(
 
   const buttons = new Map<S, HTMLButtonElement>();
   const items = new Map<S, MenuItem<S>>();
+  /** The parent of each sub-item, marked while one of its sub-items is the current section. */
+  const parents = new Map<S, S>();
+  const menuButton = (item: MenuItem<S>, className: string): HTMLButtonElement => {
+    const hintId = `admin-menu-hint-${item.section}`;
+    const button = h(
+      'button',
+      { className, attrs: { type: 'button', 'aria-describedby': hintId } },
+      icon(`${item.icon} admin-menu-icon`, ''),
+      h(
+        'span',
+        { className: 'admin-menu-text' },
+        h('span', { className: 'admin-menu-label', text: item.label }),
+        // Hidden from the button's name, which stays the label; read as its description instead.
+        h('span', {
+          className: 'admin-menu-hint',
+          text: item.hint,
+          attrs: { id: hintId, 'aria-hidden': 'true' },
+        }),
+      ),
+    );
+    buttons.set(item.section, button);
+    items.set(item.section, item);
+
+    return button;
+  };
   const menu = h('nav', {
     className: 'admin-menu',
     attrs: { 'aria-label': 'Menu da administração' },
@@ -69,29 +96,21 @@ export function renderAdminShell<S extends string>(
     const headingId = `admin-menu-group-${String(index)}`;
     const list = h('ul', { className: 'admin-menu-list', attrs: { 'aria-labelledby': headingId } });
     for (const item of group.items) {
-      const hintId = `admin-menu-hint-${item.section}`;
-      const button = h(
-        'button',
-        {
-          className: 'admin-menu-item',
-          attrs: { type: 'button', 'aria-describedby': hintId },
-        },
-        icon(`${item.icon} admin-menu-icon`, ''),
-        h(
-          'span',
-          { className: 'admin-menu-text' },
-          h('span', { className: 'admin-menu-label', text: item.label }),
-          // Hidden from the button's name, which stays the label; read as its description instead.
-          h('span', {
-            className: 'admin-menu-hint',
-            text: item.hint,
-            attrs: { id: hintId, 'aria-hidden': 'true' },
-          }),
-        ),
-      );
-      buttons.set(item.section, button);
-      items.set(item.section, item);
-      list.append(h('li', {}, button));
+      const entry = h('li', {}, menuButton(item, 'admin-menu-item'));
+      const children = item.children ?? [];
+      if (children.length > 0) {
+        entry.append(
+          h(
+            'ul',
+            { className: 'admin-submenu', attrs: { 'aria-label': `Dentro de ${item.label}` } },
+            ...children.map((child) => {
+              parents.set(child.section, item.section);
+              return h('li', {}, menuButton(child, 'admin-menu-item admin-submenu-item'));
+            }),
+          ),
+        );
+      }
+      list.append(entry);
     }
     menu.append(
       h('p', { className: 'admin-menu-heading', text: group.title, attrs: { id: headingId } }),
@@ -180,6 +199,7 @@ export function renderAdminShell<S extends string>(
       for (const [name, button] of buttons) {
         const selected = name === section;
         button.classList.toggle('active', selected);
+        button.classList.toggle('has-current', parents.get(section) === name);
         button.setAttribute('aria-current', String(selected));
       }
       const item = items.get(section);

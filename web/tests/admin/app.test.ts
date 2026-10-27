@@ -1,4 +1,11 @@
-import { findByRole, findByText, fireEvent, getByRole, queryByRole } from '@testing-library/dom';
+import {
+  findByRole,
+  findByText,
+  fireEvent,
+  getByLabelText,
+  getByRole,
+  queryByRole,
+} from '@testing-library/dom';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { server } from '../../mocks/server';
@@ -55,6 +62,7 @@ describe('Admin page', () => {
       'Eventos ao vivo',
       'Criar pedido',
       'Regras de desconto',
+      'Simulação',
       'Regras de confirmação',
       'Catálogo',
       'Mensagens mortas',
@@ -79,6 +87,42 @@ describe('Admin page', () => {
       getByRole(menu, 'button', { name: 'Eventos ao vivo' }).getAttribute('aria-current'),
     ).toBe('false');
     expect(await findByText(root, 'admin')).toBeTruthy();
+    await expectAccessible(root);
+  });
+
+  it('opens the simulation from its sub-item, and from the editor with the draft, and goes back', async () => {
+    const { root } = mountPage();
+    const menu = getByRole(root, 'navigation', { name: 'Menu da administração' });
+
+    fireEvent.click(getByRole(menu, 'button', { name: 'Simulação' }));
+
+    expect(
+      await findByRole(root, 'heading', { level: 2, name: 'Simulação de descontos' }),
+    ).toBeTruthy();
+    expect(getByRole(menu, 'button', { name: 'Simulação' }).getAttribute('aria-current')).toBe(
+      'true',
+    );
+    expect(getByRole(menu, 'button', { name: 'Regras de desconto' }).classList).toContain(
+      'has-current',
+    );
+
+    fireEvent.click(getByRole(menu, 'button', { name: 'Regras de desconto' }));
+    fireEvent.click(await findByRole(root, 'button', { name: 'Nova regra' }));
+    const editor = getByRole(root, 'form', { name: 'Editor de regra' });
+    fireEvent.input(getByLabelText(editor, 'Nome'), { target: { value: 'Draft' } });
+    fireEvent.input(getByLabelText(editor, 'Percentual'), { target: { value: '10' } });
+    fireEvent.click(getByRole(editor, 'button', { name: 'Simular esta regra' }));
+
+    const simulation = getByRole(root, 'form', { name: 'Simulação' });
+    expect(getByLabelText<HTMLSelectElement>(simulation, 'Regra a simular').value).toBe('draft');
+    expect(queryByRole(root, 'form', { name: 'Editor de regra' })).toBeNull();
+
+    fireEvent.click(getByRole(root, 'button', { name: 'Voltar ao editor' }));
+
+    expect(getByRole(root, 'form', { name: 'Editor de regra' })).toBeTruthy();
+    expect(document.activeElement).toBe(
+      getByRole(editor, 'button', { name: 'Simular esta regra' }),
+    );
     await expectAccessible(root);
   });
 

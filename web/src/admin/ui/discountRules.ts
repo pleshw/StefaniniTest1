@@ -2,10 +2,8 @@ import {
   createDiscountRule,
   deactivateDiscountRule,
   listDiscountRules,
-  previewDiscountRule,
   replaceDiscountRule,
   type DiscountRule,
-  type RulePreview,
 } from '../api/rules';
 import {
   discountConditionKinds,
@@ -24,13 +22,25 @@ import {
   type TieredParameters,
   discountTypeLabel,
 } from '../domain/rules';
+
+/** What each type of discount does, shown under the type picker. */
+const discountTypeDescriptions: Readonly<Record<DiscountType, string>> = {
+  Percentage: 'Tira um percentual do subtotal do pedido ou de cada item. Vale em qualquer moeda.',
+  FixedAmount:
+    'Tira um valor fixo do pedido, informado por moeda. Um carrinho em moeda sem valor não ganha desconto, e o desconto nunca passa do subtotal.',
+  BuyXGetY:
+    'A cada "Compre + Leve" unidades, "Leve" saem de graça, sempre as mais baratas. Pode valer só para alguns SKUs.',
+  Tiered:
+    'Um percentual que cresce com o subtotal: vale a maior faixa que o subtotal alcança, na moeda das faixas.',
+};
 import { createConditionsEditor, type ConditionsEditor } from './conditionsEditor';
+import { rowsEditor } from './rowsEditor';
 import { PreconditionFailedError } from '../../shared/api/errors';
 import type { HttpClient } from '../../shared/api/http';
 import { formatDateTime, fromLocalInput, toLocalInput } from '../../shared/domain/dates';
-import { formatMoney } from '../../shared/domain/money';
 import { confirmAction } from '../../shared/ui/dialog';
 import { h } from '../../shared/ui/dom';
+import { helpTip } from '../../shared/ui/help';
 import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import {
@@ -38,6 +48,7 @@ import {
   checkbox,
   dateTimeInput,
   errorSummary,
+  formStep,
   labelled,
   numberInput,
   selectOf,
@@ -47,6 +58,19 @@ import {
 
 export interface DiscountRulesOptions {
   readonly http: HttpClient;
+  /** Opens the simulation with the rule as it is in the editor; without it the editor has no simulation step. */
+  readonly onSimulate?: (draft: DiscountDraft) => void;
+}
+
+/** A rule as it is in the editor, valid but not saved, and the saved rule it would replace. */
+export interface DiscountDraft {
+  readonly definition: DiscountDefinition;
+  readonly existing?: DiscountRule;
+}
+
+export interface DiscountRulesView {
+  /** Puts the focus back where the person left: the open editor's simulation button, or "Nova regra". */
+  resume(): void;
 }
 
 interface Parameters {
@@ -57,8 +81,11 @@ interface Parameters {
 const staleRule =
   'Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.';
 
-/** Discount rules: the list, an editor with a form for each type of strategy, a conditions builder and a preview. */
-export function mountDiscountRules(container: HTMLElement, options: DiscountRulesOptions): void {
+/** Discount rules: the list and an editor in steps, with a form for each type of strategy and a conditions builder. */
+export function mountDiscountRules(
+  container: HTMLElement,
+  options: DiscountRulesOptions,
+): DiscountRulesView {
   let rules: readonly DiscountRule[] = [];
   let loaded = false;
   let failure: string | undefined;
@@ -70,7 +97,11 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
     className: 'alert alert-danger d-flex align-items-center gap-3',
     attrs: { role: 'alert' },
   });
-  const activeFilter = checkbox('Somente ativas', false);
+  const activeFilter = checkbox(
+    'Somente ativas',
+    false,
+    'Esconde as regras desativadas. Uma regra desativada não volta a valer, mas continua na lista para consulta.',
+  );
   const create = withIcon(
     h('button', {
       className: 'btn btn-primary btn-sm',
@@ -221,7 +252,7 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
   }
 
   function openEditor(rule?: DiscountRule): void {
-    const form = buildEditor(options.http, rules, rule, {
+    const form = buildEditor(options.http, rule, {
       saved: (stored) => {
         editor.replaceChildren();
         status.textContent = `Regra "${stored.name}" salva como versão ${String(stored.version)}.`;
@@ -235,6 +266,7 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
       stale: () => {
         void load();
       },
+      ...(options.onSimulate === undefined ? {} : { simulate: options.onSimulate }),
     });
     editor.replaceChildren(form);
     form.querySelector<HTMLElement>('input')?.focus();
@@ -251,17 +283,23 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
 
   render();
   void load();
+
+  return {
+    resume() {
+      (editor.querySelector<HTMLElement>('[data-simulate]') ?? create).focus();
+    },
+  };
 }
 
 interface EditorEvents {
   readonly saved: (rule: DiscountRule) => void;
   readonly closed: () => void;
   readonly stale: () => void;
+  readonly simulate?: (draft: DiscountDraft) => void;
 }
 
 function buildEditor(
   http: HttpClient,
-  rules: readonly DiscountRule[],
   existing: DiscountRule | undefined,
   events: EditorEvents,
 ): HTMLElement {
@@ -285,22 +323,43 @@ function buildEditor(
     initial.type,
   );
   const priority = numberInput(initial.priority, { step: '1' });
-  const stackable = checkbox('Cumulativa', initial.stackable);
-  const oncePerClient = checkbox('Uma vez por cliente', initial.oncePerClient);
-  const active = checkbox('Ativa', initial.isActive);
+  const stackable = checkbox(
+    'Cumulativa',
+    initial.stackable,
+    'Desmarcada: entre as regras não cumulativas que se aplicam ao carrinho, só vale a que dá o maior desconto. Marcada: a regra soma com as outras, depois da melhor não cumulativa, na ordem de prioridade. O desconto total nunca passa de 50% do subtotal.',
+  );
+  const oncePerClient = checkbox(
+    'Uma vez por cliente',
+    initial.oncePerClient,
+    'Cada cliente recebe esta regra em um só pedido; depois disso ela deixa de valer para ele.',
+  );
+  const active = checkbox(
+    'Ativa',
+    initial.isActive,
+    'Desmarcada, a regra fica guardada, mas não é aplicada a nenhum carrinho.',
+  );
   const validFrom = dateTimeInput(toLocalInput(initial.validFrom));
   const validTo = dateTimeInput(toLocalInput(initial.validTo));
   const parametersBox = h('div');
   const conditions: ConditionsEditor = createConditionsEditor(
     discountConditionKinds,
     initial.conditions,
+    { legend: 'Quando vale', step: 3 },
   );
   const message = h('p', { className: 'mb-2', attrs: { role: 'status' } });
   let parameters = parametersFor(initial.type, initial.parameters);
   let saving = false;
   parametersBox.append(parameters.element);
 
+  const typeField = labelled('Tipo', typeSelect, undefined, discountTypeDescriptions[initial.type]);
+  const typeTip = typeField.querySelector('[role="tooltip"]');
+  const describeType = (): void => {
+    if (typeTip !== null) {
+      typeTip.textContent = discountTypeDescriptions[typeSelect.value as DiscountType];
+    }
+  };
   typeSelect.addEventListener('change', () => {
+    describeType();
     parameters = parametersFor(
       typeSelect.value as DiscountType,
       defaultsOf(typeSelect.value as DiscountType),
@@ -366,59 +425,121 @@ function buildEditor(
     saving = false;
   }
 
-  const preview = buildPreview(http, rules, existing, checked, name, summary);
+  const simulate = withIcon(
+    h('button', {
+      className: 'btn btn-outline-primary',
+      text: 'Simular esta regra',
+      attrs: { type: 'button', 'data-simulate': '' },
+    }),
+    'bi-calculator',
+    'me-1',
+  );
+  simulate.addEventListener('click', () => {
+    const definition = checked();
+    if (definition !== false) {
+      events.simulate?.({ definition, ...(existing === undefined ? {} : { existing }) });
+    }
+  });
   const form = h(
     'form',
     {
-      className: 'border rounded p-3 mt-3',
+      className: 'rule-editor',
       attrs: { 'aria-label': 'Editor de regra', novalidate: '' },
     },
-    h('h3', {
-      className: 'h5',
-      text:
-        existing === undefined
-          ? 'Nova regra de desconto'
-          : `Editar ${existing.name} (versão ${String(existing.version)})`,
-    }),
+    h(
+      'div',
+      { className: 'rule-editor-header' },
+      h('h3', {
+        className: 'h5 mb-0',
+        text:
+          existing === undefined
+            ? 'Nova regra de desconto'
+            : `Editar ${existing.name} (versão ${String(existing.version)})`,
+      }),
+    ),
     summary.element,
-    h(
-      'div',
-      { className: 'row' },
-      h('div', { className: 'col-md-6' }, labelled('Nome', name)),
-      h('div', { className: 'col-md-3' }, labelled('Tipo', typeSelect)),
+    formStep(
+      1,
+      'Identificação',
+      undefined,
       h(
         'div',
-        { className: 'col-md-3' },
-        labelled('Prioridade', priority, 'O menor valor roda primeiro.'),
+        { className: 'row' },
+        h(
+          'div',
+          { className: 'col-md-8' },
+          labelled(
+            'Nome',
+            name,
+            undefined,
+            'Aparece na lista de regras e na simulação. Use um nome que diga o que a regra faz, como "10% acima de R$ 500".',
+          ),
+        ),
+        h(
+          'div',
+          { className: 'col-md-4' },
+          labelled(
+            'Prioridade',
+            priority,
+            undefined,
+            'O menor valor roda primeiro. Ordem e desempate. As regras cumulativas são aplicadas da menor para a maior prioridade; entre regras não cumulativas que dão o mesmo desconto, vale a de menor prioridade.',
+          ),
+        ),
       ),
+      active.element,
     ),
-    parametersBox,
-    h(
-      'div',
-      { className: 'row' },
-      h(
-        'div',
-        { className: 'col-md-6' },
-        labelled('Válida a partir de', validFrom, 'Deixe em branco para começar agora.'),
-      ),
-      h(
-        'div',
-        { className: 'col-md-6' },
-        labelled('Válida até', validTo, 'Deixe em branco para não ter fim.'),
-      ),
+    formStep(
+      2,
+      'Desconto',
+      'Como o desconto é calculado. Os campos mudam conforme o tipo.',
+      h('div', { className: 'row' }, h('div', { className: 'col-md-6' }, typeField)),
+      parametersBox,
     ),
-    stackable.element,
-    oncePerClient.element,
-    active.element,
     conditions.element,
+    formStep(
+      4,
+      'Validade e combinação',
+      'Fora do período a regra não se aplica. Com as datas em branco, ela começa ao salvar e não tem fim.',
+      h(
+        'div',
+        { className: 'row' },
+        h(
+          'div',
+          { className: 'col-md-6' },
+          labelled('Válida a partir de', validFrom, 'Deixe em branco para começar agora.'),
+        ),
+        h(
+          'div',
+          { className: 'col-md-6' },
+          labelled('Válida até', validTo, 'Deixe em branco para não ter fim.'),
+        ),
+      ),
+      stackable.element,
+      oncePerClient.element,
+    ),
+    ...(events.simulate === undefined
+      ? []
+      : [
+          formStep(
+            5,
+            'Simular (opcional)',
+            'Abre a Simulação com a regra como está aqui, para ver o desconto num carrinho de exemplo antes de salvar. Nada é salvo.',
+            simulate,
+          ),
+        ]),
     message,
     h(
       'div',
-      { className: 'd-flex gap-2 mb-3' },
+      { className: 'rule-editor-actions' },
       actionButton('Salvar regra', 'btn btn-primary', () => void save(), 'submit'),
       actionButton('Cancelar', 'btn btn-outline-secondary', events.closed),
+      helpTip(
+        'Salvar regra',
+        existing === undefined
+          ? 'A regra passa a valer ao salvar, se estiver ativa e dentro da validade.'
+          : `Salvar grava a versão ${String(existing.version + 1)}; os pedidos já feitos mantêm a versão que usaram.`,
+      ).element,
     ),
-    preview,
   );
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -449,7 +570,7 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
       const scope = selectOf(
         [
           ['order', 'O pedido inteiro'],
-          ['line', 'Cada linha'],
+          ['line', 'Cada item (linha)'],
         ],
         appliesTo,
       );
@@ -458,8 +579,21 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
         element: h(
           'div',
           { className: 'row' },
-          h('div', { className: 'col-md-6' }, labelled('Percentual', percentInput)),
-          h('div', { className: 'col-md-6' }, labelled('Aplica-se a', scope)),
+          h(
+            'div',
+            { className: 'col-md-6' },
+            labelled('Percentual', percentInput, undefined, 'Entre 0 e 100, sem o símbolo %.'),
+          ),
+          h(
+            'div',
+            { className: 'col-md-6' },
+            labelled(
+              'Aplica-se a',
+              scope,
+              undefined,
+              'O pedido inteiro: o percentual sai do subtotal, arredondado uma vez. Cada item: sai de cada linha, arredondado linha a linha, então o total pode diferir em alguns centavos.',
+            ),
+          ),
         ),
         read: () => ({ percent: percentInput.valueAsNumber, appliesTo: scope.value as AppliesTo }),
       };
@@ -476,7 +610,16 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
         element: h(
           'div',
           { className: 'row' },
-          h('div', { className: 'col-md-3' }, labelled('Compre', buyInput)),
+          h(
+            'div',
+            { className: 'col-md-3' },
+            labelled(
+              'Compre',
+              buyInput,
+              undefined,
+              'Quantas unidades o cliente paga. Ex.: Compre 2, Leve 1 = a cada 3 unidades, a mais barata sai de graça.',
+            ),
+          ),
           h(
             'div',
             { className: 'col-md-3' },
@@ -508,69 +651,6 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
   }
 }
 
-/** Rows that can be added and removed, each with its own fields; `describe` names a row for the Remove button. */
-function rowsEditor<T>(
-  legend: string,
-  addLabel: string,
-  removeLabel: string,
-  initial: readonly T[],
-  fresh: () => T,
-  fieldsOf: (value: T) => { fields: HTMLElement[]; read: () => T },
-): { element: HTMLElement; read: () => T[] } {
-  const rows: { element: HTMLElement; read: () => T }[] = [];
-  const list = h('div');
-  const add = actionButton(addLabel, 'btn btn-outline-secondary btn-sm', () => {
-    addRow(fresh()).querySelector<HTMLElement>('input')?.focus();
-  });
-
-  function addRow(value: T): HTMLElement {
-    const { fields, read } = fieldsOf(value);
-    const remove = actionButton('Remover', 'btn btn-outline-danger btn-sm', () => {
-      rows.splice(rows.indexOf(row), 1);
-      row.element.remove();
-      renumber();
-      add.focus();
-    });
-    const row = {
-      element: h(
-        'div',
-        { className: 'row g-2 align-items-end mb-2' },
-        ...fields,
-        h('div', { className: 'col-auto mb-3' }, remove),
-      ),
-      read,
-    };
-    rows.push(row);
-    list.append(row.element);
-    renumber();
-
-    return row.element;
-  }
-
-  function renumber(): void {
-    rows.forEach((row, index) => {
-      row.element
-        .querySelector('button')
-        ?.setAttribute('aria-label', `${removeLabel} ${String(index + 1)}`);
-    });
-  }
-
-  for (const value of initial) {
-    addRow(value);
-  }
-
-  return {
-    element: h(
-      'fieldset',
-      { className: 'mb-3' },
-      h('legend', { className: 'h6', text: legend }),
-      list,
-      add,
-    ),
-    read: () => rows.map((row) => row.read()),
-  };
-}
-
 function fixedAmountFields(value: FixedAmountParameters): Parameters {
   const amounts = rowsEditor(
     'Valores de desconto',
@@ -584,12 +664,17 @@ function fixedAmountFields(value: FixedAmountParameters): Parameters {
 
       return {
         fields: [
-          h('div', { className: 'col-md-4' }, labelled('Moeda', currency)),
+          h(
+            'div',
+            { className: 'col-md-4' },
+            labelled('Moeda', currency, undefined, 'Código de 3 letras, como BRL.'),
+          ),
           h('div', { className: 'col-md-4' }, labelled('Valor', amount)),
         ],
         read: () => ({ currency: currency.value, amount: amount.valueAsNumber }),
       };
     },
+    'Um valor por moeda. Um carrinho numa moeda que não está aqui não ganha desconto; o desconto nunca passa do subtotal.',
   );
 
   return { element: amounts.element, read: () => ({ amounts: amounts.read() }) };
@@ -615,130 +700,27 @@ function tieredFields(value: TieredParameters): Parameters {
         read: () => ({ minSubtotal: minimum.valueAsNumber, percent: percent.valueAsNumber }),
       };
     },
+    'Vale a maior faixa que o subtotal alcança. Ex.: a partir de 0 → 5% e a partir de 500 → 10%: um carrinho de 600 ganha 10%.',
   );
 
   return {
     element: h(
       'div',
       {},
-      h('div', { className: 'col-md-4' }, labelled('Moeda', currency)),
+      h(
+        'div',
+        { className: 'col-md-4' },
+        labelled(
+          'Moeda',
+          currency,
+          undefined,
+          'Código de 3 letras, como BRL. Outra moeda não ganha desconto.',
+        ),
+      ),
       tiers.element,
     ),
     read: () => ({ currency: currency.value, tiers: tiers.read() }),
   };
-}
-
-function buildPreview(
-  http: HttpClient,
-  rules: readonly DiscountRule[],
-  existing: DiscountRule | undefined,
-  checked: () => DiscountDefinition | false,
-  name: HTMLInputElement,
-  summary: ReturnType<typeof errorSummary>,
-): HTMLElement {
-  const currency = textInput('BRL', { maxlength: '3' });
-  const result = h('section', { attrs: { 'aria-label': 'Resultado da simulação' } });
-  result.hidden = true;
-  const items = rowsEditor(
-    'Carrinho de exemplo',
-    'Adicionar item de exemplo',
-    'Remover item de exemplo',
-    [{ sku: '', quantity: 1 }],
-    () => ({ sku: '', quantity: 1 }),
-    (item) => {
-      const sku = textInput(item.sku);
-      const quantity = numberInput(item.quantity, { min: '1', step: '1' });
-
-      return {
-        fields: [
-          h('div', { className: 'col-md-5' }, labelled('SKU da simulação', sku)),
-          h('div', { className: 'col-md-3' }, labelled('Quantidade da simulação', quantity)),
-        ],
-        read: () => ({ sku: sku.value.trim(), quantity: quantity.valueAsNumber }),
-      };
-    },
-  );
-
-  async function run(): Promise<void> {
-    const definition = checked();
-    if (definition === false) {
-      return;
-    }
-    const cart = items.read().filter((item) => item.sku !== '');
-    if (
-      cart.length === 0 ||
-      !cart.every((item) => Number.isInteger(item.quantity) && item.quantity >= 1)
-    ) {
-      summary.show(['Adicione ao carrinho de exemplo pelo menos um SKU com quantidade 1 ou mais.']);
-      return;
-    }
-
-    try {
-      const preview = await previewDiscountRule(
-        http,
-        { currency: currency.value.trim().toUpperCase(), items: cart },
-        toDiscountRequest(definition),
-        existing?.id,
-      );
-      summary.clear();
-      result.replaceChildren(...previewRows(preview, rules, existing, name.value.trim()));
-      result.hidden = false;
-    } catch (error) {
-      result.hidden = true;
-      summary.show([errorMessage(error, 'A simulação falhou.')], 'Sem simulação:');
-    }
-  }
-
-  return h(
-    'fieldset',
-    { className: 'border-top pt-3' },
-    h('legend', { className: 'h5', text: 'Simulação' }),
-    h('p', {
-      className: 'text-body-secondary',
-      text: 'Precifica um carrinho de exemplo com a regra como está no formulário. Nada é salvo.',
-    }),
-    h('div', { className: 'col-md-3' }, labelled('Moeda da simulação', currency)),
-    items.element,
-    actionButton('Simular regra', 'btn btn-outline-primary mb-3', () => void run()),
-    result,
-  );
-}
-
-function previewRows(
-  preview: RulePreview,
-  rules: readonly DiscountRule[],
-  existing: DiscountRule | undefined,
-  draftName: string,
-): HTMLElement[] {
-  const money = (amount: number): string => formatMoney(amount, preview.quote.currency);
-  const nameOf = (id: string): string =>
-    id === existing?.id && draftName !== ''
-      ? draftName
-      : (rules.find((rule) => rule.id === id)?.name ?? id.slice(0, 8));
-
-  return [
-    h(
-      'dl',
-      { className: 'row' },
-      h('dt', { className: 'col-6', text: 'Subtotal' }),
-      h('dd', { className: 'col-6 text-end', text: money(preview.quote.subtotal) }),
-      h('dt', { className: 'col-6', text: 'Descontos' }),
-      h('dd', { className: 'col-6 text-end', text: `-${money(preview.quote.discountTotal)}` }),
-      h('dt', { className: 'col-6', text: 'Total' }),
-      h('dd', { className: 'col-6 text-end fw-semibold', text: money(preview.quote.total) }),
-    ),
-    preview.applied.length === 0
-      ? h('p', { text: 'Nenhuma regra se aplica a este carrinho.' })
-      : h(
-          'ul',
-          {},
-          ...preview.applied.map((applied) =>
-            h('li', {
-              text: `${nameOf(applied.ruleId)} (versão ${String(applied.ruleVersion)}): -${money(applied.amount)}`,
-            }),
-          ),
-        ),
-  ];
 }
 
 function validity(rule: DiscountRule): string {

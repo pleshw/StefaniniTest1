@@ -1,5 +1,6 @@
 import { fromLocalInput, toLocalInput } from '../../shared/domain/dates';
 import { h } from '../../shared/ui/dom';
+import { helpTip, legendOf } from '../../shared/ui/help';
 import { withIcon } from '../../shared/ui/icons';
 import {
   dateTimeInput,
@@ -23,52 +24,105 @@ interface Row {
   readonly read: () => Condition;
 }
 
-/** A list of conditions: rows of fields for each kind, with a picker to add one and a button to remove one. */
+/** What each condition checks, shown under the picker and on each condition. */
+export const conditionDescriptions: Readonly<Record<ConditionKind, string>> = {
+  MinSubtotal:
+    'O subtotal do carrinho, antes dos descontos, é pelo menos este valor nesta moeda. Um carrinho em outra moeda não atende.',
+  SkuIn: 'O carrinho tem pelo menos um destes SKUs.',
+  CategoryIn:
+    'O carrinho tem pelo menos um produto destas categorias (maiúsculas e minúsculas não importam).',
+  MinQuantity:
+    'O carrinho soma pelo menos esta quantidade de unidades; se houver SKUs listados, só eles contam.',
+  ClientSegment:
+    'O cliente pertence a um destes segmentos. Ainda não há fonte de segmentos, então hoje esta condição nunca é atendida.',
+  DateWindow: 'Vale só dentro deste período. Uma das pontas pode ficar em branco, mas não as duas.',
+  TotalAbove:
+    'O valor do pedido é maior que este valor (igual não basta), nesta moeda. Outra moeda não atende.',
+  FirstOrderOfClient: 'Vale quando o cliente não tem nenhum pedido anterior.',
+  ChannelIs:
+    'Vale só para pedidos feitos por este canal: a Loja, pelo cliente, ou a Administração, por um administrador.',
+};
+
+export interface ConditionsEditorOptions {
+  readonly legend?: string;
+  /** The step number shown before the legend, when the form is laid out in steps. */
+  readonly step?: number;
+}
+
+/**
+ * A list of conditions, combined with AND: a card per condition with a (?) on what it checks and a button to remove it,
+ * and below them a picker whose (?) describes the chosen kind. With no condition the rule always applies.
+ */
 export function createConditionsEditor(
   kinds: readonly ConditionKind[],
   initial: readonly Condition[],
-  legend = 'Condições',
+  options: ConditionsEditorOptions = {},
 ): ConditionsEditor {
   const rows: Row[] = [];
-  const list = h('div');
+  const list = h('div', { className: 'condition-list' });
+  const empty = withIcon(
+    h('p', {
+      className: 'condition-empty',
+      text: 'Nenhuma condição: vale para qualquer carrinho.',
+    }),
+    'bi-info-circle',
+  );
   const picker = selectOf(
     kinds.map((kind) => [kind, conditionLabels[kind]] as const),
     kinds[0] ?? 'MinSubtotal',
   );
   const add = withIcon(
     h('button', {
-      className: 'btn btn-outline-secondary btn-sm',
+      className: 'btn btn-outline-primary',
       text: 'Adicionar condição',
       attrs: { type: 'button' },
     }),
     'bi-plus-lg',
     'me-1',
   );
-  const element = h(
-    'fieldset',
-    { className: 'mb-3' },
-    h('legend', { className: 'h6', text: legend }),
-    list,
-    h(
-      'div',
-      { className: 'd-flex flex-wrap gap-2 align-items-end' },
-      labelled('Tipo de condição', picker),
-      add,
-    ),
+  const pickerField = labelled(
+    'Tipo de condição',
+    picker,
+    undefined,
+    conditionDescriptions[picker.value as ConditionKind],
   );
+  pickerField.classList.replace('mb-3', 'condition-picker-field');
+  const pickerTip = pickerField.querySelector('[role="tooltip"]');
+  const describePicker = (): void => {
+    if (pickerTip !== null) {
+      pickerTip.textContent = conditionDescriptions[picker.value as ConditionKind];
+    }
+  };
+  const element = h('fieldset', { className: options.step === undefined ? 'mb-3' : 'form-step' });
+  element.append(
+    legendOf(element, options.legend ?? 'Condições', {
+      ...(options.step === undefined ? {} : { step: options.step }),
+      help: 'Sem condições, a regra vale sempre. Com várias, todas precisam ser atendidas ao mesmo tempo (E); para "uma coisa OU outra", crie duas regras.',
+    }),
+    empty,
+    list,
+    h('div', { className: 'condition-add' }, pickerField, add),
+  );
+
+  function refresh(): void {
+    empty.hidden = rows.length > 0;
+  }
 
   function addRow(condition: Condition): HTMLElement {
     const row = createRow(condition, () => {
       rows.splice(rows.indexOf(row), 1);
       row.element.remove();
+      refresh();
       picker.focus();
     });
     rows.push(row);
     list.append(row.element);
+    refresh();
 
     return row.element;
   }
 
+  picker.addEventListener('change', describePicker);
   add.addEventListener('click', () => {
     const row = addRow(emptyCondition(picker.value as ConditionKind));
     row.querySelector<HTMLElement>('input, textarea, select')?.focus();
@@ -76,6 +130,8 @@ export function createConditionsEditor(
   for (const condition of initial) {
     addRow(condition);
   }
+  describePicker();
+  refresh();
 
   return { element, read: () => rows.map((row) => row.read()) };
 }
@@ -115,14 +171,16 @@ function createRow(condition: Condition, remove: () => void): Row {
     'me-1',
   );
   button.addEventListener('click', remove);
+  const id = uniqueId('condition');
+  const help = helpTip(label, conditionDescriptions[condition.kind]);
 
   return {
     element: h(
       'fieldset',
-      { className: 'border rounded p-2 mb-2', attrs: { id: uniqueId('condition') } },
-      h('legend', { className: 'float-none w-auto fs-6 px-1', text: label }),
-      h('div', { className: 'row g-2' }, ...fields),
-      button,
+      { className: 'condition-card', attrs: { id, 'aria-describedby': help.tip.id } },
+      h('legend', { className: 'condition-card-header', text: label }),
+      h('div', { className: 'condition-actions' }, help.element, button),
+      ...(fields.length === 0 ? [] : [h('div', { className: 'row g-2' }, ...fields)]),
     ),
     read,
   };
@@ -144,7 +202,19 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
       const currency = textInput(condition.currency, { maxlength: '3' });
 
       return {
-        fields: [column(amount, `${label}: valor`), column(currency, `${label}: moeda`)],
+        fields: [
+          column(amount, `${label}: valor`),
+          h(
+            'div',
+            { className: 'col-md-6' },
+            labelled(
+              `${label}: moeda`,
+              currency,
+              undefined,
+              'Código de 3 letras, como BRL ou USD.',
+            ),
+          ),
+        ],
         read: () => ({
           kind: condition.kind,
           amount: amount.valueAsNumber,
@@ -226,15 +296,7 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
       };
     }
     case 'FirstOrderOfClient':
-      return {
-        fields: [
-          h('p', {
-            className: 'col-12 mb-0',
-            text: 'Vale quando o cliente não tem nenhum pedido anterior.',
-          }),
-        ],
-        read: () => ({ kind: 'FirstOrderOfClient' }),
-      };
+      return { fields: [], read: () => ({ kind: 'FirstOrderOfClient' }) };
     case 'ChannelIs': {
       const channel = selectOf(
         [

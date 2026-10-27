@@ -8,7 +8,8 @@ import { mountCatalogEditor } from './catalogEditor';
 import { mountConfirmationRules } from './confirmationRules';
 import { mountCreateOrder } from './createOrder';
 import { mountDeadLetters } from './deadLetters';
-import { mountDiscountRules } from './discountRules';
+import { mountDiscountRules, type DiscountRulesView } from './discountRules';
+import { mountDiscountSimulation, type DiscountSimulation } from './discountSimulation';
 import { mountInspector } from './inspector';
 import { mountLiveEvents } from './liveEvents';
 import { mountOnHold } from './onHold';
@@ -22,7 +23,8 @@ export interface AdminDependencies {
   readonly navigate?: (url: string) => void;
 }
 
-type Section = 'live' | 'create' | 'discounts' | 'confirmation' | 'deadLetters' | 'catalog';
+type Section =
+  'live' | 'create' | 'discounts' | 'simulation' | 'confirmation' | 'deadLetters' | 'catalog';
 
 /** The side menu: every section, grouped by what an admin does there, with what each one is for. */
 const menu: readonly MenuGroup<Section>[] = [
@@ -56,6 +58,14 @@ const menu: readonly MenuGroup<Section>[] = [
         label: 'Regras de desconto',
         icon: 'bi-percent',
         hint: 'Descontos aplicados ao carrinho',
+        children: [
+          {
+            section: 'simulation',
+            label: 'Simulação',
+            icon: 'bi-calculator',
+            hint: 'Teste um carrinho de exemplo',
+          },
+        ],
       },
       {
         section: 'confirmation',
@@ -163,7 +173,25 @@ export function mountAdmin(
     discounts: {
       box: h('div', { className: 'admin-panel' }),
       mount: (box) => {
-        mountDiscountRules(box, { http });
+        discountRules = mountDiscountRules(box, {
+          http,
+          onSimulate: (draft) => {
+            show('simulation');
+            simulation?.simulate(draft);
+          },
+        });
+      },
+    },
+    simulation: {
+      box: h('div', { className: 'admin-panel' }),
+      mount: (box) => {
+        simulation = mountDiscountSimulation(box, {
+          http,
+          onBack: () => {
+            show('discounts');
+            discountRules?.resume();
+          },
+        });
       },
     },
     confirmation: {
@@ -186,6 +214,8 @@ export function mountAdmin(
     },
   };
   const mounted = new Set<Section>();
+  let discountRules: DiscountRulesView | undefined;
+  let simulation: DiscountSimulation | undefined;
 
   const show = (section: Section): void => {
     monitoring.hidden = section !== 'live';
@@ -194,6 +224,9 @@ export function mountAdmin(
       if (name === section && !mounted.has(section)) {
         mounted.add(section);
         mount(box);
+      } else if (name === section && section === 'simulation') {
+        // The rules may have changed in the other section since the simulation last read them.
+        simulation?.refresh();
       }
     }
     shell.select(section);
