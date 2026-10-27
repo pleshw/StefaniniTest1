@@ -1,6 +1,4 @@
-using System.Text.Encodings.Web;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Options;
+using ServiceDefaults;
 
 namespace Catalog.Api.Security;
 
@@ -10,29 +8,16 @@ internal static class AdminAuthorization
     public const string AdminRole = "Admin";
 
     /// <summary>
-    /// Admin routes require the Admin role. Until the identity provider arrives (Phase 5) the only registered scheme
-    /// authenticates nobody, so these routes answer 401 outside tests, which register their own scheme.
+    /// Admin routes require the Admin role. The user arrives as the JWT the BFF signs for the audience
+    /// <c>catalog-api</c> (<see cref="ServiceTokens"/>); without a configured key no token is accepted. Product queries
+    /// stay open to internal callers. Tests replace the scheme with their own.
     /// </summary>
-    public static IServiceCollection AddAdminAuthorization(this IServiceCollection services)
+    public static IServiceCollection AddAdminAuthorization(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddAuthentication(UnconfiguredAuthenticationHandler.SchemeName)
-            .AddScheme<AuthenticationSchemeOptions, UnconfiguredAuthenticationHandler>(
-                UnconfiguredAuthenticationHandler.SchemeName, _ => { });
+        services.AddServiceTokenAuthentication(configuration, ServiceTokens.CatalogAudience);
         services.AddAuthorizationBuilder()
             .AddPolicy(AdminPolicy, policy => policy.RequireRole(AdminRole));
 
         return services;
     }
-}
-
-internal sealed class UnconfiguredAuthenticationHandler(
-    IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
-    UrlEncoder encoder)
-    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    public const string SchemeName = "Unconfigured";
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync() =>
-        Task.FromResult(AuthenticateResult.NoResult());
 }

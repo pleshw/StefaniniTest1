@@ -16,6 +16,7 @@ var devLogin = builder.Configuration.GetSection(DevLoginOptions.SectionName).Get
 
 builder.AddServiceDefaults();
 builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = options.MaxRequestBodySize);
+builder.Services.Configure<ServiceTokenOptions>(builder.Configuration.GetSection(ServiceTokenOptions.SectionName));
 builder.Services.Configure<DevLoginOptions>(builder.Configuration.GetSection(DevLoginOptions.SectionName));
 builder.Services.AddBffAuthentication();
 builder.Services.AddBffClients(options);

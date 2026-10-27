@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace Orders.Bff.Security;
@@ -35,6 +36,10 @@ internal static class BffAuthentication
                 cookie.Events.OnRedirectToAccessDenied = context => Status(context, StatusCodes.Status403Forbidden);
             });
         services.AddAuthorization();
+        services.AddHttpContextAccessor();
+        services.AddMemoryCache();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ServiceTokenIssuer>();
         // nginx talks plain http to the BFF, and antiforgery refuses a Secure-only cookie on such a request; the token
         // cookie only pairs with the form field, so it follows the request scheme. The session cookie stays Secure.
         services.AddAntiforgery(antiforgery =>

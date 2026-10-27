@@ -56,6 +56,7 @@ services:
     environment:
       Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
       Catalog__Seed__Enabled: "true"  # development catalog; staging and production never set it
+      ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
     depends_on:
       mongo:
         condition: service_healthy
@@ -88,6 +89,7 @@ services:
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -134,6 +136,8 @@ services:
       Bff__DevLogin__Enabled: "true"
       Bff__DevLogin__ShopperPassword: ${BFF_SHOPPER_PASSWORD:?set BFF_SHOPPER_PASSWORD in .env}
       Bff__DevLogin__AdminPassword: ${BFF_ADMIN_PASSWORD:?set BFF_ADMIN_PASSWORD in .env}
+      # The BFF signs a short-lived JWT per call with this key; orders-api and catalog-api validate it.
+      ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
     depends_on:
       orders-api:
         condition: service_healthy

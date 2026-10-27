@@ -34,7 +34,7 @@ cd StefaniniTestProject
 cp .env.example .env
 ```
 
-O `.env` guarda valores apenas locais: senhas dos bancos, o usuário do RabbitMQ e as senhas dos usuários de desenvolvimento `shopper` e `admin` do login do BFF (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
+O `.env` guarda valores apenas locais: senhas dos bancos, a chave com que o BFF assina os tokens enviados aos serviços (`SERVICE_TOKEN_SIGNING_KEY`), o usuário do RabbitMQ e as senhas dos usuários de desenvolvimento `shopper` e `admin` do login do BFF (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
 
 ### Executar
 

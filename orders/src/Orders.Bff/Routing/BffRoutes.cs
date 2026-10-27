@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
+using Orders.Bff.Security;
+using ServiceDefaults;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Forwarder;
 using Yarp.ReverseProxy.Transforms;
@@ -38,10 +40,21 @@ internal static class BffRoutes
             .LoadFromMemory(Routes, Clusters(options))
             .AddTransforms(transforms =>
             {
-                // The session cookie belongs to the browser and the BFF; the services never see it.
+                var audience = transforms.Cluster?.ClusterId == CatalogCluster ? ServiceTokens.CatalogAudience : ServiceTokens.OrdersAudience;
+
+                // The session cookie belongs to the browser and the BFF; the services never see it. What they get instead
+                // is the BFF's token for the signed-in user; a header sent by the browser is never passed on.
                 transforms.AddRequestHeaderRemove("Cookie");
+                transforms.AddRequestHeaderRemove("Authorization");
                 transforms.AddRequestTransform(context =>
                 {
+                    var issuer = context.HttpContext.RequestServices.GetRequiredService<ServiceTokenIssuer>();
+
+                    if (issuer.TokenFor(context.HttpContext.User, audience) is { } token)
+                    {
+                        context.ProxyRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    }
+
                     // The service's own error response goes back as it is: no status-code page replaces an empty body.
                     if (context.HttpContext.Features.Get<IStatusCodePagesFeature>() is { } statusCodePages)
                     {

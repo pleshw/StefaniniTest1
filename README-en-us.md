@@ -34,7 +34,7 @@ cd StefaniniTestProject
 cp .env.example .env
 ```
 
-`.env` holds local-only values: database passwords, the RabbitMQ user, and the passwords of the BFF's development sign-in users `shopper` and `admin` (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Defaults work as they are for local development; never commit `.env`.
+`.env` holds local-only values: database passwords, the key the BFF signs the tokens it sends to the services with (`SERVICE_TOKEN_SIGNING_KEY`), the RabbitMQ user, and the passwords of the BFF's development sign-in users `shopper` and `admin` (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Defaults work as they are for local development; never commit `.env`.
 
 ### Run
 

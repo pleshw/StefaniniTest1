@@ -16,6 +16,7 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     public const string OrdersAddress = "http://orders.test";
     public const string CatalogAddress = "http://catalog.test";
 
+    public const string SigningKey = "bff-tests-service-token-signing-key-0123456789";
     public const string ShopperPassword = "shopper-test-password";
     public const string AdminPassword = "admin-test-password";
 
@@ -57,6 +58,7 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         builder.UseSetting("Bff:Orders:BaseAddress", OrdersAddress);
         builder.UseSetting("Bff:Catalog:BaseAddress", CatalogAddress);
         builder.UseSetting("Bff:MaxRequestBodySize", "1024");
+        builder.UseSetting("ServiceTokens:SigningKey", SigningKey);
         builder.UseSetting("Bff:DevLogin:Enabled", DevLoginEnabled ? "true" : "false");
         builder.UseSetting("Bff:DevLogin:ShopperPassword", ShopperPassword);
         builder.UseSetting("Bff:DevLogin:AdminPassword", AdminPassword);
