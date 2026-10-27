@@ -1,5 +1,5 @@
-import type { Order } from '../../shared/api/orders';
-import type { TimelineEntry } from '../../shared/domain/timeline';
+import type { Order } from '../api/orders';
+import type { TimelineEntry } from './timeline';
 
 /**
  * What the shopper can know of an order's life from the Shop routes. They do not return the status history, so the

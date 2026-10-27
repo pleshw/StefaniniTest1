@@ -197,4 +197,64 @@ export const handlers = [
         )
       : HttpResponse.json(order);
   }),
+
+  // Admin: the OnHold queue (oldest first) and one page of orders, the inspector, actions and events.
+  http.get('*/bff/admin/orders', ({ request }) => {
+    const limit = Number(new URL(request.url).searchParams.get('limit') ?? 20);
+
+    return HttpResponse.json({
+      onHold: stubOrders.filter((order) => order.status === 'OnHold').map(summaryOf),
+      orders: { items: stubOrders.slice(0, limit).map(summaryOf), next: null },
+      partial: false,
+      unavailable: [],
+    });
+  }),
+
+  http.get('*/bff/admin/orders/:id', ({ params }) => {
+    const order = stubOrders.find((candidate) => candidate.id === params['id']);
+
+    return order === undefined
+      ? HttpResponse.json(
+          { title: 'Not found', status: 404, detail: 'Order not found.' },
+          { status: 404 },
+        )
+      : HttpResponse.json({
+          order,
+          history: [
+            {
+              seq: 1,
+              from: null,
+              to: 'Pending',
+              reason: null,
+              actor: order.client.id,
+              changedAt: order.createdAt,
+            },
+          ],
+          events: [],
+          partial: false,
+          unavailable: [],
+        });
+  }),
+
+  http.post('*/bff/admin/orders/:id/:action', ({ params }) => {
+    const order = stubOrders.find((candidate) => candidate.id === params['id']);
+
+    return order === undefined
+      ? HttpResponse.json({ title: 'Not found', status: 404 }, { status: 404 })
+      : HttpResponse.json({ ...order, rowVersion: order.rowVersion + 1 });
+  }),
+
+  http.get('*/bff/admin/events', () => HttpResponse.json({ items: [], next: null })),
+
+  http.post('*/bff/admin/orders', () =>
+    HttpResponse.json(
+      {
+        id: 'b6c1f0a2-0000-4000-8000-000000000009',
+        number: 'ORD-2026-STUBADMIN001',
+        status: 'Pending',
+        currency: 'BRL',
+      },
+      { status: 201 },
+    ),
+  ),
 ];

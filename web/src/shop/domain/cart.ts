@@ -25,14 +25,17 @@ export interface Cart {
 export interface CartOptions {
   /** sessionStorage by default (a cart per tab); undefined means there is none, and the cart lives in memory. */
   readonly storage?: KeyStorage | undefined;
+  /** The name the cart is kept under, so the Shop cart and the admin's cart for a client are two carts. */
+  readonly storageKey?: string;
 }
 
-const storageKey = 'orders.cart';
+const defaultStorageKey = 'orders.cart';
 
 export function createCart(options: CartOptions = {}): Cart {
   const storage = 'storage' in options ? options.storage : browserStorage();
+  const storageKey = options.storageKey ?? defaultStorageKey;
   const listeners = new Set<() => void>();
-  let current: readonly CartLine[] = load(storage);
+  let current: readonly CartLine[] = load(storage, storageKey);
 
   function update(next: readonly CartLine[]): void {
     current = next;
@@ -106,7 +109,7 @@ function browserStorage(): KeyStorage | undefined {
   }
 }
 
-function load(storage: KeyStorage | undefined): readonly CartLine[] {
+function load(storage: KeyStorage | undefined, storageKey: string): readonly CartLine[] {
   try {
     const text = storage?.getItem(storageKey);
     const value: unknown = text === null || text === undefined ? [] : JSON.parse(text);

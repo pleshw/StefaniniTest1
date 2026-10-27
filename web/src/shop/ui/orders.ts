@@ -1,13 +1,13 @@
 import type { HttpClient } from '../../shared/api/http';
-import type { Order, OrderSummary } from '../../shared/api/orders';
+import type { OrderSummary } from '../../shared/api/orders';
 import { formatDateTime } from '../../shared/domain/dates';
 import { formatMoney } from '../../shared/domain/money';
+import { timelineOf } from '../../shared/domain/orderTimeline';
 import { h } from '../../shared/ui/dom';
 import { errorMessage } from '../../shared/ui/errors';
 import { statusBadge } from '../../shared/ui/status';
-import { renderTimeline } from '../../shared/ui/timeline';
+import { renderOrderDetail } from '../../shared/ui/orderDetail';
 import { getOrder, listOrders } from '../api/orders';
-import { timelineOf } from '../domain/orderTimeline';
 
 export interface OrdersViewOptions {
   readonly http: HttpClient;
@@ -173,7 +173,7 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
       if (openedId !== id) {
         return;
       }
-      detailPanel.replaceChildren(back, renderDetail(order));
+      detailPanel.replaceChildren(back, renderOrderDetail(order, timelineOf(order)));
     } catch (error) {
       if (openedId !== id) {
         return;
@@ -220,82 +220,4 @@ function retryButton(onClick: () => void): HTMLButtonElement {
   button.addEventListener('click', onClick);
 
   return button;
-}
-
-function renderDetail(order: Order): HTMLElement {
-  const money = (amount: number): string => formatMoney(amount, order.currency);
-  const lines = order.items.map((item) =>
-    h(
-      'tr',
-      {},
-      h(
-        'th',
-        { attrs: { scope: 'row' } },
-        h('div', { text: item.productName }),
-        h('small', { className: 'text-body-secondary', text: item.sku }),
-      ),
-      h('td', { className: 'text-end', text: String(item.quantity) }),
-      h('td', { className: 'text-end', text: money(item.unitPrice) }),
-      h('td', {
-        className: 'text-end',
-        text: item.lineDiscount > 0 ? `-${money(item.lineDiscount)}` : '',
-      }),
-      h('td', { className: 'text-end', text: money(item.lineTotal) }),
-    ),
-  );
-  const figure = (name: string, value: string): Node[] => [
-    h('dt', { className: 'col-6 col-md-3', text: name }),
-    h('dd', { className: 'col-6 col-md-9', text: value }),
-  ];
-
-  return h(
-    'div',
-    {},
-    h('h3', { className: 'h5', text: `Order ${order.number}`, attrs: { tabindex: '-1' } }),
-    h(
-      'p',
-      { className: 'order-status' },
-      statusBadge(order.status),
-      ` Placed ${formatDateTime(order.createdAt)}`,
-    ),
-    h(
-      'table',
-      { className: 'table align-middle' },
-      h('caption', { className: 'visually-hidden', text: 'Items' }),
-      h(
-        'thead',
-        {},
-        h(
-          'tr',
-          {},
-          ...['Product', 'Quantity', 'Unit price', 'Discount', 'Total'].map((name, index) =>
-            h('th', {
-              className: index === 0 ? '' : 'text-end',
-              text: name,
-              attrs: { scope: 'col' },
-            }),
-          ),
-        ),
-      ),
-      h('tbody', {}, ...lines),
-    ),
-    h(
-      'div',
-      { attrs: { role: 'group', 'aria-label': 'Order totals' } },
-      h(
-        'dl',
-        { className: 'row' },
-        ...figure('Items', String(order.itemCount)),
-        ...figure('Subtotal', money(order.subtotal)),
-        ...figure(
-          'Discounts',
-          order.discountTotal > 0 ? `-${money(order.discountTotal)}` : money(0),
-        ),
-        ...figure('Total', money(order.total)),
-        ...figure('Currency', order.currency),
-      ),
-    ),
-    h('h4', { className: 'h6', text: 'Status' }),
-    renderTimeline(timelineOf(order)),
-  );
 }

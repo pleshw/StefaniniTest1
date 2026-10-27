@@ -1,6 +1,6 @@
 import { ApiError, NetworkError } from '../../shared/api/errors';
 import type { HttpClient } from '../../shared/api/http';
-import type { OrderRequest, Quote } from '../../shared/api/orders';
+import type { Order, OrderRequest, Quote } from '../../shared/api/orders';
 import { formatMoney } from '../../shared/domain/money';
 import type { IdempotencyKeys } from '../../shared/domain/idempotency';
 import { h } from '../../shared/ui/dom';
@@ -14,10 +14,16 @@ export interface CartViewOptions {
   readonly currency: string;
   /** How long the cart must stay unchanged before the quote is asked for again. */
   readonly debounceMilliseconds?: number;
+  /** Places the order; the Shop's own order by default, the admin passes the one for a client. */
+  readonly place?: (request: OrderRequest, idempotencyKey: string) => Promise<Order>;
+  /** The scope of the idempotency key, read when the order is placed (the Shop: one; the admin: one per client). */
+  readonly keyScope?: () => string;
+  /** Checked before the order is placed; a text is shown as the error and nothing is sent. */
+  readonly validate?: () => string | undefined;
 }
 
 const defaultDebounce = 300;
-const keyScope = 'shop';
+const shopKeyScope = 'shop';
 
 interface Row {
   readonly item: HTMLLIElement;
@@ -255,16 +261,26 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
     if (submitting || cart.lines().length === 0) {
       return;
     }
+    const problem = options.validate?.();
+    if (problem !== undefined) {
+      orderErrors = [problem];
+      placedNumber = undefined;
+      render();
+      return;
+    }
     submitting = true;
     orderErrors = [];
     placedNumber = undefined;
     render();
     // The key follows the cart: a repeat of the same cart (a retry after a timeout) sends the same key.
-    const key = options.keys.keyFor(keyScope, cart.fingerprint(currency));
+    const scope = (options.keyScope ?? (() => shopKeyScope))();
+    const key = options.keys.keyFor(scope, cart.fingerprint(currency));
 
     try {
-      const order = await placeOrder(options.http, request(), key);
-      options.keys.clear(keyScope);
+      const order = await (
+        options.place ?? ((body, idempotencyKey) => placeOrder(options.http, body, idempotencyKey))
+      )(request(), key);
+      options.keys.clear(scope);
       cart.clear();
       placedNumber = order.number;
     } catch (error) {
