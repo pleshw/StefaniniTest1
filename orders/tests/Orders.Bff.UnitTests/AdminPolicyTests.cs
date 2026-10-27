@@ -22,6 +22,7 @@ public sealed class AdminPolicyTests : IAsyncDisposable
         { "POST", "/bff/admin/orders/6f1c2d3e-0000-4000-8000-000000000001/confirm" },
         { "GET", "/bff/admin/dead-letters" },
         { "PUT", "/bff/admin/products/KB-1" },
+        { "GET", "/bff/admin/products/KB-1" },
     };
 
     [Theory]

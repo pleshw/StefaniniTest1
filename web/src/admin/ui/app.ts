@@ -5,6 +5,7 @@ import { h } from '../../shared/ui/dom';
 import { renderShell } from '../../shared/ui/layout';
 import { pageLinks } from '../../shared/ui/pages';
 import { createCart } from '../../shop/domain/cart';
+import { mountCatalogEditor } from './catalogEditor';
 import { mountConfirmationRules } from './confirmationRules';
 import { mountCreateOrder } from './createOrder';
 import { mountDeadLetters } from './deadLetters';
@@ -19,12 +20,12 @@ export interface AdminDependencies {
   readonly createSource?: (url: string) => EventSourceLike;
 }
 
-type Section = 'live' | 'create' | 'discounts' | 'confirmation' | 'deadLetters';
+type Section = 'live' | 'create' | 'discounts' | 'confirmation' | 'deadLetters' | 'catalog';
 
 /**
  * The Admin page. Live events with the OnHold queue and the order inspector sit together, because an admin goes from
  * an event or a waiting order to the order and acts on it. Every other section is mounted the first time it is opened,
- * so a page that never leaves the live view never asks for rules or dead letters. The catalog editor arrives next.
+ * so a page that never leaves the live view never asks for rules, dead letters or the catalog.
  */
 export function mountAdmin(
   root: HTMLElement,
@@ -95,6 +96,13 @@ export function mountAdmin(
       box: h('div'),
       mount: (box) => {
         mountDeadLetters(box, { http });
+      },
+    },
+    catalog: {
+      label: 'Catalog',
+      box: h('div'),
+      mount: (box) => {
+        mountCatalogEditor(box, { http });
       },
     },
   };

@@ -176,4 +176,24 @@ describe('Admin page', () => {
     expect(calls).toBe(1);
     await expectAccessible(root);
   });
+
+  it('opens the catalog editor only when asked, and lists the products then', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/bff/shop/products', () => {
+        calls++;
+        return HttpResponse.json({ items: [], next: null });
+      }),
+    );
+    const { root } = mountPage();
+    expect(calls).toBe(0);
+
+    fireEvent.click(getByRole(root, 'button', { name: 'Catalog' }));
+
+    expect(await findByRole(root, 'heading', { level: 2, name: 'Catalog' })).toBeTruthy();
+    await vi.waitFor(() => {
+      expect(calls).toBe(1);
+    });
+    await expectAccessible(root);
+  });
 });

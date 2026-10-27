@@ -310,4 +310,44 @@ export const handlers = [
       },
     ]),
   ),
+
+  // Admin catalog: Catalog's read answers one price at a time (the BFF passes it through), the write returns every price.
+  http.get('*/bff/admin/products/:sku', ({ params, request }) => {
+    const product = products.find((candidate) => candidate.sku === params['sku']);
+    const currency = new URL(request.url).searchParams.get('currency') ?? 'BRL';
+
+    return product === undefined
+      ? HttpResponse.json(
+          { title: 'Not found', status: 404, detail: 'Product not found.' },
+          { status: 404 },
+        )
+      : HttpResponse.json(
+          {
+            sku: product.sku,
+            name: product.name,
+            description: product.description,
+            category: product.category,
+            attributes: {},
+            price: { amount: product.price, currency },
+            isActive: true,
+            version: 1,
+          },
+          { headers: { ETag: '"1"' } },
+        );
+  }),
+
+  http.put('*/bff/admin/products/:sku', async ({ params, request }) => {
+    const body = (await request.json()) as {
+      name: string;
+      description: string;
+      category: string;
+      attributes: object;
+      prices: object[];
+    };
+
+    return HttpResponse.json(
+      { sku: params['sku'], ...body, isActive: true, version: 2 },
+      { headers: { ETag: '"2"' } },
+    );
+  }),
 ];

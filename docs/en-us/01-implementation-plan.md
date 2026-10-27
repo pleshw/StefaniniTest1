@@ -167,6 +167,7 @@ All APIs are versioned under `/api/v1`, return ProblemDetails on errors, and are
 | GET | `/bff/admin/orders/{id}` | Composed: order + history + related events |
 | \* | `/bff/admin/discount-rules/**`, `/bff/admin/dead-letters/**` | Orders admin routes (YARP) |
 | \* | `/bff/admin/products/**` | Catalog admin routes (YARP) |
+| GET | `/bff/admin/products/{sku}` | Catalog `GET /products/{sku}`: reads the product with the version (`ETag`) the editor sends back as `If-Match` (YARP, Admin policy) |
 | POST | /bff/admin/orders | Orders POST /admin/orders, forwards Idempotency-Key |
 | \* | /bff/admin/orders/{id}/(confirm\|hold\|block), /bff/admin/confirmation-rules/\*\* | Orders admin routes (YARP) |
 
