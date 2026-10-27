@@ -20,8 +20,8 @@ Os três gauges são lidos pelo Worker, não pela API, para não repetir a leitu
 
 | Alerta | Condição | Janela | Por que importa | Primeiro passo |
 | --- | --- | --- | --- | --- |
-| Mensagens na DLQ | `rabbitmq.dlq.depth` > 0 | por 10 minutos seguidos | Uma mensagem que o Worker desistiu de processar não vai andar sozinha: um pedido pode ficar sem confirmação | Abrir "Dead letters" no Admin, ler o erro e fazer o replay depois de corrigir a causa |
-| Pedido retido há muito tempo | `orders.on_hold.oldest_age` > 14.400 (4 h) | em qualquer leitura | Um pedido em `OnHold` espera uma pessoa; passou de 4 h, ninguém está olhando a fila | Abrir a fila "OnHold" no Admin e confirmar, bloquear ou cancelar |
+| Mensagens na DLQ | `rabbitmq.dlq.depth` > 0 | por 10 minutos seguidos | Uma mensagem que o Worker desistiu de processar não vai andar sozinha: um pedido pode ficar sem confirmação | Abrir "Mensagens mortas" no Admin, ler o erro e fazer o replay depois de corrigir a causa |
+| Pedido retido há muito tempo | `orders.on_hold.oldest_age` > 14.400 (4 h) | em qualquer leitura | Um pedido em `OnHold` espera uma pessoa; passou de 4 h, ninguém está olhando a fila | Abrir a fila "Em espera" no Admin e confirmar, bloquear ou cancelar |
 | Criação de pedido lenta | p95 de `http.server.request.duration` do `orders-api`, com `http.request.method` = `POST` e `http.route` = `/api/v1/orders`, > 0,3 s | 5 minutos | É a meta de latência do [dimensionamento](../04-tech-dimensioning.md); acima disso o checkout degrada | Olhar `catalog.price_lookup.duration` (o Catalog está lento ou fora?) e o trace de um pedido lento |
 
 Duas leituras ajudam a não confiar num painel vazio: se `orders.on_hold` ou `rabbitmq.dlq.depth` **some** por mais de 10 minutos, a leitura do Worker está falhando (o log do Worker diz qual) ou o Worker parou, e isso deve ser tratado como alerta. E `catalog.price_lookup.duration` com p95 acima de 50 ms é a meta de latência do lote de preços; ela não vira alerta aqui porque o teste de carga já a cobra, mas o painel mostra a tendência.

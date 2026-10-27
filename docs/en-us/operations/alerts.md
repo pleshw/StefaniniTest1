@@ -20,8 +20,8 @@ The three gauges are read by the Worker, not the API, so the reading is not repe
 
 | Alert | Condition | Window | Why it matters | First step |
 | --- | --- | --- | --- | --- |
-| Messages in the DLQ | `rabbitmq.dlq.depth` > 0 | for 10 minutes in a row | A message the Worker gave up on will not move by itself: an order may be left unconfirmed | Open "Dead letters" in the Admin, read the error and replay once the cause is fixed |
-| Order held for too long | `orders.on_hold.oldest_age` > 14,400 (4 h) | on any reading | An `OnHold` order waits for a person; past 4 h, nobody is watching the queue | Open the "OnHold" queue in the Admin and confirm, block or cancel |
+| Messages in the DLQ | `rabbitmq.dlq.depth` > 0 | for 10 minutes in a row | A message the Worker gave up on will not move by itself: an order may be left unconfirmed | Open "Mensagens mortas" (dead letters) in the Admin, read the error and replay once the cause is fixed |
+| Order held for too long | `orders.on_hold.oldest_age` > 14,400 (4 h) | on any reading | An `OnHold` order waits for a person; past 4 h, nobody is watching the queue | Open the "Em espera" (OnHold) queue in the Admin and confirm, block or cancel |
 | Slow order creation | p95 of `http.server.request.duration` of `orders-api`, with `http.request.method` = `POST` and `http.route` = `/api/v1/orders`, > 0.3 s | 5 minutes | It is the latency target of the [sizing document](../04-tech-dimensioning.md); above it checkout degrades | Look at `catalog.price_lookup.duration` (is Catalog slow or down?) and the trace of a slow order |
 
 Two readings help not to trust an empty dashboard: if `orders.on_hold` or `rabbitmq.dlq.depth` **disappears** for more than 10 minutes, the Worker's reading is failing (the Worker log says which) or the Worker stopped, and that should be treated as an alert. And `catalog.price_lookup.duration` with a p95 above 50 ms is the price batch latency target; it is not an alert here because the load test already enforces it, but the dashboard shows the trend.
