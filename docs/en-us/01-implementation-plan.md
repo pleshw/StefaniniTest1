@@ -79,13 +79,15 @@ Rules that keep the BFF thin: no domain logic, no database, no price or discount
 | CQRS + messaging library | Wolverine (MIT) | Handlers, Postgres outbox/inbox, RabbitMQ transport. Fallback: source-generated Mediator + RabbitMQ.Client 7 |
 | Resilience | Microsoft.Extensions.Http.Resilience | Timeout, retry, circuit breaker on Catalog calls |
 | Gateway in BFF | YARP | Pass-through routes |
+| Live feed in the BFF | RabbitMQ.Client 7 | The BFF's exclusive queue on `orders.events`; same version the Wolverine transport uses |
+| Service-to-service authentication | Microsoft.AspNetCore.Authentication.JwtBearer | 5-minute JWT the BFF signs for each service (HMAC-SHA256, key from `.env`); placeholder until an identity provider's token exchange |
 | API docs | Microsoft.AspNetCore.OpenApi + Scalar | OpenAPI 3.1 |
 | Validation | FluentValidation 12 (Apache-2.0) | The only way to validate input, in every layer; see [Design rules](02-execution-guide.md#design-rules-for-every-step) |
 | Object mapping | Mapperly (Riok.Mapperly, MIT, source-generated) | Chosen over AutoMapper: 14.x (last MIT) has advisory GHSA-rvv3-g6hj-g44x and fails the build, 15+ is commercial |
 | Errors | ProblemDetails (RFC 9457) | Same shape in all services |
 | Observability | OpenTelemetry → OTel Collector → Aspire Dashboard | Compose profile `observability` |
 | Back-end tests | xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest | Avoid FluentAssertions v8 (commercial licence) |
-| Front-end | TypeScript, Vite, Vitest + jsdom, Bootstrap 5.3 + Bootstrap Icons via npm | axe-core for accessibility checks |
+| Front-end | TypeScript, Vite, Vitest + jsdom, Bootstrap 5.3 + Bootstrap Icons via npm | axe-core for accessibility checks; development tools: ESLint (typescript-eslint) + Prettier, @testing-library/dom, MSW for BFF stubs, @vitest/coverage-v8 |
 
 ## Repository and solution structure
 
@@ -444,6 +446,7 @@ Every service exports OpenTelemetry traces, metrics and logs; audit lives in eac
 
 - BFF: cookie session (HttpOnly, Secure, SameSite=Strict) + antiforgery header on unsafe methods. For local development a seeded dev identity provider (Keycloak container) issues users `shopper` and `admin`; credentials live in `.env.example`, never in code.
 - BFF → services: the user's token is exchanged for a downstream JWT (Keycloak token exchange), so the user identity reaches each service; Orders and Catalog validate issuer, audience and role. Services are not published on host ports except through nginx.
+- **Current implementation (placeholder):** no Keycloak for now. The BFF serves a development sign-in (`/bff/login`) with users `shopper` and `admin`, passwords from `.env`, turned on only by the development compose; the cookie session and the `X-CSRF` header are the ones described above. Instead of token exchange, the BFF signs for each service a 5-minute JWT with the user's `sub`, name and roles (HMAC-SHA256, key `SERVICE_TOKEN_SIGNING_KEY` from `.env`), and Orders and Catalog validate issuer, audience, lifetime and roles. The planned improvement is Keycloak with the realm in realm files, OpenID Connect (code flow + PKCE) in the BFF and Keycloak token exchange instead of the JWT the BFF signs.
 - Input validation with FluentValidation: one validator per command and query, run by its handler before any I/O; limits on page size (100) and batch size (100 SKUs).
 - Queries: EF Core LINQ or `FromSql` interpolation only (parameterized); `FromSqlRaw` with concatenation is banned and EF1002 is a build error (AC6). Mongo uses typed `Builders<T>` filters only.
 

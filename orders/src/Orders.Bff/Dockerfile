@@ -4,6 +4,7 @@ WORKDIR /src
 COPY global.json .editorconfig Directory.Build.props Directory.Packages.props ./
 COPY shared/ shared/
 COPY orders/ orders/
+COPY catalog/openapi/ catalog/openapi/
 RUN dotnet publish orders/src/Orders.Bff/Orders.Bff.csproj -c Release -o /app /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final

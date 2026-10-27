@@ -342,6 +342,10 @@ internal sealed class InMemoryOrderEventLog : IOrderEventLog, IOrderEventLogQuer
         {
             Add(changed.OrderId, "OrderStatusChanged.v1", System.Text.Json.JsonSerializer.Serialize(changed.ToContract(), _json), changed.OccurredAt);
         }
+        else if (domainEvent is OrderPlaced placed)
+        {
+            Add(placed.OrderId, "OrderPlaced.v1", System.Text.Json.JsonSerializer.Serialize(placed.ToContract(), _json), placed.OccurredAt);
+        }
 
         return Task.CompletedTask;
     }

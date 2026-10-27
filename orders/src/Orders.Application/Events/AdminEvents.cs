@@ -9,7 +9,11 @@ namespace Orders.Application.Events;
 /// <summary>One row of the append-only event log: what happened to an order, as the payload that was published or recorded.</summary>
 /// <param name="Id">Unique and growing with the insertion order; breaks ties between events of the same time.</param>
 /// <param name="Type">A versioned name such as <c>OrderStatusChanged.v1</c> or <c>DeadLetterReplayed.v1</c>.</param>
-public sealed record OrderEventDto(long Id, Guid OrderId, string Type, JsonElement Payload, DateTimeOffset OccurredAt);
+public sealed record OrderEventDto(long Id, Guid OrderId, string Type, JsonElement Payload, DateTimeOffset OccurredAt)
+{
+    /// <summary>The <c>after</c> value that lists the events following this one (the live stream uses it as its event id).</summary>
+    public string Cursor => new EventCursor(OccurredAt, Id).Encode();
+}
 
 public sealed record EventPage(IReadOnlyList<OrderEventDto> Items, string? Next);
 

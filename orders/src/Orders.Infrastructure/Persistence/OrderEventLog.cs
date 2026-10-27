@@ -7,10 +7,11 @@ namespace Orders.Infrastructure.Persistence;
 
 /// <summary>
 /// Appends to <c>order_event_log</c> on the order transaction's connection. The payload is the published contract
-/// (<c>OrderStatusChanged.v1</c>), so what the log shows is what consumers received.
+/// (<c>OrderPlaced.v1</c>, <c>OrderStatusChanged.v1</c>), so what the log shows is what consumers received.
 /// </summary>
 internal sealed class OrderEventLog(OrdersDbContext context) : IOrderEventLog
 {
+    public const string PlacedType = "OrderPlaced.v1";
     public const string StatusChangedType = "OrderStatusChanged.v1";
 
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
@@ -19,6 +20,8 @@ internal sealed class OrderEventLog(OrdersDbContext context) : IOrderEventLog
     {
         var entry = domainEvent switch
         {
+            OrderPlaced placed => new OrderEventLogEntry(
+                placed.OrderId, PlacedType, JsonSerializer.Serialize(placed.ToContract(), _json), placed.OccurredAt),
             OrderStatusChanged changed => new OrderEventLogEntry(
                 changed.OrderId, StatusChangedType, JsonSerializer.Serialize(changed.ToContract(), _json), changed.OccurredAt),
             _ => throw new NotSupportedException($"{domainEvent.GetType().Name} is not written to the event log."),

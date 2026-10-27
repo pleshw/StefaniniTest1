@@ -1,0 +1,1973 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Orders.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/orders": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Place an order for the signed-in shopper. Idempotency-Key (UUID) is required: 400 without it, 422 when it was used with another body, replay of the first response when it was used with the same body. Active discount rules apply; 409 discount-already-used when a once-per-client discount was redeemed meanwhile.",
+        "operationId": "CreateOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "List orders newest first. Shoppers see only their own orders (403 for another clientId); admins see every client. Filters: clientId, status, from (inclusive), to (exclusive), q (order number or client name); keyset paging with after (the previous page's next) and limit (1-100, default 20).",
+        "operationId": "ListOrders",
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/quote": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Price a cart for the signed-in shopper exactly as placing the order would, without storing anything. No Idempotency-Key is needed; errors match order creation (400, 422, 503).",
+        "operationId": "QuoteOrder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "One order with its items and totals; the ETag is its row version, which admins send as If-Match to change its status. Another client's order is 404 for a shopper.",
+        "operationId": "GetOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/history": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "The status history of one order, oldest first. Another client's order is 404 for a shopper.",
+        "operationId": "GetOrderHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderStatusChangeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders": {
+      "post": {
+        "tags": [
+          "Admin orders"
+        ],
+        "summary": "Place an order on behalf of a client (channel admin). Idempotency-Key (UUID) is required and scoped by the target client: 400 without it, 422 when that client's key was used with another body, replay of the first response when it was used with the same body.",
+        "operationId": "CreateOrderForClient",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Admin orders"
+        ],
+        "summary": "Confirm an order that is Pending or OnHold. If-Match (the order's ETag, its row version) is required: 428 without it, 412 when it is stale. A reason is optional. Any other status is 409 invalid-transition. The history records the admin as actor and OrderStatusChanged.v1 is published.",
+        "operationId": "ConfirmOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StatusChangeRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/hold": {
+      "post": {
+        "tags": [
+          "Admin orders"
+        ],
+        "summary": "Put on hold an order that is Pending. If-Match (the order's ETag, its row version) is required: 428 without it, 412 when it is stale. A reason is required (400). Any other status is 409 invalid-transition. The history records the admin as actor and OrderStatusChanged.v1 is published.",
+        "operationId": "HoldOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StatusChangeRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/block": {
+      "post": {
+        "tags": [
+          "Admin orders"
+        ],
+        "summary": "Block an order that is Pending or OnHold. If-Match (the order's ETag, its row version) is required: 428 without it, 412 when it is stale. A reason is required (400). Any other status is 409 invalid-transition. The history records the admin as actor and OrderStatusChanged.v1 is published.",
+        "operationId": "BlockOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StatusChangeRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Admin orders"
+        ],
+        "summary": "Cancel an order that is Confirmed. If-Match (the order's ETag, its row version) is required: 428 without it, 412 when it is stale. A reason is required (400). Any other status is 409 invalid-transition. The history records the admin as actor and OrderStatusChanged.v1 is published.",
+        "operationId": "CancelOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StatusChangeRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/discount-rules": {
+      "get": {
+        "tags": [
+          "Admin discount rules"
+        ],
+        "summary": "The latest version of every discount rule, lowest priority first. Filter: active (true or false).",
+        "operationId": "ListDiscountRules",
+        "parameters": [
+          {
+            "name": "active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DiscountRuleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin discount rules"
+        ],
+        "summary": "Create a rule (version 1). The parameters are checked by the rule type and the conditions by their kinds: 400 with every message otherwise. The ETag of the response is the version.",
+        "operationId": "CreateDiscountRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscountRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/discount-rules/{id}": {
+      "get": {
+        "tags": [
+          "Admin discount rules"
+        ],
+        "summary": "The latest version of a rule; the ETag is its version.",
+        "operationId": "GetDiscountRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Admin discount rules"
+        ],
+        "summary": "Replace a rule by storing a new version. If-Match (the ETag of the version being replaced) is required: 428 without it, 412 when it is not the latest version. Orders already placed keep the version they used.",
+        "operationId": "ReplaceDiscountRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscountRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/discount-rules/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Admin discount rules"
+        ],
+        "summary": "Store a new, inactive version of a rule. If-Match is optional; when sent and stale the answer is 412.",
+        "operationId": "DeactivateDiscountRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscountRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/discount-rules/preview": {
+      "post": {
+        "tags": [
+          "Admin discount rules"
+        ],
+        "summary": "Price a sample cart exactly as a quote would, optionally with a rule that is not stored yet (replacing the stored rule named by ruleId). Nothing is stored. Without clientId the sample client has no orders, so first-order rules apply.",
+        "operationId": "PreviewDiscountRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/confirmation-rules": {
+      "get": {
+        "tags": [
+          "Admin confirmation rules"
+        ],
+        "summary": "The latest version of every confirmation rule, lowest priority first. Filter: active (true or false).",
+        "operationId": "ListConfirmationRules",
+        "parameters": [
+          {
+            "name": "active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConfirmationRuleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin confirmation rules"
+        ],
+        "summary": "Create a rule (version 1). A new order that matches an active Hold rule goes OnHold instead of Confirmed. Conditions: TotalAbove, FirstOrderOfClient and ChannelIs, at least one; 400 with every message otherwise. The ETag of the response is the version.",
+        "operationId": "CreateConfirmationRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmationRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/confirmation-rules/{id}": {
+      "get": {
+        "tags": [
+          "Admin confirmation rules"
+        ],
+        "summary": "The latest version of a rule; the ETag is its version.",
+        "operationId": "GetConfirmationRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationRuleDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Admin confirmation rules"
+        ],
+        "summary": "Replace a rule by storing a new version. If-Match (the ETag of the version being replaced) is required: 428 without it, 412 when it is not the latest version. The Worker uses the new version for the orders it decides after its short rule cache expires.",
+        "operationId": "ReplaceConfirmationRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmationRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/confirmation-rules/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Admin confirmation rules"
+        ],
+        "summary": "Store a new, inactive version of a rule. If-Match is optional; when sent and stale the answer is 412.",
+        "operationId": "DeactivateConfirmationRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationRuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/dead-letters": {
+      "get": {
+        "tags": [
+          "Admin dead letters"
+        ],
+        "summary": "Look at the messages parked in orders.dlq (oldest first, up to limit, 1-100, default 100) with the failure headers: exception type and message, attempts. They stay in the queue. 503 when the broker cannot be reached.",
+        "operationId": "ListDeadLetters",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeadLetterDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/dead-letters/{messageId}/replay": {
+      "post": {
+        "tags": [
+          "Admin dead letters"
+        ],
+        "summary": "Send a parked message back through the exchange it came through, under a new message id with an x-replayed-by header, and remove it from orders.dlq. The replay is written to the event log of its order. 404 when no message has that id, 422 when the message names no existing order, 503 when the broker cannot be reached.",
+        "operationId": "ReplayDeadLetter",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeadLetterReplay"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/events": {
+      "get": {
+        "tags": [
+          "Admin events"
+        ],
+        "summary": "The event log, oldest first: status changes of orders and dead letter replays, kept 30 days. Filters: type (exact, such as OrderStatusChanged.v1) and orderId; paging: after (the previous page's next) and limit (1-100, default 50).",
+        "operationId": "ListEvents",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AppliedDiscountDto": {
+        "required": [
+          "ruleId",
+          "ruleVersion",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "ruleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ruleVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        }
+      },
+      "ClientDto": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ConfirmationRuleDto": {
+        "required": [
+          "id",
+          "version",
+          "name",
+          "action",
+          "conditions",
+          "priority",
+          "isActive",
+          "createdBy",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ConfirmationRuleRequest": {
+        "required": [
+          "name",
+          "action",
+          "conditions",
+          "priority"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "conditions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "CreateAdminOrderRequest": {
+        "required": [
+          "clientId",
+          "clientName",
+          "currency",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "items": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreateOrderLine"
+            }
+          }
+        }
+      },
+      "CreateOrderLine": {
+        "required": [
+          "sku",
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CreateOrderRequest": {
+        "required": [
+          "currency",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "items": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreateOrderLine"
+            }
+          }
+        }
+      },
+      "DeadLetterDto": {
+        "required": [
+          "messageId",
+          "messageType",
+          "originalDestination",
+          "exceptionType",
+          "exceptionMessage",
+          "attempts",
+          "payload",
+          "headers"
+        ],
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "messageType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "originalDestination": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "exceptionType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "exceptionMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "attempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "payload": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DeadLetterReplay": {
+        "required": [
+          "letter",
+          "newMessageId",
+          "exchange",
+          "routingKey",
+          "replayedBy"
+        ],
+        "type": "object",
+        "properties": {
+          "letter": {
+            "$ref": "#/components/schemas/DeadLetterDto"
+          },
+          "newMessageId": {
+            "type": "string"
+          },
+          "exchange": {
+            "type": "string"
+          },
+          "routingKey": {
+            "type": "string"
+          },
+          "replayedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "DiscountRuleDto": {
+        "required": [
+          "id",
+          "version",
+          "name",
+          "type",
+          "parameters",
+          "conditions",
+          "priority",
+          "stackable",
+          "oncePerClient",
+          "validFrom",
+          "validTo",
+          "isActive",
+          "createdBy",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "stackable": {
+            "type": "boolean"
+          },
+          "oncePerClient": {
+            "type": "boolean"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DiscountRuleRequest": {
+        "required": [
+          "name",
+          "type",
+          "parameters",
+          "conditions",
+          "priority",
+          "stackable",
+          "oncePerClient",
+          "validFrom",
+          "validTo"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "parameters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "conditions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "stackable": {
+            "type": "boolean"
+          },
+          "oncePerClient": {
+            "type": "boolean"
+          },
+          "validFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "validTo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "EventPage": {
+        "required": [
+          "items",
+          "next"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderEventDto"
+            }
+          },
+          "next": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "JsonElement": { },
+      "OrderDto": {
+        "required": [
+          "id",
+          "number",
+          "client",
+          "status",
+          "channel",
+          "currency",
+          "itemCount",
+          "subtotal",
+          "discountTotal",
+          "total",
+          "items",
+          "createdAt",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "string"
+          },
+          "client": {
+            "$ref": "#/components/schemas/ClientDto"
+          },
+          "status": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "itemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "subtotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "discountTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDto"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rowVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "OrderEventDto": {
+        "required": [
+          "id",
+          "orderId",
+          "type",
+          "payload",
+          "occurredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OrderItemDto": {
+        "required": [
+          "sku",
+          "productName",
+          "unitPrice",
+          "catalogVersion",
+          "quantity",
+          "lineDiscount",
+          "lineTotal"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "catalogVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lineDiscount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "lineTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        }
+      },
+      "OrderPage": {
+        "required": [
+          "items",
+          "next"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderSummaryDto"
+            }
+          },
+          "next": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OrderStatusChangeDto": {
+        "required": [
+          "seq",
+          "from",
+          "to",
+          "reason",
+          "actor",
+          "changedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "seq": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "from": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "to": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actor": {
+            "type": "string"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrderSummaryDto": {
+        "required": [
+          "id",
+          "number",
+          "client",
+          "status",
+          "channel",
+          "currency",
+          "itemCount",
+          "subtotal",
+          "discountTotal",
+          "total",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "string"
+          },
+          "client": {
+            "$ref": "#/components/schemas/ClientDto"
+          },
+          "status": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "itemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "subtotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "discountTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PreviewDto": {
+        "required": [
+          "quote",
+          "applied"
+        ],
+        "type": "object",
+        "properties": {
+          "quote": {
+            "$ref": "#/components/schemas/QuoteDto"
+          },
+          "applied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppliedDiscountDto"
+            }
+          }
+        }
+      },
+      "PreviewRequest": {
+        "required": [
+          "clientId",
+          "currency",
+          "items",
+          "rule",
+          "ruleId"
+        ],
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "items": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreateOrderLine"
+            }
+          },
+          "rule": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DiscountRuleRequest"
+              }
+            ]
+          },
+          "ruleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "QuoteDto": {
+        "required": [
+          "currency",
+          "itemCount",
+          "subtotal",
+          "discountTotal",
+          "total",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "itemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "subtotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "discountTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDto"
+            }
+          }
+        }
+      },
+      "StatusChangeRequest": {
+        "required": [
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Admin orders"
+    },
+    {
+      "name": "Admin discount rules"
+    },
+    {
+      "name": "Admin confirmation rules"
+    },
+    {
+      "name": "Admin dead letters"
+    },
+    {
+      "name": "Admin events"
+    }
+  ]
+}

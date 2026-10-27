@@ -462,11 +462,6 @@
           "Polly.Core": "8.4.2"
         }
       },
-      "RabbitMQ.Client": {
-        "type": "Transitive",
-        "resolved": "7.2.2",
-        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA=="
-      },
       "Spectre.Console": {
         "type": "Transitive",
         "resolved": "0.55.0",
@@ -627,6 +622,12 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "10.0.13"
         }
+      },
+      "RabbitMQ.Client": {
+        "type": "CentralTransitive",
+        "requested": "[7.2.2, )",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA=="
       }
     }
   }

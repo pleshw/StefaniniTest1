@@ -23,7 +23,7 @@ builder.Services.AddCatalogMongo(builder.Configuration);
 builder.Services.AddCatalogApplication();
 builder.Services.AddCatalogSeed(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddAdminAuthorization();
+builder.Services.AddAdminAuthorization(builder.Configuration);
 
 // The build starts the app to write catalog/openapi/catalog.v1.json; no database is available then.
 if (Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider")

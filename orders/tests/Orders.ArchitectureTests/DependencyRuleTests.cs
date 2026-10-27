@@ -24,6 +24,15 @@ public sealed class DependencyRuleTests
         "RabbitMQ",
     ];
 
+    // The BFF composes and forwards; it holds no data and consumes no queue through a framework.
+    private static readonly string[] _forbiddenInBff =
+    [
+        "Microsoft.EntityFrameworkCore",
+        "Npgsql",
+        "MongoDB",
+        "WolverineFx",
+    ];
+
     private static readonly string[] _hosts = [Api, Worker, Bff];
 
     public static TheoryData<string> HostNames => new(_hosts);
@@ -124,20 +133,33 @@ public sealed class DependencyRuleTests
 
     [Fact]
     [Trait("Category", "Architecture")]
-    public void Bff_ProjectFile_ReferencesNeitherDomainNorInfrastructure()
+    public void Bff_ProjectFile_ReferencesOnlyContractsAndServiceDefaults()
     {
-        var references = ProjectFiles.ProjectReferences(Bff);
-
-        references.ShouldNotContain(Domain);
-        references.ShouldNotContain(Infrastructure);
+        ProjectFiles.ProjectReferences(Bff).Except([Contracts, ServiceDefaults]).ShouldBeEmpty();
     }
 
     [Fact]
     [Trait("Category", "Architecture")]
-    public void Bff_Types_DoNotDependOnDomainOrInfrastructure()
+    public void Bff_ProjectFile_ReferencesNoPersistenceOrMessagingFramework()
+    {
+        ProjectFiles.PackageReferences(Bff).Where(package => _forbiddenInBff.Any(prefix => package.StartsWith(prefix, StringComparison.Ordinal)))
+            .ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Architecture")]
+    public void Bff_ProjectFile_GeneratesItsClientsFromTheCommittedOpenApiDocuments()
+    {
+        ProjectFiles.OpenApiReferences(Bff).Select(path => Path.GetFileName(path.Replace('\\', '/')))
+            .ShouldBe(["orders.v1.json", "catalog.v1.json"], ignoreOrder: true);
+    }
+
+    [Fact]
+    [Trait("Category", "Architecture")]
+    public void Bff_Types_DependOnNoOrdersProjectButContracts()
     {
         var result = Types.InAssembly(Load(Bff))
-            .ShouldNot().HaveDependencyOnAny(Domain, Infrastructure)
+            .ShouldNot().HaveDependencyOnAny(Domain, Application, Infrastructure, Api, Worker)
             .GetResult();
 
         AssertNoFailingTypes(result);

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Orders.Api.Endpoints;
 using Orders.Api.Security;
 using Orders.Application;
@@ -13,9 +14,17 @@ if (HealthCheckCommand.IsRequested(args))
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+// The build writes the OpenAPI document by starting this host through GetDocument.Insider: it needs the endpoints only,
+// so it gets no database, outbox or broker.
+if (Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider")
+{
+    builder.Configuration["Orders:Persistence:Enabled"] = "false";
+}
+
 builder.Services.AddOrdersPersistence(builder.Configuration);
 builder.Services.AddCatalogClient(builder.Configuration);
-builder.Services.AddOrdersAuthentication();
+builder.Services.AddOrdersAuthentication(builder.Configuration);
 builder.Services.AddOrdersApplication();
 
 var app = builder.Build();

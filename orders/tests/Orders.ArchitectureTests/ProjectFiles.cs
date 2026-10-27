@@ -11,6 +11,8 @@ internal static class ProjectFiles
 
     public static IReadOnlyCollection<string> PackageReferences(string project) => Includes(project, "PackageReference").ToList();
 
+    public static IReadOnlyCollection<string> OpenApiReferences(string project) => Includes(project, "OpenApiReference").ToList();
+
     public static IReadOnlyCollection<string> FrameworkReferences(string project) => Includes(project, "FrameworkReference").ToList();
 
     private static IEnumerable<string> Includes(string project, string element) =>

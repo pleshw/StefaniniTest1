@@ -57,6 +57,7 @@ services:
     environment:
       Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0
       Catalog__Seed__Enabled: "true"  # development catalog; staging and production never set it
+      ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
     depends_on:
       mongo:
         condition: service_healthy
@@ -89,6 +90,7 @@ services:
     environment:
       ConnectionStrings__Orders: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,7 +132,18 @@ services:
     build:
       context: .
       dockerfile: orders/src/Orders.Bff/Dockerfile
+    environment:
+      # Development sign-in (placeholder for an identity provider); staging and production never set it.
+      Bff__DevLogin__Enabled: "true"
+      Bff__DevLogin__ShopperPassword: ${BFF_SHOPPER_PASSWORD:?set BFF_SHOPPER_PASSWORD in .env}
+      Bff__DevLogin__AdminPassword: ${BFF_ADMIN_PASSWORD:?set BFF_ADMIN_PASSWORD in .env}
+      # The BFF signs a short-lived JWT per call with this key; orders-api and catalog-api validate it.
+      ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
+      # Live Admin feed: the BFF's own exclusive queue on orders.events.
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       orders-api:
         condition: service_healthy
       catalog-api:
@@ -144,13 +157,13 @@ services:
     restart: unless-stopped
 
   # The only service that publishes a host port in the default profile.
+  # Built from web/Dockerfile: the Shop and Admin pages (web/dist) on nginx with deploy/nginx/nginx.conf.
   nginx:
-    image: nginx:1.31-alpine
+    build:
+      context: .
+      dockerfile: web/Dockerfile
     ports:
       - "8080:8080"
-    volumes:
-      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deploy/nginx/html:/usr/share/nginx/html:ro
     depends_on:
       orders-bff:
         condition: service_healthy

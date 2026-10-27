@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Orders.Api/Orders.Api.csproj" />
     <ProjectReference Include="../../src/Orders.Worker/Orders.Worker.csproj" Aliases="OrdersWorker" />
+    <ProjectReference Include="../../src/Orders.Bff/Orders.Bff.csproj" Aliases="OrdersBff" />
     <ProjectReference Include="../../src/Orders.Infrastructure/Orders.Infrastructure.csproj" />
   </ItemGroup>
 

@@ -43,6 +43,15 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
 
     internal InMemoryDiscountRuleRepository DiscountRuleStore { get; } = new();
 
+    /// <summary>The key the API validates service tokens with (the BFF signs with the same key).</summary>
+    public const string ServiceTokenSigningKey = "orders-tests-service-token-signing-key-0123456789";
+
+    /// <summary>
+    /// The header-driven Test scheme replaces the real service-token validation; set to false (before the first request)
+    /// to exercise the real JWT bearer scheme.
+    /// </summary>
+    internal bool UseTestAuthentication { get; init; } = true;
+
     /// <summary>
     /// Reads the active rules from <see cref="DiscountRuleStore"/> through the real one-hour cache, so only an
     /// invalidation makes an admin write visible. Set before the first request.
@@ -57,6 +66,7 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Orders:Persistence:Enabled", "false");
+        builder.UseSetting("ServiceTokens:SigningKey", ServiceTokenSigningKey);
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ICatalogPriceProvider>();
@@ -86,8 +96,11 @@ public sealed class OrdersApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IOrderTransaction>(new SerializingOrderTransaction());
             services.AddSingleton(TimeProvider.System);
 
-            services.AddAuthentication(TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+            if (UseTestAuthentication)
+            {
+                services.AddAuthentication(TestAuthHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+            }
         });
     }
 }
