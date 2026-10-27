@@ -8,6 +8,7 @@ using Orders.Application.DeadLetters;
 using Orders.Application.Discounts;
 using Orders.Application.Events;
 using Orders.Application.Idempotency;
+using Orders.Application.Observability;
 using Orders.Application.Ordering;
 using Orders.Application.Retention;
 using Orders.Domain;
@@ -76,6 +77,10 @@ public static class OrdersPersistenceExtensions
         services.AddSingleton<IDeadLetters>(provider => configuration.MessagingOptions().Enabled
             ? new RabbitMqDeadLetters(provider.GetRequiredService<IConfiguration>())
             : new DisabledDeadLetters());
+        services.AddScoped<IOnHoldProbe, OnHoldProbe>();
+        services.AddSingleton<IDeadLetterDepthProbe>(provider => configuration.MessagingOptions().Enabled
+            ? new RabbitMqDeadLetterDepth(provider.GetRequiredService<IConfiguration>())
+            : new DisabledDeadLetterDepth());
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IOrderTransaction, OrdersTransaction>();

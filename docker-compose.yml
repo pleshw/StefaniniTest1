@@ -197,6 +197,28 @@ services:
       - "127.0.0.1:${ASPIRE_DASHBOARD_PORT:-18888}:18888"
     restart: unless-stopped
 
+  # Profile "load": docker compose --profile load run --rm k6
+  # Runs tests/load/orders.js (the peak profile of docs/pt-br/04-tech-dimensioning.md) against nginx and catalog-api
+  # and exits non-zero when a latency target is missed. Start the stack first (docker compose up -d --build --wait).
+  k6:
+    profiles: [load]
+    image: grafana/k6:1.0.0
+    command: ["run", "/scripts/orders.js"]
+    environment:
+      BASE_URL: http://nginx:8080
+      CATALOG_URL: http://catalog-api:8080
+      BFF_SHOPPER_PASSWORD: ${BFF_SHOPPER_PASSWORD:?set BFF_SHOPPER_PASSWORD in .env}
+      BFF_ADMIN_PASSWORD: ${BFF_ADMIN_PASSWORD:?set BFF_ADMIN_PASSWORD in .env}
+      SERVICE_TOKEN_SIGNING_KEY: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
+      DURATION: ${LOAD_DURATION:-10m}
+    volumes:
+      - ./tests/load:/scripts:ro
+    depends_on:
+      nginx:
+        condition: service_healthy
+      catalog-api:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   mongo-data:

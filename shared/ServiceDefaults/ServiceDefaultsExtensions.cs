@@ -48,6 +48,15 @@ public static class ServiceDefaultsExtensions
         return builder;
     }
 
+    /// <summary>Adds the custom meters of a service (by <see cref="System.Diagnostics.Metrics.Meter"/> name) to the OpenTelemetry metrics, so the OTLP exporter sends them.</summary>
+    public static TBuilder AddMeters<TBuilder>(this TBuilder builder, params string[] meterNames)
+        where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(meterNames));
+
+        return builder;
+    }
+
     public static WebApplication MapServiceDefaults(this WebApplication app)
     {
         app.UseExceptionHandler();

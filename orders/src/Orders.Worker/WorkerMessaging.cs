@@ -57,6 +57,8 @@ public static class WorkerMessaging
         services.TryAddScoped<IOrderPlacedProcessor, AutomaticConfirmationProcessor>();
         services.AddOrderConfirmation();
         services.AddHostedService<RetentionJob>();
+        services.AddSingleton(configuration.GetSection(OperationalMetricsOptions.SectionName).Get<OperationalMetricsOptions>() ?? new OperationalMetricsOptions());
+        services.AddHostedService<OperationalMetricsJob>();
 
         return services.AddOrdersPersistence(configuration, wolverine =>
         {

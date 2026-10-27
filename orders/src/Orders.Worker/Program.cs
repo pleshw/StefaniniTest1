@@ -1,3 +1,4 @@
+using Orders.Application.Observability;
 using Orders.Worker;
 using ServiceDefaults;
 
@@ -8,7 +9,7 @@ if (HealthCheckCommand.IsRequested(args))
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
+builder.AddServiceDefaults().AddMeters(OrdersMetrics.MeterName);
 builder.Services.AddOrdersWorker(builder.Configuration);
 
 var app = builder.Build();
