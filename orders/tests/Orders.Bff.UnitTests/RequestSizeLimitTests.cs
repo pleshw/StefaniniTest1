@@ -15,6 +15,7 @@ public sealed class RequestSizeLimitTests : IAsyncDisposable
     public RequestSizeLimitTests()
     {
         _client = _factory.CreateClient();
+        _client.DefaultRequestHeaders.Add("X-CSRF", "1");
     }
 
     [Fact]

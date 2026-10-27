@@ -444,6 +444,7 @@ Todo serviço exporta traces, métricas e logs via OpenTelemetry; a auditoria fi
 
 - BFF: sessão por cookie (HttpOnly, Secure, SameSite=Strict) + header antiforgery em métodos não seguros. Para desenvolvimento local, um identity provider de desenvolvimento com seed (container Keycloak) emite os usuários `shopper` e `admin`; as credenciais ficam em `.env.example`, nunca no código.
 - BFF → serviços: o token do usuário é trocado por um JWT downstream (token exchange do Keycloak), de modo que a identidade do usuário chega a cada serviço; Orders e Catalog validam issuer, audience e role. Os serviços não são publicados em portas do host, exceto por meio do nginx.
+- **Implementação atual (provisória):** sem Keycloak por enquanto. O BFF serve um login de desenvolvimento (`/bff/login`) com os usuários `shopper` e `admin`, senhas vindas do `.env`, ligado só no compose de desenvolvimento; a sessão por cookie e o header `X-CSRF` são os descritos acima. A melhoria prevista é o Keycloak com o realm em arquivos de realm e OpenID Connect (code flow + PKCE) no BFF.
 - Validação de entrada com FluentValidation: um validator por command e por query, executado pelo respectivo handler antes de qualquer I/O; limites de tamanho de página (100) e de tamanho de lote (100 SKUs).
 - Queries: apenas EF Core LINQ ou interpolação com `FromSql` (parametrizadas); `FromSqlRaw` com concatenação é proibido e EF1002 é erro de build (AC6). O Mongo usa apenas filtros tipados `Builders<T>`.
 

@@ -16,13 +16,50 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     public const string OrdersAddress = "http://orders.test";
     public const string CatalogAddress = "http://catalog.test";
 
+    public const string ShopperPassword = "shopper-test-password";
+    public const string AdminPassword = "admin-test-password";
+
     internal RecordingHandler Downstream { get; } = new();
+
+    /// <summary>Set before the first request; on by default, as in compose.</summary>
+    public bool DevLoginEnabled { get; set; } = true;
+
+    /// <summary>A client on https (the session cookie is Secure) that keeps cookies and does not follow redirects.</summary>
+    public HttpClient CreateBrowser() => CreateClient(new WebApplicationFactoryClientOptions
+    {
+        BaseAddress = new Uri("https://localhost"),
+        AllowAutoRedirect = false,
+        HandleCookies = true,
+    });
+
+    /// <summary>Signs <paramref name="user"/> in through the login form, so the client carries the session cookie.</summary>
+    public static async Task<HttpResponseMessage> SignInAsync(HttpClient browser, string user, string password, string? returnUrl = null)
+    {
+        var form = await browser.GetStringAsync("/bff/login", TestContext.Current.CancellationToken);
+        var token = System.Text.RegularExpressions.Regex.Match(form, "name=\"(?<name>[^\"]+)\" type=\"hidden\" value=\"(?<value>[^\"]+)\"");
+        var fields = new Dictionary<string, string>
+        {
+            [token.Groups["name"].Value] = token.Groups["value"].Value,
+            ["username"] = user,
+            ["password"] = password,
+        };
+
+        if (returnUrl is not null)
+        {
+            fields["returnUrl"] = returnUrl;
+        }
+
+        return await browser.PostAsync("/bff/login", new FormUrlEncodedContent(fields), TestContext.Current.CancellationToken);
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Bff:Orders:BaseAddress", OrdersAddress);
         builder.UseSetting("Bff:Catalog:BaseAddress", CatalogAddress);
         builder.UseSetting("Bff:MaxRequestBodySize", "1024");
+        builder.UseSetting("Bff:DevLogin:Enabled", DevLoginEnabled ? "true" : "false");
+        builder.UseSetting("Bff:DevLogin:ShopperPassword", ShopperPassword);
+        builder.UseSetting("Bff:DevLogin:AdminPassword", AdminPassword);
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IForwarderHttpClientFactory>();

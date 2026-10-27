@@ -15,6 +15,7 @@ public sealed class ProblemDetailsPassthroughTests : IAsyncDisposable
     public ProblemDetailsPassthroughTests()
     {
         _client = _factory.CreateClient();
+        _client.DefaultRequestHeaders.Add("X-CSRF", "1");
     }
 
     [Theory]

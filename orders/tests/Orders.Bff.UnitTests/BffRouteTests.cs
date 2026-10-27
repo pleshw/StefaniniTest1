@@ -15,6 +15,7 @@ public sealed class BffRouteTests : IAsyncDisposable
     public BffRouteTests()
     {
         _client = _factory.CreateClient();
+        _client.DefaultRequestHeaders.Add("X-CSRF", "1");
     }
 
     public static TheoryData<string, string, string> PassThroughRoutes => new()

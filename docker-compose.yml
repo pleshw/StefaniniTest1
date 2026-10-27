@@ -129,6 +129,11 @@ services:
     build:
       context: .
       dockerfile: orders/src/Orders.Bff/Dockerfile
+    environment:
+      # Development sign-in (placeholder for an identity provider); staging and production never set it.
+      Bff__DevLogin__Enabled: "true"
+      Bff__DevLogin__ShopperPassword: ${BFF_SHOPPER_PASSWORD:?set BFF_SHOPPER_PASSWORD in .env}
+      Bff__DevLogin__AdminPassword: ${BFF_ADMIN_PASSWORD:?set BFF_ADMIN_PASSWORD in .env}
     depends_on:
       orders-api:
         condition: service_healthy

@@ -34,7 +34,7 @@ cd StefaniniTestProject
 cp .env.example .env
 ```
 
-O `.env` guarda valores apenas locais: senhas dos bancos, o usuário do RabbitMQ e as senhas dos usuários `shopper` e `admin` do Keycloak criados na carga inicial. Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
+O `.env` guarda valores apenas locais: senhas dos bancos, o usuário do RabbitMQ e as senhas dos usuários de desenvolvimento `shopper` e `admin` do login do BFF (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
 
 ### Executar
 
@@ -47,6 +47,8 @@ docker compose up -d --build --wait
 | Página Shop | http://localhost:8080/shop.html |
 | Página Admin | http://localhost:8080/admin.html |
 | Login (usuários `shopper` e `admin` da carga inicial) | http://localhost:8080/bff/login |
+
+O login é **provisório**: um formulário do próprio BFF com dois usuários fixos cujas senhas vêm do `.env`, ligado só no compose de desenvolvimento (`Bff__DevLogin__Enabled`). Ele abre a mesma sessão por cookie (HttpOnly, Secure, SameSite=Strict) que um provedor de identidade abriria. Uma melhoria natural é trocar esse formulário por um provedor de identidade como o Keycloak, com o realm (clients, roles e usuários) versionado em arquivos de realm e o BFF usando OpenID Connect (code flow + PKCE) e token exchange para as chamadas aos serviços.
 
 Somente o nginx publica uma porta no host; todos os outros serviços são acessados por meio dele. Perfis opcionais:
 

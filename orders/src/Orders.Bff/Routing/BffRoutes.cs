@@ -36,16 +36,21 @@ internal static class BffRoutes
     public static IReverseProxyBuilder AddBffProxy(this IServiceCollection services, BffOptions options) =>
         services.AddReverseProxy()
             .LoadFromMemory(Routes, Clusters(options))
-            .AddTransforms(transforms => transforms.AddRequestTransform(context =>
+            .AddTransforms(transforms =>
             {
-                // The service's own error response goes back as it is: no status-code page replaces an empty body.
-                if (context.HttpContext.Features.Get<IStatusCodePagesFeature>() is { } statusCodePages)
+                // The session cookie belongs to the browser and the BFF; the services never see it.
+                transforms.AddRequestHeaderRemove("Cookie");
+                transforms.AddRequestTransform(context =>
                 {
-                    statusCodePages.Enabled = false;
-                }
+                    // The service's own error response goes back as it is: no status-code page replaces an empty body.
+                    if (context.HttpContext.Features.Get<IStatusCodePagesFeature>() is { } statusCodePages)
+                    {
+                        statusCodePages.Enabled = false;
+                    }
 
-                return ValueTask.CompletedTask;
-            }));
+                    return ValueTask.CompletedTask;
+                });
+            });
 
     /// <summary>
     /// Maps the route table. When YARP itself fails (service unreachable, timeout) there is no service answer to pass
