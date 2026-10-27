@@ -42,10 +42,11 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in ENV_FILE}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
-      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-definitions.conf:ro
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    # definitions.json is imported by the healthcheck, not loaded at boot: a node that loads definitions at boot
+    # skips creating RABBITMQ_DEFAULT_USER, and the file holds no users. The import is idempotent.
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmqctl -q import_definitions /etc/rabbitmq/definitions.json"]
       interval: 10s
       timeout: 10s
       retries: 12
