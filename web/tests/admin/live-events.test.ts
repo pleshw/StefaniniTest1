@@ -72,7 +72,7 @@ function mount(overrides: { onInspect?: (orderId: string) => void; onEvent?: () 
 const rows = (container: HTMLElement): HTMLElement[] =>
   within(container).queryAllByRole('row').slice(1);
 const live = (container: HTMLElement): string =>
-  getByRole(container, 'status', { name: 'Connection' }).textContent;
+  getByRole(container, 'status', { name: 'Conexão' }).textContent;
 
 describe('live events', () => {
   it('connects to the stream with the log type names and says it is connecting, then live', () => {
@@ -86,11 +86,11 @@ describe('live events', () => {
       'heartbeat',
       'backfill-unavailable',
     ]);
-    expect(live(container)).toBe('Connecting…');
+    expect(live(container)).toBe('Conectando…');
 
     source().onopen?.(new Event('open'));
 
-    expect(live(container)).toBe('Live');
+    expect(live(container)).toBe('Ao vivo');
   });
 
   it('shows a received event as a row: time, type, order, status and what happened', () => {
@@ -99,11 +99,11 @@ describe('live events', () => {
     send(placed(1));
 
     const [row] = rows(container);
-    expect(row?.textContent).toContain('Oct 26, 2026');
+    expect(row?.textContent).toContain('26 de out. de 2026');
     expect(row?.textContent).toContain('OrderPlaced.v1');
     expect(row?.textContent).toContain('ORD-1');
-    expect(row?.textContent).toContain('Pending');
-    expect(row?.textContent).toContain('Placed from shop: R$100.00, 2 items');
+    expect(row?.textContent).toContain('Pendente');
+    expect(row?.textContent).toContain('Pedido realizado via shop: R$\u00a0100,00, 2 itens');
   });
 
   it('puts the newest event on top and shows a status change with its badge', () => {
@@ -162,7 +162,7 @@ describe('live events', () => {
   it('shows nothing but a waiting message before the first event', () => {
     const { container } = mount();
 
-    expect(container.textContent).toContain('Waiting for events…');
+    expect(container.textContent).toContain('Aguardando eventos…');
     expect(queryByRole(container, 'table')).toBeNull();
   });
 
@@ -183,28 +183,28 @@ describe('pause and filters', () => {
     const { container, send } = mount();
     send(placed(1));
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Pause' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Pausar' }));
     send(placed(2));
     send(placed(3));
 
     expect(rows(container)).toHaveLength(1);
-    expect(live(container)).toBe('Paused · 2 new events waiting');
+    expect(live(container)).toBe('Pausado · 2 novos eventos aguardando');
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Resume' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Retomar' }));
 
     expect(rows(container)).toHaveLength(3);
     expect(rows(container)[0]?.textContent).toContain('ORD-3');
-    expect(getByRole(container, 'button', { name: 'Pause' })).toBeTruthy();
+    expect(getByRole(container, 'button', { name: 'Pausar' })).toBeTruthy();
   });
 
-  it('says "1 new event" in the singular and keeps saying paused when nothing is waiting', () => {
+  it('says "1 novo evento" in the singular and keeps saying paused when nothing is waiting', () => {
     const { container, send } = mount();
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Pause' }));
-    expect(live(container)).toBe('Paused');
+    fireEvent.click(getByRole(container, 'button', { name: 'Pausar' }));
+    expect(live(container)).toBe('Pausado');
     send(placed(1));
 
-    expect(live(container)).toBe('Paused · 1 new event waiting');
+    expect(live(container)).toBe('Pausado · 1 novo evento aguardando');
   });
 
   it('filters by event type and by status', () => {
@@ -213,7 +213,7 @@ describe('pause and filters', () => {
     send(changed(2, 'Pending', 'OnHold'));
     send(changed(3, 'OnHold', 'Confirmed'));
 
-    fireEvent.change(getByRole(container, 'combobox', { name: 'Event type' }), {
+    fireEvent.change(getByRole(container, 'combobox', { name: 'Tipo de evento' }), {
       target: { value: 'OrderStatusChanged.v1' },
     });
     expect(rows(container)).toHaveLength(2);
@@ -224,7 +224,7 @@ describe('pause and filters', () => {
     expect(rows(container)).toHaveLength(1);
     expect(rows(container)[0]?.textContent).toContain('Pendente → Em espera');
 
-    fireEvent.change(getByRole(container, 'combobox', { name: 'Event type' }), {
+    fireEvent.change(getByRole(container, 'combobox', { name: 'Tipo de evento' }), {
       target: { value: '' },
     });
     fireEvent.change(getByRole(container, 'combobox', { name: 'Status' }), {
@@ -241,7 +241,7 @@ describe('pause and filters', () => {
       target: { value: 'Failed' },
     });
 
-    expect(container.textContent).toContain('No events match the filters.');
+    expect(container.textContent).toContain('Nenhum evento corresponde aos filtros.');
   });
 });
 
@@ -251,7 +251,7 @@ describe('connection', () => {
 
     source().onerror?.(new Event('error'));
 
-    expect(live(container)).toBe('Reconnecting…');
+    expect(live(container)).toBe('Reconectando…');
   });
 
   it('tells when the stream closed and reconnects: reopen first, then the missed events by cursor', async () => {
@@ -274,9 +274,9 @@ describe('connection', () => {
     source().onerror?.(new Event('error'));
 
     const alert = getByRole(container, 'alert');
-    expect(alert.textContent).toContain('Live updates stopped.');
-    expect(live(container)).toBe('Disconnected');
-    fireEvent.click(getByRole(alert, 'button', { name: 'Reconnect' }));
+    expect(alert.textContent).toContain('As atualizações ao vivo foram interrompidas.');
+    expect(live(container)).toBe('Desconectado');
+    fireEvent.click(getByRole(alert, 'button', { name: 'Reconectar' }));
 
     await vi.waitFor(() => {
       expect(rows(container)).toHaveLength(4);
@@ -304,7 +304,7 @@ describe('connection', () => {
     source().readyState = FakeSource.closed;
     source().onerror?.(new Event('error'));
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Reconnect' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Reconectar' }));
 
     await vi.waitFor(() => {
       expect(sources).toHaveLength(2);
@@ -319,10 +319,10 @@ describe('connection', () => {
     source().readyState = FakeSource.closed;
     source().onerror?.(new Event('error'));
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Reconnect' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Reconectar' }));
 
     expect((await findByRole(container, 'alert')).textContent).toContain(
-      'The events missed while disconnected could not be loaded.',
+      'Não foi possível carregar os eventos perdidos durante a desconexão.',
     );
   });
 
@@ -331,7 +331,7 @@ describe('connection', () => {
 
     source().emit('backfill-unavailable', '{}', '');
 
-    expect(getByRole(container, 'alert').textContent).toContain('Some events may be missing');
+    expect(getByRole(container, 'alert').textContent).toContain('Alguns eventos podem estar faltando');
   });
 
   it('says so when the browser has no EventSource', () => {
@@ -343,7 +343,7 @@ describe('connection', () => {
     vi.unstubAllGlobals();
 
     expect(container.textContent).toContain(
-      'Live updates need a browser that supports server-sent events.',
+      'As atualizações ao vivo exigem um navegador com suporte a server-sent events.',
     );
   });
 });
@@ -357,12 +357,12 @@ describe('live events accessibility', () => {
     send(changed(2, 'Pending', 'OnHold'));
     await expectAccessible(container);
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Pause' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Pausar' }));
     await expectAccessible(container);
 
     source().readyState = FakeSource.closed;
     source().onerror?.(new Event('error'));
-    await findByText(container, 'Live updates stopped.');
+    await findByText(container, 'As atualizações ao vivo foram interrompidas.');
     await expectAccessible(container);
   });
 });

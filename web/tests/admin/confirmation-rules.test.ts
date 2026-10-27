@@ -154,8 +154,8 @@ describe('confirmation rules', () => {
 
     const summary = getByRole(form, 'alert');
     expect([...summary.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
-      'Name is required.',
-      'Add at least one condition.',
+      'O nome é obrigatório.',
+      'Adicione pelo menos uma condição.',
     ]);
     expect(calls).toBe(0);
   });

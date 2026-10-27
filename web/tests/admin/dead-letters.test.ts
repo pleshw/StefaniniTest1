@@ -64,15 +64,15 @@ describe('dead letters', () => {
     expect(rows[1]?.textContent).toContain('The order is already confirmed.');
     expect(rows[1]?.textContent).toContain('6');
     expect(rows[2]?.textContent).toContain('msg-2');
-    expect(rows[2]?.textContent).toContain('Unknown');
-    expect(getByRole(container, 'status').textContent).toBe('2 messages in the dead-letter queue');
+    expect(rows[2]?.textContent).toContain('Desconhecido');
+    expect(getByRole(container, 'status').textContent).toBe('2 mensagens na fila de mensagens mortas');
   });
 
   it('shows the payload and headers as plain text on request', async () => {
     useLetters([letter({ payload: '<img src=x onerror=alert(1)>' })]);
     const container = mount();
 
-    const details = (await findByRole(container, 'group', { name: 'Details of msg-1' })).closest(
+    const details = (await findByRole(container, 'group', { name: 'Detalhes de msg-1' })).closest(
       'details',
     );
     expect(details?.textContent).toContain('<img src=x onerror=alert(1)>');
@@ -86,7 +86,7 @@ describe('dead letters', () => {
 
     const container = mount();
 
-    await findByText(container, 'The dead-letter queue is empty.');
+    await findByText(container, 'A fila de mensagens mortas está vazia.');
     expect(queryByRole(container, 'table')).toBeNull();
   });
 
@@ -107,20 +107,20 @@ describe('dead letters', () => {
     const alert = await findByRole(container, 'alert');
     expect(alert.textContent).toContain('The broker cannot be reached.');
     fail = false;
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
 
-    expect(await findByRole(container, 'button', { name: 'Replay msg-1' })).toBeTruthy();
+    expect(await findByRole(container, 'button', { name: 'Reprocessar msg-1' })).toBeTruthy();
   });
 
   it('reads the queue again on Refresh', async () => {
     useLetters([letter()]);
     const container = mount();
-    await findByRole(container, 'button', { name: 'Replay msg-1' });
+    await findByRole(container, 'button', { name: 'Reprocessar msg-1' });
     useLetters([letter({ messageId: 'msg-9' })]);
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Refresh' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Atualizar' }));
 
-    expect(await findByRole(container, 'button', { name: 'Replay msg-9' })).toBeTruthy();
+    expect(await findByRole(container, 'button', { name: 'Reprocessar msg-9' })).toBeTruthy();
   });
 });
 
@@ -141,19 +141,19 @@ describe('replaying a dead letter', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Replay msg/1 #a' }));
-    const dialog = getByRole(document.body, 'dialog', { name: 'Replay this message?' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Reprocessar msg/1 #a' }));
+    const dialog = getByRole(document.body, 'dialog', { name: 'Reprocessar esta mensagem?' });
     expect(dialog.textContent).toContain('msg/1 #a');
     useLetters([]);
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Replay' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reprocessar' }));
 
-    await findByText(container, 'Replayed msg/1 #a as new-1 through orders.events (order.placed).');
+    await findByText(container, 'msg/1 #a reprocessada como new-1 pela exchange orders.events (order.placed).');
     expect(new URL(request?.url ?? '').pathname).toBe(
       '/bff/admin/dead-letters/msg%2F1%20%23a/replay',
     );
     expect(request?.headers.get('x-csrf')).toBe('1');
-    await findByText(container, 'The dead-letter queue is empty.');
+    await findByText(container, 'A fila de mensagens mortas está vazia.');
   });
 
   it('sends nothing when the question is cancelled', async () => {
@@ -166,9 +166,9 @@ describe('replaying a dead letter', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Replay msg-1' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Reprocessar msg-1' }));
 
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancelar' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(calls).toBe(0);
@@ -191,9 +191,9 @@ describe('replaying a dead letter', () => {
       ),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Replay msg-1' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Reprocessar msg-1' }));
 
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Replay' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Reprocessar' }));
 
     await vi.waitFor(() => {
       expect(getByRole(container, 'alert').textContent).toContain(detail);
@@ -206,14 +206,14 @@ describe('dead letters accessibility', () => {
   it('has no violations: the list, the open details, the empty queue and an error', async () => {
     useLetters([letter(), letter({ messageId: 'msg-2' })]);
     const full = mount();
-    await findByRole(full, 'button', { name: 'Replay msg-1' });
+    await findByRole(full, 'button', { name: 'Reprocessar msg-1' });
     full.querySelector('details')?.setAttribute('open', '');
     await expectAccessible(full);
     full.remove();
 
     useLetters([]);
     const empty = mount();
-    await findByText(empty, 'The dead-letter queue is empty.');
+    await findByText(empty, 'A fila de mensagens mortas está vazia.');
     await expectAccessible(empty);
     empty.remove();
 

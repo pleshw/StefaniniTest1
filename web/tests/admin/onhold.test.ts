@@ -58,10 +58,10 @@ describe('Fila em espera', () => {
     });
     expect(items[0]?.textContent).toContain('ORD-OLD');
     expect(items[0]?.textContent).toContain('Ana Souza');
-    expect(items[0]?.textContent).toContain('R$5,000.00');
-    expect(items[0]?.textContent).toContain('Oct 25, 2026');
+    expect(items[0]?.textContent).toContain('R$\u00a05.000,00');
+    expect(items[0]?.textContent).toContain('25 de out. de 2026');
     expect(items[1]?.textContent).toContain('ORD-NEW');
-    expect(getByRole(container, 'status').textContent).toBe('2 orders waiting');
+    expect(getByRole(container, 'status').textContent).toBe('2 pedidos aguardando');
   });
 
   it('opens the inspector on an order', async () => {
@@ -83,7 +83,7 @@ describe('Fila em espera', () => {
 
     const { container } = mount();
 
-    await findByText(container, 'No orders are on hold.');
+    await findByText(container, 'Nenhum pedido em espera.');
     expect(queryByRole(container, 'list')).toBeNull();
   });
 
@@ -97,7 +97,7 @@ describe('Fila em espera', () => {
     const { container, queue } = mount();
 
     const alert = await findByRole(container, 'alert');
-    expect(alert.textContent).toContain('The OnHold queue could not be loaded.');
+    expect(alert.textContent).toContain('Não foi possível carregar a fila em espera.');
 
     useQueue({
       onHold: [summary('ORD-1', 10, '2026-10-26T09:00:00Z')],
@@ -105,13 +105,13 @@ describe('Fila em espera', () => {
       partial: true,
       unavailable: [],
     });
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
     expect(await findByRole(container, 'button', { name: 'Inspecionar ORD-1' })).toBeTruthy();
     expect(queryByRole(container, 'alert')).toBeNull();
 
     useQueue({ onHold: [], orders: null, partial: false, unavailable: [] });
     queue.refresh();
-    await findByText(container, 'No orders are on hold.');
+    await findByText(container, 'Nenhum pedido em espera.');
   });
 
   it('shows the error when the request fails', async () => {
@@ -158,7 +158,7 @@ describe('OnHold queue accessibility', () => {
 
     useQueue({ onHold: [], orders: null, partial: false, unavailable: [] });
     const empty = mount();
-    await findByText(empty.container, 'No orders are on hold.');
+    await findByText(empty.container, 'Nenhum pedido em espera.');
     await expectAccessible(empty.container);
     empty.container.remove();
 

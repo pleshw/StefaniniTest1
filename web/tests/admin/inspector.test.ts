@@ -118,7 +118,7 @@ describe('order inspector', () => {
 
     expect(container.textContent).toContain('Ana Souza');
     expect(container.textContent).toContain('Coffee mug');
-    expect(container.textContent).toContain('R$180.00');
+    expect(container.textContent).toContain('R$\u00a0180,00');
     const history = getByRole(container, 'list', { name: 'Linha do tempo do status' });
     expect(within(history).getAllByRole('listitem')).toHaveLength(2);
     expect(history.textContent).toContain('Pendente → Em espera');
@@ -157,9 +157,9 @@ describe('order inspector', () => {
   });
 
   it.each([
-    ['Pending', ['Confirm', 'Hold', 'Block']],
-    ['OnHold', ['Confirm', 'Block']],
-    ['Confirmed', ['Cancel']],
+    ['Pending', ['Confirmar', 'Colocar em espera', 'Bloquear']],
+    ['OnHold', ['Confirmar', 'Bloquear']],
+    ['Confirmed', ['Cancelar']],
     ['Blocked', []],
     ['Cancelled', []],
     ['Failed', []],
@@ -202,7 +202,7 @@ describe('order actions', () => {
         within(getByRole(container, 'group', { name: 'Ações do pedido' }))
           .getAllByRole('button')
           .map((button) => button.textContent),
-      ).toEqual(['Cancel']);
+      ).toEqual(['Cancelar']);
     });
   });
 
@@ -217,18 +217,18 @@ describe('order actions', () => {
     const { container } = await openOrder('Pending');
     useOrder(view('OnHold'));
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Hold' }));
-    fireEvent.input(getByLabelText(dialog(), 'Reason'), { target: { value: 'Check the address' } });
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Colocar em espera' }));
+    fireEvent.input(getByLabelText(dialog(), 'Motivo'), { target: { value: 'Check the address' } });
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
 
     await findByText(container, 'Order ORD-1 is now OnHold.');
     expect(body).toEqual({ reason: 'Check the address' });
   });
 
   it.each([
-    ['Pending', 'Hold', 'Put on hold'],
-    ['Pending', 'Block', 'Block order'],
-    ['Confirmed', 'Cancel', 'Cancel order'],
+    ['Pending', 'Colocar em espera', 'Colocar em espera'],
+    ['Pending', 'Bloquear', 'Bloquear pedido'],
+    ['Confirmed', 'Cancelar', 'Cancelar pedido'],
   ])('does not send %s %s without a reason', async (status, action, confirmLabel) => {
     let calls = 0;
     server.use(
@@ -242,8 +242,8 @@ describe('order actions', () => {
     fireEvent.click(getByRole(container, 'button', { name: action }));
     fireEvent.click(getByRole(dialog(), 'button', { name: confirmLabel }));
 
-    expect(getByRole(dialog(), 'alert').textContent).toBe('Reason is required.');
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    expect(getByRole(dialog(), 'alert').textContent).toBe('Motivo é obrigatório.');
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(calls).toBe(0);
   });
@@ -259,7 +259,7 @@ describe('order actions', () => {
     const { container } = await openOrder('Pending');
 
     fireEvent.click(getByRole(container, 'button', { name: 'Confirmar' }));
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(calls).toBe(0);
@@ -282,19 +282,19 @@ describe('order actions', () => {
 
     const alert = await findByRole(container, 'alert');
     expect(alert.textContent).toContain(
-      'This order was changed by someone else. Reload it to see its current state.',
+      'Este pedido foi alterado por outra pessoa. Recarregue-o para ver o estado atual.',
     );
     expect(onChanged).not.toHaveBeenCalled();
 
     useOrder(view('OnHold', { order: order('OnHold', 5) }));
-    fireEvent.click(getByRole(alert, 'button', { name: 'Reload' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Recarregar' }));
 
     await vi.waitFor(() => {
       expect(
         within(getByRole(container, 'group', { name: 'Ações do pedido' }))
           .getAllByRole('button')
           .map((button) => button.textContent),
-      ).toEqual(['Confirm', 'Block']);
+      ).toEqual(['Confirmar', 'Bloquear']);
     });
     expect(queryByRole(container, 'alert')).toBeNull();
   });
@@ -320,7 +320,7 @@ describe('order actions', () => {
     expect((await findByRole(container, 'alert')).textContent).toContain(
       'An order that is Cancelled cannot be confirmed.',
     );
-    expect(queryByRole(container, 'button', { name: 'Reload' })).toBeNull();
+    expect(queryByRole(container, 'button', { name: 'Recarregar' })).toBeNull();
   });
 
   it('shows a network failure and lets the action be tried again', async () => {
@@ -335,7 +335,7 @@ describe('order actions', () => {
     fireEvent.click(getByRole(dialog(), 'button', { name: 'Confirmar pedido' }));
 
     expect((await findByRole(container, 'alert')).textContent).toContain(
-      'The server could not be reached.',
+      'Não foi possível acessar o servidor.',
     );
     expect(getByRole(container, 'button', { name: 'Confirmar' }).hasAttribute('disabled')).toBe(
       false,
@@ -385,9 +385,9 @@ describe('order inspector accessibility', () => {
 
     const full = await openOrder('Pending');
     await expectAccessible(full.container);
-    fireEvent.click(getByRole(full.container, 'button', { name: 'Hold' }));
+    fireEvent.click(getByRole(full.container, 'button', { name: 'Colocar em espera' }));
     await expectAccessible(dialog());
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     full.container.remove();
 
     const partial = await openOrder('OnHold', {

@@ -183,7 +183,10 @@ describe('discount rule validation', () => {
       { kind: 'MinQuantity', quantity: 0 },
       ['Quantidade mínima: a quantidade deve ser um número inteiro de pelo menos 1.'],
     ],
-    [{ kind: 'ClientSegment', segments: [] }, ['Segmento do cliente: informe pelo menos um segmento.']],
+    [
+      { kind: 'ClientSegment', segments: [] },
+      ['Segmento do cliente: informe pelo menos um segmento.'],
+    ],
     [{ kind: 'DateWindow' }, ['Janela de datas: informe um início, um fim ou ambos.']],
     [
       { kind: 'DateWindow', from: '2026-10-02T00:00:00.000Z', to: '2026-10-01T00:00:00.000Z' },

@@ -87,12 +87,12 @@ function mount() {
 }
 
 async function addDesk(container: HTMLElement): Promise<void> {
-  fireEvent.click(await findByRole(container, 'button', { name: 'Add Standing desk to cart' }));
-  await findByRole(container, 'button', { name: 'Remove Standing desk' });
+  fireEvent.click(await findByRole(container, 'button', { name: 'Adicionar Standing desk ao carrinho' }));
+  await findByRole(container, 'button', { name: 'Remover Standing desk' });
 }
 
 const placeOrder = (container: HTMLElement): HTMLElement =>
-  getByRole(container, 'button', { name: 'Place order' });
+  getByRole(container, 'button', { name: 'Fazer pedido' });
 
 describe('create order for a client', () => {
   it('offers the clients seen in the orders, once each, and a way to enter another', async () => {
@@ -102,10 +102,10 @@ describe('create order for a client', () => {
     const select = await waitForClients(container);
 
     expect([...select.options].map((option) => option.text)).toEqual([
-      'Choose a client',
+      'Escolha um cliente',
       'Ana Souza',
       'Bruno Lima',
-      'Another client…',
+      'Outro cliente…',
     ]);
   });
 
@@ -127,7 +127,7 @@ describe('create order for a client', () => {
 
     fireEvent.click(placeOrder(container));
 
-    await findByText(container, 'Order ORD-2026-ADMIN was placed.');
+    await findByText(container, 'O pedido ORD-2026-ADMIN foi feito.');
     expect(body).toEqual({
       currency: 'BRL',
       items: [{ sku: 'DESK-1', quantity: 1 }],
@@ -153,8 +153,8 @@ describe('create order for a client', () => {
 
     fireEvent.click(placeOrder(container));
 
-    expect((await findByRole(container, 'alert', { name: 'Order error' })).textContent).toBe(
-      'Choose a client first.',
+    expect((await findByRole(container, 'alert', { name: 'Erro no pedido' })).textContent).toBe(
+      'Escolha um cliente primeiro.',
     );
     expect(calls).toBe(0);
   });
@@ -170,29 +170,29 @@ describe('create order for a client', () => {
     );
     const container = mount();
     const select = await waitForClients(container);
-    expect(getByLabelText(container, 'Client id').closest('.row')?.hasAttribute('hidden')).toBe(
+    expect(getByLabelText(container, 'ID do cliente').closest('.row')?.hasAttribute('hidden')).toBe(
       true,
     );
     fireEvent.change(select, { target: { value: 'other' } });
     await addDesk(container);
 
-    fireEvent.input(getByLabelText(container, 'Client id'), { target: { value: 'not-a-guid' } });
-    fireEvent.input(getByLabelText(container, 'Client name'), { target: { value: 'Carla Dias' } });
+    fireEvent.input(getByLabelText(container, 'ID do cliente'), { target: { value: 'not-a-guid' } });
+    fireEvent.input(getByLabelText(container, 'Nome do cliente'), { target: { value: 'Carla Dias' } });
     fireEvent.click(placeOrder(container));
-    expect((await findByRole(container, 'alert', { name: 'Order error' })).textContent).toBe(
-      'Enter a valid client id (a GUID).',
+    expect((await findByRole(container, 'alert', { name: 'Erro no pedido' })).textContent).toBe(
+      'Informe um ID de cliente válido (um GUID).',
     );
 
-    fireEvent.input(getByLabelText(container, 'Client id'), {
+    fireEvent.input(getByLabelText(container, 'ID do cliente'), {
       target: { value: '33333333-3333-4333-8333-333333333333' },
     });
-    fireEvent.input(getByLabelText(container, 'Client name'), { target: { value: '  ' } });
+    fireEvent.input(getByLabelText(container, 'Nome do cliente'), { target: { value: '  ' } });
     fireEvent.click(placeOrder(container));
-    await findByText(container, 'Enter the client name.');
+    await findByText(container, 'Informe o nome do cliente.');
 
-    fireEvent.input(getByLabelText(container, 'Client name'), { target: { value: 'Carla Dias' } });
+    fireEvent.input(getByLabelText(container, 'Nome do cliente'), { target: { value: 'Carla Dias' } });
     fireEvent.click(placeOrder(container));
-    await findByText(container, 'Order ORD-2026-ADMIN was placed.');
+    await findByText(container, 'O pedido ORD-2026-ADMIN foi feito.');
     expect(body).toMatchObject({
       clientId: '33333333-3333-4333-8333-333333333333',
       clientName: 'Carla Dias',
@@ -214,7 +214,7 @@ describe('create order for a client', () => {
 
     fireEvent.change(select, { target: { value: ana.id } });
     fireEvent.click(placeOrder(container));
-    await findByRole(container, 'alert', { name: 'Order error' });
+    await findByRole(container, 'alert', { name: 'Erro no pedido' });
     fireEvent.click(placeOrder(container));
     await vi.waitFor(() => {
       expect(keys).toHaveLength(2);
@@ -236,8 +236,8 @@ describe('create order for a client', () => {
 
     const select = await waitForClients(container);
     expect([...select.options].map((option) => option.text)).toEqual([
-      'Choose a client',
-      'Another client…',
+      'Escolha um cliente',
+      'Outro cliente…',
     ]);
   });
 
@@ -248,7 +248,7 @@ describe('create order for a client', () => {
     await waitForClients(container);
 
     expect(container.textContent).toContain(
-      'The quote is calculated for you; Orders prices the order for the client.',
+      'A cotação é calculada para você; o Orders precifica o pedido para o cliente.',
     );
   });
 
@@ -263,5 +263,5 @@ describe('create order for a client', () => {
 });
 
 function waitForClients(container: HTMLElement): Promise<HTMLSelectElement> {
-  return findByLabelText<HTMLSelectElement>(container, 'Client');
+  return findByLabelText<HTMLSelectElement>(container, 'Cliente');
 }
