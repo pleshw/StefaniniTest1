@@ -4,14 +4,14 @@
 
 ## Resumo
 
-Um squad de 6 pessoas (4,75 FTE) entrega a plataforma em 8 semanas, com um esforço estimado de 128 pessoas-dia, que já inclui uma contingência de 10%. A implementação é assistida por IA: o Sonnet 5.5 escreve cada commit a partir do guia de execução, e os engenheiros revisam, testam e fazem o merge. A pegada de execução é de 10 contêineres, que exigem cerca de 5 vCPU e 5,5 GB de RAM em uma máquina de desenvolvedor, e está dimensionada para 100 usuários simultâneos e 50 pedidos por minuto no pico.
+Um squad de 6 pessoas (4,75 FTE) entrega a plataforma em 8 semanas, com um esforço estimado de 128 pessoas-dia, que já inclui uma contingência de 10%. A implementação é assistida por IA: o Claude Code (Sonnet 5.5 por padrão; alguns lotes de etapas rodaram no Opus 5.5) escreve cada commit a partir do guia de execução, e os engenheiros revisam, testam e fazem o merge. A pegada de execução é de 9 contêineres (8 de longa duração mais o `orders-migrator`, que roda uma vez), que exigem cerca de 4,5 vCPU e 4 GB de RAM em uma máquina de desenvolvedor, e está dimensionada para 100 usuários simultâneos e 50 pedidos por minuto no pico.
 
 | Indicador | Valor |
 | --- | --- |
 | Duração | 8 semanas (40 dias úteis) |
 | Esforço | 116 pessoas-dia + 12 de contingência = 128 pessoas-dia |
 | Equipe | 6 pessoas, média de 4,75 FTE |
-| Contêineres | 10 localmente (mais 2 no perfil de observabilidade) |
+| Contêineres | 9 localmente, incluindo o `orders-migrator` de execução única (mais 2 no perfil `observability` e o `k6` no perfil `load`) |
 | Meta de carga de pico | 100 usuários simultâneos, 50 pedidos/min, 20 consultas de preço/s |
 | Metas de latência (p95) | Criar pedido < 300 ms, lote de preços < 50 ms, listar pedidos < 200 ms |
 
@@ -27,7 +27,7 @@ As estimativas só valem enquanto estas premissas se mantiverem; qualquer mudan�
 - Tanto compradores quanto administradores criam pedidos. Administradores criam pedidos em nome de um cliente e podem confirmar ou bloquear pedidos pela página Admin.
 - Multimoeda: cada pedido tem uma única moeda, e o Catalog mantém um preço por SKU por moeda. BRL é a moeda padrão.
 - A confirmação de pedidos é automática, por regra, no Orders.Worker; administradores podem sobrepor a decisão (confirmar ou bloquear) pela UI.
-- Retenção: chaves de idempotência por 24 h, linhas publicadas do outbox por 30 dias.
+- Retenção: chaves de idempotência por 24 h, linhas do log de eventos (`order_event_log`) por 30 dias; o Wolverine cuida das linhas do outbox depois de enviadas.
 - Fora do escopo: gateway de pagamento, reserva de estoque, notificações por e-mail, infraestrutura de nuvem de produção (assume-se apenas um ambiente de staging pronto para contêineres).
 
 **Carga e dados**
@@ -39,14 +39,14 @@ As estimativas só valem enquanto estas premissas se mantiverem; qualquer mudan�
 **Entrega**
 
 - 5 dias úteis por semana, 6 horas produtivas por dia; 25% da capacidade vai para cerimônias, revisões e suporte.
-- A implementação é assistida por IA: o Sonnet 5.5 produz cada commit a partir do guia de execução; uma pessoa revisa cada PR. Sem assistência de IA, multiplique o esforço por cerca de 1,6.
+- A implementação é assistida por IA: o Claude Code (Sonnet 5.5 por padrão, Opus 5.5 em alguns lotes; veja as [evidências](05-ai-development.md#sessões-de-implementação)) produz cada commit a partir do guia de execução; uma pessoa revisa cada PR. Sem assistência de IA, multiplique o esforço por cerca de 1,6.
 - Um único repositório, desenvolvimento trunk-based, GitHub Actions como CI/CD, GitHub Environments para `staging` e `production` com revisores obrigatórios.
 - A equipe tem máquinas capazes de rodar Docker, com 16 GB de RAM ou mais.
 - Um Product Owner da área de negócio fica disponível 4 horas por semana para o aceite e para decisões sobre regras de desconto e regras de confirmação.
 
 ## Arquitetura
 
-Nove componentes de runtime, dos quais apenas o nginx fica exposto no host. Chamadas síncronas transportam as requisições e as verificações de preço; o RabbitMQ transporta os efeitos colaterais para o Worker e para o feed ao vivo do Admin.
+Oito componentes de runtime (mais o `orders-migrator`, que aplica as migrations e sai), dos quais apenas o nginx fica exposto no host no perfil padrão. Chamadas síncronas transportam as requisições e as verificações de preço; o RabbitMQ transporta os efeitos colaterais para o Worker e para o feed ao vivo do Admin.
 
 ```mermaid
 flowchart TB
@@ -83,7 +83,7 @@ O Orders.Worker aplica a regra de confirmação automaticamente. Pedidos sinaliz
 
 ## Dimensionamento de runtime
 
-Localmente, a stack precisa de cerca de 5 vCPU e 5,5 GB de RAM; um staging semelhante à produção duplica os serviços stateless e executa os data stores em sua configuração de alta disponibilidade. Os limites abaixo são os `deploy.resources.limits` do compose e o ponto de partida para o staging.
+Localmente, a stack precisa de cerca de 4,5 vCPU e 4 GB de RAM (5 vCPU e 4,5 GB com o perfil `observability`); um staging semelhante à produção duplica os serviços stateless e executa os data stores em sua configuração de alta disponibilidade. Os limites abaixo são metas de dimensionamento e o ponto de partida para o staging; o compose ainda não os aplica como `deploy.resources.limits`.
 
 | Componente | Réplicas local / staging | Limite de CPU | Limite de memória | Armazenamento | Meta de throughput |
 | --- | --- | --- | --- | --- | --- |
@@ -95,13 +95,12 @@ Localmente, a stack precisa de cerca de 5 vCPU e 5,5 GB de RAM; um staging semel
 | PostgreSQL 17 | 1 / 1 primária + 1 réplica | 1,0 | 1 GB | Volume de 10 GB, +250 MB/mês | Máximo de 200 conexões, pool de 20 por serviço |
 | MongoDB 8 | 1 (rs0) / replica set de 3 nós | 1,0 | 1 GB | Volume de 5 GB | 10.000 SKUs no working set |
 | RabbitMQ 4 | 1 / 3 nós (quorum) | 0,5 | 512 MB | Volume de 2 GB | 50 msg/s sustentados |
-| Keycloak (identidade de dev) | 1 / 1 | 0,5 | 768 MB | Usa o Postgres | - |
 | OTel Collector + Aspire Dashboard (perfil) | 1 / 1 | 0,5 | 512 MB | Em memória | - |
 
 Observações de capacidade:
 
-- Crescimento de dados: o Postgres cresce cerca de 250 MB por mês com 50.000 pedidos; as linhas de idempotência (24 h) ficam abaixo de 5 MB e as linhas publicadas do outbox (30 dias), abaixo de 100 MB, graças ao job de limpeza.
-- Orçamento de conexões: 2 Orders API + 2 Worker + 1 migrator + Keycloak ficam abaixo de 100 conexões no Postgres com pools de 20.
+- Crescimento de dados: o Postgres cresce cerca de 250 MB por mês com 50.000 pedidos; as linhas de idempotência (24 h) ficam abaixo de 5 MB e as linhas do log de eventos (30 dias), abaixo de 100 MB, graças ao job de limpeza do Worker.
+- Orçamento de conexões: 2 Orders API + 2 Worker + 1 migrator ficam abaixo de 100 conexões no Postgres com pools de 20.
 - Caminho de escala: Orders API, BFF, Worker e Catalog são stateless e escalam horizontalmente; as conexões SSE ficam fixadas a uma instância do BFF, e cada instância tem sua própria fila de feed no RabbitMQ.
 - Máquina de desenvolvedor: mínimo de 16 GB de RAM, Docker Desktop com WSL 2 configurado com pelo menos 6 GB.
 
@@ -179,7 +178,7 @@ A contingência de 12 pessoas-dia cobre um risco médio; se dois ou mais se mate
 | As regras de multimoeda crescem (conversão, arredondamento por moeda) | Média | +5 | Manter uma moeda por pedido, sem conversão; preço por SKU por moeda no Catalog |
 | As regras de confirmação viram um motor de regras próprio | Média | +6 | Reutilizar o modelo de especificações do motor de descontos para as condições de confirmação |
 | Commits gerados por IA exigem retrabalho pesado | Média | +8 | Commits pequenos, definição de pronto rigorosa, Tech Lead revisa os PRs de Domain e mensageria |
-| Atrito na integração com o Keycloak ou com a autenticação | Baixa | +3 | Export de realm pré-configurado commitado na Fase 0 |
+| Atrito na integração com o Keycloak ou com a autenticação | Baixa | +3 | Export de realm pré-configurado commitado na Fase 0. Na entrega, o Keycloak foi trocado por um login provisório do BFF (C40), e o export não foi criado |
 | Correções de acessibilidade no front-end chegam tarde | Baixa | +3 | Verificações com axe desde a primeira tela, não no final |
 | Engenheiro pleno indisponível por 2+ semanas | Baixa | +10 | Back-end sênior assume Catalog/BFF; o início do front-end passa para a semana 4 |
 

@@ -45,9 +45,9 @@ flowchart TB
 
 1. `cp .env.example .env && docker compose up -d --build --wait`.
 2. Open `http://localhost:8080/shop.html`, sign in as `shopper` (password from `.env`), add products to the cart and see the quote.
-3. In another tab, open `http://localhost:8080/admin.html` as `admin` and keep the live events table in view.
+3. In a private window or another browser (the BFF session is a single cookie per origin, so signing in as `admin` in another tab replaces the Shop session), open `http://localhost:8080/admin.html` as `admin` and keep the live events table in view.
 4. Place the order in the Shop: it shows up in the Admin and ends `Confirmed`, or `OnHold` if it matches the development rule (BRL above 5,000.00); in the Admin, confirm it.
 5. Repeat the order with the same key (the smoke test does this): the order number is the same.
 6. In the Admin, change a discount rule with the preview, save, and quote again in the Shop.
-7. Show "Mensagens mortas" (dead letters) and, with `--profile observability`, the metrics in the Aspire Dashboard (`http://localhost:18888`).
-8. `bash scripts/smoke.sh http://localhost:8080` repeats steps 2 to 5 from the command line.
+7. Show "Mensagens mortas" (dead letters) and, with `--profile observability`, the metrics in the Aspire Dashboard (`http://localhost:18888`; needs `OTEL_EXPORTER_OTLP_ENDPOINT` on the services, see the README).
+8. `bash scripts/smoke.sh http://localhost:8080` does the core of steps 2 to 5 from the command line: sign-in, order creation, event stream and idempotency (no cart and no confirmation in the Admin).

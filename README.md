@@ -4,7 +4,7 @@
 
 Uma plataforma RESTful de pedidos construída com .NET 10: uma **Orders API** (PostgreSQL, CQRS, RabbitMQ), um **serviço Catalog** (MongoDB), um **BFF** que é a única porta de entrada do navegador e duas páginas de front-end (Shop e Admin) escritas em HTML, TypeScript e Bootstrap puros.
 
-> **Status:** implementação das etapas C01–C56 entregue; a **C57** (baseline do Stryker.NET) está pendente e a tag **v1.0.0** ainda não foi criada. O trabalho avançou etapa por etapa pelo [Guia de execução](docs/pt-br/02-execution-guide.md); o que falta antes da release está em [Qualidade](docs/pt-br/quality.md). Os comandos de [Primeiros passos](#primeiros-passos) rodam com o Docker Compose; nada do compose real foi executado pelas sessões de IA sem Docker (veja as [evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação)).
+> **Status:** etapas C01–C56 e C58 (documentação da release) entregues; a **C57** (baseline do Stryker.NET) não foi feita e a tag **v1.0.0** ainda não foi criada. O trabalho avançou etapa por etapa pelo [Guia de execução](docs/pt-br/02-execution-guide.md); o que falta antes da release (teste de mutação, gates de cobertura do .NET, metas de carga medidas) está em [Qualidade](docs/pt-br/quality.md). Os comandos de [Primeiros passos](#primeiros-passos) rodam com o Docker Compose; nada do compose real foi executado pelas sessões de IA sem Docker (veja as [evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação)).
 
 ## Entregáveis do desafio
 
@@ -29,12 +29,12 @@ Uma plataforma RESTful de pedidos construída com .NET 10: uma **Orders API** (P
 ### Configurar
 
 ```bash
-git clone <repository-url>
-cd StefaniniTestProject
+git clone https://github.com/pleshw/StefaniniTest1.git
+cd StefaniniTest1
 cp .env.example .env
 ```
 
-O `.env` guarda valores apenas locais: senhas dos bancos, a chave com que o BFF assina os tokens enviados aos serviços (`SERVICE_TOKEN_SIGNING_KEY`), o usuário do RabbitMQ e as senhas dos usuários de desenvolvimento `shopper` e `admin` do login do BFF (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
+O `.env` guarda valores apenas locais: usuário e senha do PostgreSQL (o MongoDB local não tem autenticação), a chave com que o BFF assina os tokens enviados aos serviços (`SERVICE_TOKEN_SIGNING_KEY`), o usuário do RabbitMQ e as senhas dos usuários de desenvolvimento `shopper` e `admin` do login do BFF (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`), além de dois valores opcionais: `LOAD_DURATION` (duração do teste de carga) e `ASPIRE_DASHBOARD_PORT` (porta do Aspire Dashboard). Os padrões funcionam como estão no desenvolvimento local; nunca faça commit do `.env`.
 
 ### Executar
 
@@ -50,13 +50,13 @@ docker compose up -d --build --wait
 
 O login é **provisório**: um formulário do próprio BFF com dois usuários fixos cujas senhas vêm do `.env`, ligado só no compose de desenvolvimento (`Bff__DevLogin__Enabled`). Ele abre a mesma sessão por cookie (HttpOnly, Secure, SameSite=Strict) que um provedor de identidade abriria. Uma melhoria natural é trocar esse formulário por um provedor de identidade como o Keycloak, com o realm (clients, roles e usuários) versionado em arquivos de realm e o BFF usando OpenID Connect (code flow + PKCE) e token exchange para as chamadas aos serviços.
 
-Somente o nginx publica uma porta no host; todos os outros serviços são acessados por meio dele. Perfis opcionais:
+No perfil padrão, somente o nginx publica uma porta no host; todos os outros serviços são acessados por meio dele. Perfis opcionais:
 
 ```bash
 docker compose --profile observability up -d --wait
 ```
 
-Adiciona o OpenTelemetry Collector e o Aspire Dashboard para traces, métricas e logs.
+Adiciona o OpenTelemetry Collector e o Aspire Dashboard (http://localhost:18888, publicado só em `127.0.0.1`) para traces, métricas e logs. Limitação atual: os serviços só exportam telemetria quando `OTEL_EXPORTER_OTLP_ENDPOINT` está definida, e o `docker-compose.yml` ainda não a define; até lá, defina `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317` nos serviços `orders-api`, `orders-worker`, `orders-bff` e `catalog-api` (por exemplo, num `docker-compose.override.yml` local).
 
 ```bash
 docker compose down -v
@@ -69,11 +69,11 @@ No compose, o Catalog carrega 50 produtos (BRL e USD) na inicialização (`Catal
 ### Testar
 
 ```bash
-dotnet test orders/Orders.slnx
+dotnet test --solution orders/Orders.slnx
 ```
 
 ```bash
-dotnet test catalog/Catalog.slnx
+dotnet test --solution catalog/Catalog.slnx
 ```
 
 ```bash
@@ -84,7 +84,7 @@ cd web && npm ci && npm test
 bash scripts/smoke.sh http://localhost:8080
 ```
 
-Os testes de integração usam Testcontainers, então o Docker precisa estar em execução. Filtre por categoria com `--filter Category=Unit`, `Integration`, `Architecture` ou `Resilience`.
+Os testes de integração usam Testcontainers, então o Docker precisa estar em execução. O runner é o Microsoft.Testing.Platform (veja `global.json`), então filtre por categoria com `--filter-trait "Category=Unit"` (ou `Integration`, `Architecture`, `Resilience`; repetir a opção soma as categorias) e acrescente `--ignore-exit-code 8` para que os projetos sem testes daquela categoria não falhem a execução.
 
 O smoke test (`scripts/smoke.sh`) passa só pelo BFF: entra como `shopper` e como `admin` pelo login de desenvolvimento, faz um pedido, confere que ele chega ao stream de eventos do admin e termina em `Confirmed` ou `OnHold`, e repete a mesma `Idempotency-Key` para receber o mesmo número de pedido. Com a pilha de desenvolvimento no ar basta rodá-lo; com `--up` ele sobe a pilha antes (`docker compose up -d --build --wait`). Ele depende do login de desenvolvimento, que só o `docker-compose.yml` liga, então ainda não roda contra staging nem produção.
 
@@ -148,12 +148,12 @@ flowchart TB
 
 ## Stack tecnológica
 
-- **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, driver C# do MongoDB, Wolverine (handlers CQRS, outbox/inbox, RabbitMQ), YARP no BFF
+- **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, driver C# do MongoDB, Wolverine (handlers CQRS, outbox/inbox, RabbitMQ), YARP no BFF, FluentValidation, Mapperly, clients gerados com NSwag a partir do OpenAPI, Microsoft.Extensions.Http.Resilience, Scalar
 - **Dados e mensageria:** PostgreSQL 17, MongoDB 8 (replica set), RabbitMQ 4 (quorum queues, retentativas, DLQ)
-- **Front end:** TypeScript (strict), Vite, Vitest, Bootstrap 5.3 e Bootstrap Icons
-- **Qualidade:** xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest, axe-core, k6 (carga); o teste de mutação (Stryker.NET) está pendente
+- **Front end:** TypeScript (strict), Vite, Vitest, Testing Library, MSW, Bootstrap 5.3 e Bootstrap Icons; interface em pt-BR
+- **Qualidade:** xUnit v3 (Microsoft.Testing.Platform), NSubstitute, Shouldly, Testcontainers, WireMock.Net, NetArchTest, axe-core, k6 (carga); o teste de mutação (Stryker.NET) não foi feito
 - **Operação:** Docker Compose, OpenTelemetry, GitHub Actions com um gate de deploy antes de cada deploy
 
 ## Contribuindo
 
-Toda mudança é uma etapa do guia de execução: uma branch, um commit, um pull request, com merge somente quando o check `ci / gate` está verde e os critérios do [Guia de code review](docs/pt-br/03-code-review-guide.md) são atendidos. As mensagens de commit seguem [Conventional Commits](https://www.conventionalcommits.org/). As mudanças de documentação são feitas primeiro em `docs/pt-br/` e espelhadas em `docs/en-us/`. PRs produzidos com IA linkam a sessão e adicionam uma linha à [tabela de evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação).
+Toda mudança é uma etapa do guia de execução: uma branch, um commit, um pull request, com merge somente quando os checks `gate` (exibido como `ci / gate`) e `CodeQL` estão verdes e os critérios do [Guia de code review](docs/pt-br/03-code-review-guide.md) são atendidos. As mensagens de commit seguem [Conventional Commits](https://www.conventionalcommits.org/). As mudanças de documentação são feitas primeiro em `docs/pt-br/` e espelhadas em `docs/en-us/`. PRs produzidos com IA linkam a sessão e adicionam uma linha à [tabela de evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação).

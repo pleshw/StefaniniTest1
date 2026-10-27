@@ -24,8 +24,8 @@ A PR is mergeable when every item holds; the PR template carries this list as ch
 - [ ] **Scope:** one purpose, linked to its issue or execution-guide step; under 400 changed lines excluding generated files and lock files (larger needs a reason in the description).
 - [ ] **Title and commits:** Conventional Commit title (`feat(orders): ...`); squash message explains why.
 - [ ] **Description:** what changed, why, how to verify (commands or screenshots for UI), risks and rollback notes for migrations or config.
-- [ ] **Tests:** new behaviour covered, one test per new code path, bug fixes start with a failing test; coverage gates green.
-- [ ] **Pipeline:** `ci / gate` and `CodeQL` green on the latest commit; no re-run-until-green on flaky tests (flaky tests get an issue and a fix).
+- [ ] **Tests:** new behaviour covered, one test per new code path, bug fixes start with a failing test; coverage gates green (today only the front-end one, 80%, is enforced; the .NET ones depend on a coverage package, see [Quality](quality.md)).
+- [ ] **Pipeline:** `gate` (displayed as `ci / gate`) and `CodeQL` green on the latest commit; no re-run-until-green on flaky tests (flaky tests get an issue and a fix).
 - [ ] **Contracts:** API changes are backward compatible or versioned; OpenAPI and event contract snapshots updated; migrations are expand-only.
 - [ ] **Security:** input validated at the edge, authorization on every new endpoint, no secrets, no personal data in logs.
 - [ ] **Observability:** new flows emit traces; errors logged once with context; new metrics documented.
@@ -108,10 +108,10 @@ Build once, promote the same bytes, and never edit a pipeline or artifact by han
 | --- | --- | --- | --- | --- | --- |
 | Container images | `cd.yml` `images` job on `main` | `sha-<commit>`, then `vX.Y.Z` on release | GHCR | Releases forever; `sha-*` 90 days | Deployed by digest; never rebuilt for a release; must carry provenance attestation and SBOM |
 | Migration bundle / migrator image | `cd.yml` | Same commit tag as services | GHCR | Same as images | Runs before services; expand-only |
-| Test and coverage reports | `ci.yml` | Run id | Actions artifacts | 14 days | Read in review; never committed |
+| Test and coverage reports | `ci.yml` | Run id | Actions artifacts | 14 days | Read in review; never committed. .NET does not produce a coverage report yet and the front-end one is not uploaded as an artifact |
 | OpenAPI documents | Build | File in repo | Git (`*/openapi/*.json`) | Git history | Generated, committed, drift fails CI |
-| Mutation and load reports | `mutation.yml`, load profile | Run id / date | Actions artifacts, `docs/perf/` summaries | 30 days | Trends reviewed monthly |
-| Release notes | Tag | `vX.Y.Z` | GitHub Releases | Forever | Generated from Conventional Commits, edited by the Tech Lead |
+| Mutation and load reports | `mutation.yml` (not created, C57), load profile | Run id / date | Actions artifacts; `docs/perf/` holds only the `EXPLAIN` plans today | 30 days | Trends reviewed monthly |
+| Release notes | Tag | `vX.Y.Z` | GitHub Releases | Forever | Generated from Conventional Commits, edited by the Tech Lead; there is no release or release-notes automation yet |
 
 Pipeline rules:
 
@@ -121,4 +121,4 @@ Pipeline rules:
 - Secrets live only in GitHub Environments; workflows get the least `permissions` they need; forks never receive secrets.
 - Flaky test policy: quarantine through an issue within 24 h, fix within one week; quarantined tests still run and report.
 - Dependabot PRs are reviewed like any PR; base image updates go through staging before a release.
-- Rollback = redeploy the previous release's digests with `scripts/deploy.sh --rollback`; database rollback is never needed because migrations are backward compatible.
+- Rollback = redeploy the previous release's digests with `scripts/deploy.sh <staging|production> --rollback`; database rollback is never needed because migrations are backward compatible.

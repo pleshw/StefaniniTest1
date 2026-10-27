@@ -97,13 +97,13 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 - Build: `orders/Orders.slnx` with `Orders.Domain`, `Orders.Application`, `Orders.Infrastructure`, `Orders.Api`, `Orders.Worker`, `Orders.Bff` and test projects `Orders.Domain.UnitTests`, `Orders.Application.UnitTests`, `Orders.Bff.UnitTests`, `Orders.IntegrationTests`, `Orders.ArchitectureTests` (xUnit v3, Shouldly, NSubstitute). References point inward only.
 - Tests: one placeholder test per test project so the runner is proven.
-- Verify: `dotnet build orders/Orders.slnx -warnaserror` and `dotnet test orders/Orders.slnx`.
+- Verify: `dotnet build orders/Orders.slnx -warnaserror` and `dotnet test --solution orders/Orders.slnx`.
 
 **C03 `chore(catalog): scaffold Catalog solution and shared defaults`**
 
 - Build: `catalog/Catalog.slnx` with Domain, Application, Infrastructure, Api and test projects. Create `shared/ServiceDefaults/ServiceDefaults.csproj` (infrastructure-only, no domain code) and add it to both `.slnx` files.
 - Tests: placeholder per test project.
-- Verify: `dotnet build catalog/Catalog.slnx -warnaserror` and `dotnet test catalog/Catalog.slnx`.
+- Verify: `dotnet build catalog/Catalog.slnx -warnaserror` and `dotnet test --solution catalog/Catalog.slnx`.
 
 **C04 `feat: add service defaults and health endpoints`**
 
@@ -115,7 +115,7 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 - Build: NetArchTest rules in both `ArchitectureTests` projects: Domain references no other project and no EF Core, MongoDB, ASP.NET or messaging packages; Application does not reference Infrastructure or hosts; hosts do not reference each other; `Orders.Bff` references no Domain or Infrastructure project.
 - Tests: the rules themselves.
-- Verify: `dotnet test --filter Category=Architecture`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Architecture" --ignore-exit-code 8` / `dotnet test --solution catalog/Catalog.slnx --filter-trait "Category=Architecture" --ignore-exit-code 8`.
 
 **C06 `chore(infra): add compose infrastructure`**
 
@@ -131,9 +131,9 @@ Ends with an empty but fully wired repository: two solutions, shared defaults, i
 
 **C08 `ci: add GitHub Actions pipelines and deploy gate`**
 
-- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` exactly as in the CI/CD section of this guide; `.config/dotnet-tools.json` with `dotnet-ef`; `scripts/check-docs.mjs` (bilingual check used by the `docs` CI job); first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
+- Build: `.github/workflows/ci.yml` (including the `integration` job), `codeql.yml`, `cd.yml`, `deploy.yml` and `.github/dependabot.yml` as in the CI/CD section of this guide (the listings in that section are copies of the repository files); `.config/dotnet-tools.json` with `dotnet-ef`; `scripts/check-docs.mjs` (bilingual check used by the `docs` CI job); first version of `scripts/deploy.sh` and `deploy/compose.staging.yml` / `deploy/compose.production.yml` referencing images by tag. Apply the repository settings listed in that section (branch protection, environments, Actions permissions, tag protection).
 - Tests: the pipelines run the existing suites.
-- Verify: the PR shows `ci / gate` and `CodeQL` green; after merge, `cd` builds images, passes `deploy-gate` and deploys staging; a test tag `v0.0.1` stops at the `production` approval.
+- Verify: the PR shows `gate` (displayed as `ci / gate`) and `CodeQL` green; after merge, `cd` builds images, passes `deploy-gate` and deploys staging; a test tag `v0.0.1` stops at the `production` approval.
 
 ## Phase 1 — Catalog service (C09–C15)
 
@@ -143,13 +143,13 @@ Ends with Catalog running in compose, serving current prices per currency and ac
 
 - Build: `Sku` (non-empty, upper-case, max 32), `Currency` (ISO 4217, allow-list from config), `Money` (decimal, 2-decimal rounding `AwayFromZero`), `Product` aggregate with name, description, category, attributes, `prices` (one per currency, no duplicates), `isActive`, `version`. Methods `ChangePrice`, `Rename`, `Deactivate` increment `version` and raise `PriceChanged` with old and new value.
 - Tests: every invariant (invalid SKU, duplicate currency, negative price, deactivated product cannot change price) and every method path.
-- Verify: `dotnet test catalog/Catalog.slnx --filter Category=Unit`.
+- Verify: `dotnet test --solution catalog/Catalog.slnx --filter-trait "Category=Unit" --ignore-exit-code 8`.
 
 **C10 `feat(catalog): add MongoDB persistence`**
 
 - Build: class maps with `Decimal128` serializer for money, `ProductRepository` (get by SKU, get many by SKUs with projection, upsert with version filter, insert price history in the same session transaction), hosted service creating indexes (`sku` unique, `{category, name}`, text on name/description, `price_history {sku, changedAt}`, idempotency TTL). Typed `Builders<T>` filters only.
 - Tests: integration tests with Testcontainers MongoDB in replica-set mode: upsert, version conflict returns a concurrency error, many-by-SKUs runs one query (assert through command monitoring events).
-- Verify: `dotnet test catalog/Catalog.slnx --filter Category=Integration`.
+- Verify: `dotnet test --solution catalog/Catalog.slnx --filter-trait "Category=Integration" --ignore-exit-code 8`.
 
 **C11 `feat(catalog): add product query endpoints`**
 
@@ -189,7 +189,7 @@ Ends with orders created idempotently by shoppers and admins, listed, searched a
 
 - Build: `Money`, `Currency`, `ClientRef` (id, name), `OrderItem` (SKU, name, unit price, catalog version, quantity > 0, line discount, line total), `Order` aggregate (one currency for all lines, `ItemCount` = sum of quantities, subtotal, discount total, total ≥ 0, `CreatedBy`, `Channel` shop|admin). `OrderStatus` state machine: Pending → Confirmed | OnHold | Blocked | Failed; OnHold → Confirmed | Blocked; Confirmed → Cancelled. Each transition records actor and reason and raises `OrderStatusChanged`; creation raises `OrderPlaced`.
 - Tests: every allowed and every forbidden transition, totals and rounding, mixed-currency lines rejected, empty order rejected.
-- Verify: `dotnet test orders/Orders.slnx --filter Category=Unit`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Unit" --ignore-exit-code 8`.
 
 **C17 `feat(orders): add PostgreSQL persistence`**
 
@@ -219,7 +219,7 @@ Ends with orders created idempotently by shoppers and admins, listed, searched a
 
 - Build: `CreateOrder` command and `POST /api/v1/orders` implementing the six-step flow from the plan (discount step returns no discounts until C29). Client is taken from the authenticated user, `channel = shop`. In one transaction: idempotency row, order, items, first history row, `OrderPlaced` through the Wolverine outbox (routed to a local durable queue for now). Returns 201 with `Location`.
 - Tests: handler unit tests for every path; integration test firing 10 identical requests in parallel → exactly 1 order, 10 identical responses; a different body with the same key → 422.
-- Verify: `dotnet test --filter Category=Integration`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Integration" --ignore-exit-code 8`.
 
 **C22 `feat(orders): create order on behalf of a client`**
 
@@ -247,7 +247,7 @@ Ends with admin-managed, versioned discount rules applied once and only once per
 
 - Build: `IDiscountStrategy` with `Validate(parameters)` and `Calculate(cart)`; implementations `Percentage` (order or line), `FixedAmount` (per currency, never below zero), `BuyXGetY` (cheapest free units), `Tiered` (subtotal bands). Parameters are typed records deserialized from JSON; unknown fields fail validation.
 - Tests: each strategy's maths, rounding, currency mismatch, invalid parameters per strategy.
-- Verify: `dotnet test --filter Category=Unit`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Unit" --ignore-exit-code 8`.
 
 **C26 `feat(orders): add rule condition specifications`**
 
@@ -265,7 +265,7 @@ Ends with admin-managed, versioned discount rules applied once and only once per
 
 - Build: migration `0002_Discounts` with `discount_rules`, `order_discounts`, `discount_redemptions` (DDL in the plan); repository loading active rules for a currency; `HybridCache` entry `discount-rules:active` (60 s) with explicit invalidation method.
 - Tests: integration: new version supersedes the old one, inactive rules ignored, partial unique index blocks a second once-per-client redemption.
-- Verify: `dotnet test --filter Category=Integration`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Integration" --ignore-exit-code 8`.
 
 **C29 `feat(orders): apply discounts on create and quote`**
 
@@ -293,7 +293,7 @@ Ends with events flowing through RabbitMQ, automatic confirmation by rule, admin
 
 - Build: `Orders.Worker` consumes quorum queue `orders.worker.placed` with Wolverine durable inbox (dedupe by message id). Retry policy: 3 delayed retries at 5 s, 30 s, 5 min, then dead-letter natively to RabbitMQ `orders.dlq` with error headers (`x-exception-type`, `x-exception-message`, `x-attempts`). Delays read from config so tests can shorten them.
 - Tests: integration: the same message delivered twice is handled once; a poison message reaches `orders.dlq` after the last retry; a transient failure succeeds on retry 2.
-- Verify: `dotnet test --filter Category=Integration`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Integration" --ignore-exit-code 8`.
 
 **C33 `feat(orders): add automatic confirmation rules`**
 
@@ -317,7 +317,7 @@ Ends with events flowing through RabbitMQ, automatic confirmation by rule, admin
 
 - Build: `GET /api/v1/admin/dead-letters` (peek up to 100 messages from `orders.dlq` with RabbitMQ.Client, `basic.get` + `nack requeue`), `POST /api/v1/admin/dead-letters/{messageId}/replay` (fetch, republish to the original exchange with `x-replayed-by`, ack). Replays are logged in `order_event_log`.
 - Tests: integration: list shows a parked message with error headers; replay moves it back and the Worker processes it once.
-- Verify: `dotnet test --filter Category=Integration`.
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Integration" --ignore-exit-code 8`.
 
 **C37 `feat(orders): add event log endpoint and retention jobs`**
 
@@ -329,7 +329,7 @@ Ends with events flowing through RabbitMQ, automatic confirmation by rule, admin
 
 - Build: integration scenarios: Worker stopped while orders are created, then started → all processed once; RabbitMQ restarted mid-flow → outbox delivers after reconnect; concurrent admin confirm and automatic rule → exactly one final state.
 - Tests: the scenarios above.
-- Verify: `dotnet test --filter Category=Resilience` (runs in the `integration` job of `ci.yml`).
+- Verify: `dotnet test --solution orders/Orders.slnx --filter-trait "Category=Resilience" --ignore-exit-code 8` (runs in the `integration` job of `ci.yml`).
 
 ## Phase 5 — BFF and authentication (C39–C44)
 
@@ -339,7 +339,7 @@ Ends with the browser-facing BFF: cookie sessions, role-protected admin routes, 
 
 - Build: `Orders.Bff` with YARP routes for the pass-through admin groups (`/bff/admin/discount-rules/**`, `/bff/admin/confirmation-rules/**`, `/bff/admin/dead-letters/**`, `/bff/admin/orders/{id}/(confirm|hold|block|cancel)`, `/bff/admin/products/**`), typed clients for Orders (from its OpenAPI, committed like Catalog's) and Catalog; ProblemDetails from downstream passed through unchanged; request size limits.
 - Tests: route table unit tests (each public path maps to the right cluster and path), ProblemDetails passthrough.
-- Verify: `dotnet test orders/Orders.slnx --filter FullyQualifiedName~Bff`.
+- Verify: `dotnet test --project orders/tests/Orders.Bff.UnitTests`.
 
 **C40 `feat(bff): add Keycloak dev realm and cookie sessions`**
 
@@ -431,12 +431,12 @@ Ends with the Shop and Admin pages on `http://localhost:8080`, built from plain 
 
 ## Phase 7 — Hardening and release (C54–C58)
 
-Ends with every acceptance criterion verified, load targets met, and v1.0.0 deployed to production through the gate.
+Ends with every acceptance criterion verified, load targets met, and v1.0.0 deployed to production through the gate. Current state: C57 was not done, the `v1.0.0` tag has not been created yet and the load targets have not been measured (see [Quality](quality.md)).
 
 **C54 `test: add end-to-end smoke test`**
 
-- Build: `scripts/smoke.sh` (bash, LF): `docker compose up -d --build --wait`, log in as shopper and admin through the BFF, place an order, assert it appears in the admin event stream and reaches Confirmed or OnHold, replay the same idempotency key and assert the same order number. Used by `cd.yml` after each deploy with the environment's URL.
-- Tests: the script itself, run in CI on `main`.
+- Build: `scripts/smoke.sh` (bash, LF): with `--up`, `docker compose up -d --build --wait`; log in as shopper and admin through the BFF, place an order, assert it appears in the admin event stream and reaches Confirmed or OnHold, replay the same idempotency key and assert the same order number. Used by `deploy.yml` after each deploy with the environment's URL (`vars.APP_URL`); since it depends on the development sign-in, which only `docker-compose.yml` turns on, it does not pass against staging or production yet.
+- Tests: the script itself; no `ci.yml` job runs it.
 - Verify: `bash scripts/smoke.sh http://localhost:8080` exits 0.
 
 **C55 `perf: add load test and query review`**
@@ -474,18 +474,18 @@ flowchart LR
     smoke -->|maintainer tags a commit that passed staging| tag["Release tag v*.*.*"] --> promote["Promote<br/>re-tag, no rebuild"] --> g2{{"deploy-gate<br/>+ human approval"}} --> prod["Production<br/>smoke, rollback"]
 ```
 
-The same images flow from staging to production; only the tag changes.
+The same images flow from staging to production; only the tag changes. Known gap: `cd.yml` builds the `web` image, but `deploy/compose.staging.yml` and `deploy/compose.production.yml` still serve the placeholder page from `deploy/nginx/html` with the stock `nginx` image.
 
 ### Workflows
 
 | File | Trigger | Purpose | Required for |
 | --- | --- | --- | --- |
-| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests with coverage, integration tests, front-end, security scans, bilingual documentation sync, then the `gate` job | Merge (branch protection) and every deploy |
+| `ci.yml` | pull request, push to `main`, tags `v*.*.*` | Build, format, unit + architecture tests (.NET coverage not collected yet), integration tests, front-end, security scans, bilingual documentation sync, then the `gate` job | Merge (branch protection) and every deploy |
 | `codeql.yml` | pull request, push to `main`, weekly | CodeQL for C# and TypeScript | Merge |
 | `cd.yml` | `workflow_run` of `ci` succeeded on `main` or a `v*` tag | `main`: build, attest, scan, deploy staging. Tag: promote images, deploy production | - |
 | `deploy.yml` | `workflow_call` from `cd.yml` | Reusable: `deploy-gate` → `deploy` (environment) → smoke → rollback on failure | - |
-| `mutation.yml` | weekly schedule | Stryker.NET report as artifact | - |
-| `.github/dependabot.yml` | weekly | NuGet, npm, GitHub Actions, Docker base images | - |
+| `mutation.yml` (planned in C57, not created) | weekly schedule | Stryker.NET report as artifact | - |
+| `.github/dependabot.yml` | weekly | NuGet, GitHub Actions, Docker base images of the four .NET hosts (npm and the `web` and `orders-migrator` images are not covered yet) | - |
 
 ### The mandatory deploy gate
 
@@ -496,13 +496,13 @@ No job can deploy without `needs: deploy-gate`, and `deploy.yml` is the only wor
 3. Every image for the commit exists and its build provenance attestation verifies (`gh attestation verify`).
 4. Every image passed Trivy with no fixable HIGH or CRITICAL findings (the `images` job fails otherwise, so nothing unscanned reaches the gate).
 5. The idempotent migration script contains no destructive statement (`DROP TABLE`, `DROP COLUMN`, renames). The only override is the environment variable `ALLOW_DESTRUCTIVE_MIGRATION=true`, set for one deploy after an ADR; destructive changes normally use expand-then-contract over two releases.
-6. Production only: the same commit was deployed to staging with a passing smoke test, the ref is a `v*` tag, and a required reviewer (Tech Lead or PO, not the tag author) approves the `production` environment.
+6. Production only: the same commit was deployed to staging with a passing smoke test (checked by `deploy.yml`), the ref is a `v*` tag (enforced by the `production` environment's deployment-ref rule, not by the workflow), and a required reviewer (Tech Lead or PO, not the tag author) approves the `production` environment.
 
 ### Repository settings (done once in C08)
 
-- Branch protection on `main`: PR required, 1 approval (2 through CODEOWNERS for `*/Domain/**`, messaging, `.github/**`, `deploy/**`), dismiss stale approvals, required checks `ci / gate` and `CodeQL`, linear history, no force pushes, no bypass for admins.
+- Branch protection on `main`: PR required, 1 approval (2 through CODEOWNERS for `*/Domain/**`, messaging, `.github/**`, `deploy/**`), dismiss stale approvals, required checks `gate` (displayed as `ci / gate`) and `CodeQL`, linear history, no force pushes, no bypass for admins.
 - Environments: `staging` (deployment branches: `main` only), `production` (deployment refs: tags `v*` only, required reviewers: Tech Lead + Product Owner, prevent self-review, wait timer 5 minutes). Secrets per environment: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `ENV_FILE`; variables: `APP_URL`.
-- Actions: default `GITHUB_TOKEN` read-only, allow only GitHub-owned and verified actions, every third-party action pinned to a full commit SHA (tags below are what to resolve).
+- Actions: default `GITHUB_TOKEN` read-only, allow only GitHub-owned and verified actions, every third-party action pinned to a full commit SHA (the comment next to each SHA in the listings below gives the tag).
 - Tag protection: only maintainers create `v*` tags.
 
 ### ci.yml
@@ -528,56 +528,83 @@ jobs:
       matrix:
         solution: [orders/Orders.slnx, catalog/Catalog.slnx]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with: { global-json-file: global.json }
       - run: dotnet restore ${{ matrix.solution }} --locked-mode
       - run: dotnet format ${{ matrix.solution }} --verify-no-changes --no-restore
       - run: dotnet build ${{ matrix.solution }} -c Release --no-restore -warnaserror
       - name: OpenAPI documents are up to date
         run: git diff --exit-code -- '*/openapi/*.json'
+      # The solutions use the Microsoft.Testing.Platform runner (global.json), so traits are filtered with
+      # --filter-trait (repeated means OR). Exit code 8 (no test matched in a project) is expected for projects
+      # without that category and is ignored.
+      # Coverage is NOT collected yet: the guide's /p:CollectCoverage (coverlet.msbuild) flags are rejected by the
+      # Microsoft.Testing.Platform runner (exit code 5) and no coverage package is in the tech stack table.
+      # The gates (Domain 90 %, Application 85 %, Bff 80 %) need a decision before they can be enforced.
       - name: Unit and architecture tests with coverage gates
         run: >
-          dotnet test ${{ matrix.solution }} -c Release --no-build
-          --filter "Category=Unit|Category=Architecture"
-          /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
-          # thresholds live in each test .csproj: <Threshold>, <ThresholdType>branch</ThresholdType>
-      - uses: actions/upload-artifact@v4
+          dotnet test --solution ${{ matrix.solution }} -c Release --no-build
+          --filter-trait "Category=Unit" --filter-trait "Category=Architecture"
+          --ignore-exit-code 8
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: coverage-${{ strategy.job-index }}
           path: '**/coverage.cobertura.xml'
+          if-no-files-found: ignore
           retention-days: 14
 
   integration:
     runs-on: ubuntu-latest
     needs: dotnet
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with: { global-json-file: global.json }
-      - run: dotnet test orders/Orders.slnx -c Release --filter "Category=Integration|Category=Resilience"
-      - run: dotnet test catalog/Catalog.slnx -c Release --filter "Category=Integration"
+      - run: >
+          dotnet test --solution orders/Orders.slnx -c Release
+          --filter-trait "Category=Integration" --filter-trait "Category=Resilience"
+          --ignore-exit-code 8
+      - run: >
+          dotnet test --solution catalog/Catalog.slnx -c Release
+          --filter-trait "Category=Integration"
+          --ignore-exit-code 8
 
   web:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: web } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Phase 0 placeholder: web/ is scaffolded in C45; until then this job passes without checks.
+      - id: present
+        run: echo "exists=$([[ -f web/package.json ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.present.outputs.exists != 'true'
+        run: echo "web/ does not exist yet (scaffolded in C45); nothing to check."
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.present.outputs.exists == 'true'
         with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test -- --coverage   # thresholds in vitest.config.ts
-      - run: npm run build
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm ci
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm run lint
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm run typecheck
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm test -- --coverage   # thresholds in vitest.config.ts
+      - if: steps.present.outputs.exists == 'true'
+        working-directory: web
+        run: npm run build
 
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with: { global-json-file: global.json }
       - name: Vulnerable NuGet packages
         run: |
@@ -587,6 +614,7 @@ jobs:
             if grep -q 'has the following vulnerable packages' out.txt; then exit 1; fi
           done
       - name: Vulnerable npm packages
+        if: hashFiles('web/package-lock.json') != ''
         working-directory: web
         run: npm ci && npm audit --audit-level=high
       - name: Secret scan
@@ -597,7 +625,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Bilingual docs are in sync (pt-BR source, en-US mirror)
         run: node scripts/check-docs.mjs
 
@@ -621,10 +649,6 @@ on:
     types: [completed]
 permissions:
   contents: read
-  packages: write
-  id-token: write
-  attestations: write
-  deployments: write
 concurrency:
   group: cd-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
@@ -642,35 +666,43 @@ jobs:
       release: ${{ steps.c.outputs.release }}
       tag: ${{ steps.c.outputs.tag }}
       repo: ${{ steps.c.outputs.repo }}
+      images: ${{ steps.c.outputs.images }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { ref: '${{ github.event.workflow_run.head_sha }}' }
       - id: c
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-          echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"   # GHCR needs lowercase
-          ref="${{ github.event.workflow_run.head_branch }}"
-          if [[ "$ref" == v* ]]; then echo "release=true"; echo "tag=$ref"; else echo "release=false"; fi >> "$GITHUB_OUTPUT"
+          {
+            echo "sha=${HEAD_SHA}"
+            echo "repo=${GITHUB_REPOSITORY,,}"   # GHCR needs lowercase
+            if [[ "$HEAD_BRANCH" == v* ]]; then echo "release=true"; echo "tag=${HEAD_BRANCH}"; else echo "release=false"; fi
+            echo "images=$(bash scripts/images.sh | jq -Rcn '[inputs | split(" ") | {name: .[0], file: .[1]}]')"
+          } >> "$GITHUB_OUTPUT"
 
   images:                       # build once, only on main
     needs: context
     if: needs.context.outputs.release == 'false'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - { name: orders-api,    file: orders/src/Orders.Api/Dockerfile }
-          - { name: orders-worker, file: orders/src/Orders.Worker/Dockerfile }
-          - { name: orders-bff,    file: orders/src/Orders.Bff/Dockerfile }
-          - { name: orders-migrator, file: orders/src/Orders.Infrastructure/Migrator.Dockerfile }
-          - { name: catalog-api,   file: catalog/src/Catalog.Api/Dockerfile }
-          - { name: web,           file: web/Dockerfile }
+        include: ${{ fromJSON(needs.context.outputs.images) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { ref: '${{ needs.context.outputs.sha }}' }
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
       - id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ matrix.file }}
@@ -678,12 +710,15 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: ghcr.io/${{ needs.context.outputs.repo }}/${{ matrix.name }}:sha-${{ needs.context.outputs.sha }}
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-name: ghcr.io/${{ needs.context.outputs.repo }}/${{ matrix.name }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
           image-ref: ghcr.io/${{ needs.context.outputs.repo }}/${{ matrix.name }}@${{ steps.build.outputs.digest }}
           severity: HIGH,CRITICAL
@@ -692,6 +727,12 @@ jobs:
 
   staging:
     needs: [context, images]
+    permissions:
+      contents: read
+      packages: read
+      attestations: read
+      checks: read
+      deployments: read
     uses: ./.github/workflows/deploy.yml
     with: { environment: staging, sha: '${{ needs.context.outputs.sha }}', repo: '${{ needs.context.outputs.repo }}' }
     secrets: inherit
@@ -700,17 +741,31 @@ jobs:
     needs: context
     if: needs.context.outputs.release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { ref: '${{ needs.context.outputs.sha }}' }
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
-      - run: |
-          for img in orders-api orders-worker orders-bff orders-migrator catalog-api web; do
-            src=ghcr.io/${{ needs.context.outputs.repo }}/$img:sha-${{ needs.context.outputs.sha }}
-            docker buildx imagetools create -t "ghcr.io/${{ needs.context.outputs.repo }}/$img:${{ needs.context.outputs.tag }}" "$src"
+      - env:
+          REPO: ${{ needs.context.outputs.repo }}
+          SHA: ${{ needs.context.outputs.sha }}
+          TAG: ${{ needs.context.outputs.tag }}
+        run: |
+          for img in $(bash scripts/images.sh | cut -d' ' -f1); do
+            docker buildx imagetools create -t "ghcr.io/${REPO}/${img}:${TAG}" "ghcr.io/${REPO}/${img}:sha-${SHA}"
           done
 
   production:
     needs: [context, promote]
+    permissions:
+      contents: read
+      packages: read
+      attestations: read
+      checks: read
+      deployments: read
     uses: ./.github/workflows/deploy.yml
     with: { environment: production, sha: '${{ needs.context.outputs.sha }}', repo: '${{ needs.context.outputs.repo }}' }
     secrets: inherit
@@ -730,44 +785,60 @@ permissions:
   contents: read
   packages: read
   attestations: read
+  checks: read
   deployments: read
 
 jobs:
   deploy-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { ref: '${{ inputs.sha }}' }
       - name: Deploy freeze
         if: vars.DEPLOY_FREEZE == 'true'
-        run: { echo "Deploys are frozen"; exit 1; }
-      - name: CI gate passed for this commit
-        env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh api "repos/${GITHUB_REPOSITORY}/commits/${{ inputs.sha }}/check-runs?check_name=gate" \
+          echo "Deploys are frozen"
+          exit 1
+      - name: CI gate passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?check_name=gate" \
             --jq '.check_runs | map(.conclusion) | index("success") != null' | grep -qx true
       - name: Images exist and provenance verifies
-        env: { GH_TOKEN: '${{ github.token }}' }
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ inputs.repo }}
+          SHA: ${{ inputs.sha }}
         run: |
-          for img in orders-api orders-worker orders-bff orders-migrator catalog-api web; do
-            gh attestation verify "oci://ghcr.io/${{ inputs.repo }}/$img:sha-${{ inputs.sha }}" --repo "$GITHUB_REPOSITORY"
+          for img in $(bash scripts/images.sh | cut -d' ' -f1); do
+            gh attestation verify "oci://ghcr.io/${REPO}/${img}:sha-${SHA}" --repo "$GITHUB_REPOSITORY"
           done
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with: { global-json-file: global.json }
       - name: Migration safety
+        env:
+          ALLOW_DESTRUCTIVE_MIGRATION: ${{ vars.ALLOW_DESTRUCTIVE_MIGRATION }}
         run: |
+          if [[ ! -d orders/src/Orders.Infrastructure/Migrations ]]; then
+            echo "No migrations yet (first migration arrives with C17); nothing to check."
+            exit 0
+          fi
           dotnet tool restore
           dotnet ef migrations script --idempotent \
             --project orders/src/Orders.Infrastructure --startup-project orders/src/Orders.Api -o migration.sql
           if grep -Eiq 'DROP (TABLE|COLUMN)|RENAME (TO|COLUMN)' migration.sql \
-             && [[ "${{ vars.ALLOW_DESTRUCTIVE_MIGRATION }}" != 'true' ]]; then
+             && [[ "${ALLOW_DESTRUCTIVE_MIGRATION}" != 'true' ]]; then
             echo "Destructive migration: needs an ADR and an expand/contract release"; exit 1
           fi
       - name: Production requires a successful staging deploy of the same commit
         if: inputs.environment == 'production'
-        env: { GH_TOKEN: '${{ github.token }}' }
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
         run: |
-          id=$(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${{ inputs.sha }}&environment=staging" --jq '.[0].id')
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${SHA}&environment=staging" --jq '.[0].id')
           [[ -n "$id" ]] || { echo "Commit never reached staging"; exit 1; }
           gh api "repos/${GITHUB_REPOSITORY}/deployments/$id/statuses" --jq '.[0].state' | grep -qx success
 
@@ -776,22 +847,30 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}     # production: required reviewers approve here
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { ref: '${{ inputs.sha }}' }
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
       - name: Deploy by digest
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           ENV_FILE: ${{ secrets.ENV_FILE }}
-        run: bash scripts/deploy.sh "${{ inputs.environment }}" "${{ inputs.repo }}" "sha-${{ inputs.sha }}"
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          REPO: ${{ inputs.repo }}
+          SHA: ${{ inputs.sha }}
+        run: bash scripts/deploy.sh "$TARGET_ENVIRONMENT" "$REPO" "sha-${SHA}"
       - name: Smoke test
-        run: bash scripts/smoke.sh "${{ vars.APP_URL }}"
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: bash scripts/smoke.sh "$APP_URL"
       - name: Roll back to the previous release
         if: failure()
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: bash scripts/deploy.sh "${{ inputs.environment }}" --rollback
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        run: bash scripts/deploy.sh "$TARGET_ENVIRONMENT" --rollback
 ```
 
 `scripts/deploy.sh` (written in C08, completed in C54): copies `deploy/compose.<env>.yml` and the env file to the host over SSH, resolves each image tag to its digest, records the previous digests in `releases/previous.env`, runs the migrator, then `docker compose up -d --wait`; `--rollback` re-applies `releases/previous.env`. Database migrations are backward compatible, so rolling back the services never needs a database rollback.

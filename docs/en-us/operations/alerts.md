@@ -1,6 +1,6 @@
 # Metrics and alerts
 
-Orders' services export custom metrics through OpenTelemetry (the `Orders` meter). The Aspire Dashboard, from the `observability` profile, shows the values; the stack has no alerting engine, so this document fixes **the thresholds** any engine (or a person watching the dashboard) should use. The names below are the ones the dashboard shows.
+Orders' services export custom metrics through OpenTelemetry (the `Orders` meter). The Aspire Dashboard, from the `observability` profile, shows the values (as long as `OTEL_EXPORTER_OTLP_ENDPOINT` is set on the services, which `docker-compose.yml` does not do yet; see the [README](../../../README-en-us.md#run)); the stack has no alerting engine, so this document fixes **the thresholds** any engine (or a person watching the dashboard) should use. The names below are the ones the dashboard shows.
 
 ## Custom metrics
 

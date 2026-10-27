@@ -1,6 +1,6 @@
 # Métricas e alertas
 
-Os serviços do Orders exportam métricas customizadas por OpenTelemetry (medidor `Orders`). O Aspire Dashboard, do profile `observability`, mostra os valores; a pilha não tem um motor de alertas, então este documento fixa **os limites** que qualquer motor (ou uma pessoa olhando o painel) deve usar. Os nomes abaixo são os que aparecem no painel.
+Os serviços do Orders exportam métricas customizadas por OpenTelemetry (medidor `Orders`). O Aspire Dashboard, do profile `observability`, mostra os valores (desde que `OTEL_EXPORTER_OTLP_ENDPOINT` esteja definida nos serviços, o que o `docker-compose.yml` ainda não faz; veja o [README](../../../README.md#executar)); a pilha não tem um motor de alertas, então este documento fixa **os limites** que qualquer motor (ou uma pessoa olhando o painel) deve usar. Os nomes abaixo são os que aparecem no painel.
 
 ## Métricas customizadas
 
