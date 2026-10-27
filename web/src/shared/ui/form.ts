@@ -116,7 +116,7 @@ export function errorSummary(): {
 
   return {
     element,
-    show(messages, heading = 'Fix these before continuing:') {
+    show(messages, heading = 'Corrija estes itens antes de continuar:') {
       element.replaceChildren(
         h('p', { className: 'mb-1 fw-semibold', text: heading }),
         h('ul', { className: 'mb-0' }, ...messages.map((message) => h('li', { text: message }))),

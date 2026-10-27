@@ -22,6 +22,7 @@ import {
   type FixedAmountParameters,
   type PercentageParameters,
   type TieredParameters,
+  discountTypeLabel,
 } from '../domain/rules';
 import { createConditionsEditor, type ConditionsEditor } from './conditionsEditor';
 import { PreconditionFailedError } from '../../shared/api/errors';
@@ -52,7 +53,8 @@ interface Parameters {
   readonly read: () => DiscountParameters;
 }
 
-const staleRule = 'This rule was changed by someone else. Reload the list and open it again.';
+const staleRule =
+  'Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.';
 
 /** Discount rules: the list, an editor with a form for each type of strategy, a conditions builder and a preview. */
 export function mountDiscountRules(container: HTMLElement, options: DiscountRulesOptions): void {
@@ -67,38 +69,38 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
     className: 'alert alert-danger d-flex align-items-center gap-3',
     attrs: { role: 'alert' },
   });
-  const activeFilter = checkbox('Active only', false);
+  const activeFilter = checkbox('Somente ativas', false);
   const create = h('button', {
     className: 'btn btn-primary btn-sm',
-    text: 'New rule',
+    text: 'Nova regra',
     attrs: { type: 'button' },
   });
   const body = h('tbody');
   const table = h(
     'table',
     { className: 'table align-middle' },
-    h('caption', { className: 'visually-hidden', text: 'Discount rules' }),
+    h('caption', { className: 'visually-hidden', text: 'Regras de desconto' }),
     h(
       'thead',
       {},
       h(
         'tr',
         {},
-        ...['Name', 'Type', 'Priority', 'Valid', 'Version', 'State', 'Actions'].map((name) =>
+        ...['Nome', 'Tipo', 'Prioridade', 'Validade', 'Versão', 'Situação', 'Ações'].map((name) =>
           h('th', { text: name, attrs: { scope: 'col' } }),
         ),
       ),
     ),
     body,
   );
-  const empty = h('p', { text: 'There are no discount rules.' });
+  const empty = h('p', { text: 'Não há regras de desconto.' });
   const editor = h('div');
 
   container.append(
     h(
       'section',
       { attrs: { 'aria-labelledby': 'discount-heading' } },
-      h('h2', { className: 'h4', text: 'Discount rules', attrs: { id: 'discount-heading' } }),
+      h('h2', { className: 'h4', text: 'Regras de desconto', attrs: { id: 'discount-heading' } }),
       h(
         'div',
         { className: 'd-flex flex-wrap align-items-center gap-3 mb-2' },
@@ -123,25 +125,29 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
         ? []
         : [
             h('span', { text: failure }),
-            actionButton('Try again', 'btn btn-sm btn-outline-danger ms-auto', () => void load()),
+            actionButton(
+              'Tentar novamente',
+              'btn btn-sm btn-outline-danger ms-auto',
+              () => void load(),
+            ),
           ]),
     );
   }
 
   function rowOf(rule: DiscountRule): HTMLElement {
-    const edit = actionButton('Edit', 'btn btn-outline-primary btn-sm', () => {
+    const edit = actionButton('Editar', 'btn btn-outline-primary btn-sm', () => {
       openEditor(rule);
     });
-    edit.setAttribute('aria-label', `Edit ${rule.name}`);
+    edit.setAttribute('aria-label', `Editar ${rule.name}`);
     const actions = h('td', { className: 'd-flex gap-2' }, edit);
 
     if (rule.isActive) {
       const deactivate = actionButton(
-        'Deactivate',
+        'Desativar',
         'btn btn-outline-danger btn-sm',
         () => void deactivateRule(rule),
       );
-      deactivate.setAttribute('aria-label', `Deactivate ${rule.name}`);
+      deactivate.setAttribute('aria-label', `Desativar ${rule.name}`);
       actions.append(deactivate);
     }
 
@@ -149,11 +155,11 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
       'tr',
       {},
       h('th', { text: rule.name, attrs: { scope: 'row' } }),
-      h('td', { text: rule.type }),
+      h('td', { text: discountTypeLabel(rule.type) }),
       h('td', { text: String(rule.priority) }),
       h('td', { text: validity(rule) }),
       h('td', { text: String(rule.version) }),
-      h('td', { text: rule.isActive ? 'Active' : 'Inactive' }),
+      h('td', { text: rule.isActive ? 'Ativa' : 'Inativa' }),
       actions,
     );
   }
@@ -171,7 +177,7 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
       if (mine !== generation) {
         return;
       }
-      failure = errorMessage(error, 'The discount rules could not be loaded.');
+      failure = errorMessage(error, 'Não foi possível carregar as regras de desconto.');
     }
     loaded = true;
     render();
@@ -179,10 +185,10 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
 
   async function deactivateRule(rule: DiscountRule): Promise<void> {
     const yes = await confirmAction({
-      title: `Deactivate "${rule.name}"?`,
+      title: `Desativar "${rule.name}"?`,
       message:
-        'Orders stop using the rule from now on. Orders already placed keep the version they used.',
-      confirmLabel: 'Deactivate',
+        'Os pedidos deixam de usar a regra a partir de agora. Os pedidos já feitos mantêm a versão que usaram.',
+      confirmLabel: 'Desativar',
     });
 
     if (!yes) {
@@ -191,13 +197,13 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
     let problem: string | undefined;
     try {
       const stored = await deactivateDiscountRule(options.http, rule.id, rule.version);
-      status.textContent = `Deactivated "${stored.name}" (version ${String(stored.version)}).`;
+      status.textContent = `Regra "${stored.name}" desativada (versão ${String(stored.version)}).`;
     } catch (error) {
       status.textContent = '';
       problem =
         error instanceof PreconditionFailedError
           ? staleRule
-          : errorMessage(error, 'The rule could not be deactivated.');
+          : errorMessage(error, 'Não foi possível desativar a regra.');
     }
     await load();
     if (problem !== undefined) {
@@ -210,7 +216,7 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
     const form = buildEditor(options.http, rules, rule, {
       saved: (stored) => {
         editor.replaceChildren();
-        status.textContent = `Saved "${stored.name}" as version ${String(stored.version)}.`;
+        status.textContent = `Regra "${stored.name}" salva como versão ${String(stored.version)}.`;
         void load();
         create.focus();
       },
@@ -267,13 +273,13 @@ function buildEditor(
   const summary = errorSummary();
   const name = textInput(initial.name);
   const typeSelect = selectOf(
-    discountTypes.map((value) => [value, value] as const),
+    discountTypes.map((value) => [value, discountTypeLabel(value)] as const),
     initial.type,
   );
   const priority = numberInput(initial.priority, { step: '1' });
-  const stackable = checkbox('Stackable', initial.stackable);
-  const oncePerClient = checkbox('Once per client', initial.oncePerClient);
-  const active = checkbox('Active', initial.isActive);
+  const stackable = checkbox('Cumulativa', initial.stackable);
+  const oncePerClient = checkbox('Uma vez por cliente', initial.oncePerClient);
+  const active = checkbox('Ativa', initial.isActive);
   const validFrom = dateTimeInput(toLocalInput(initial.validFrom));
   const validTo = dateTimeInput(toLocalInput(initial.validTo));
   const parametersBox = h('div');
@@ -342,8 +348,8 @@ function buildEditor(
     } catch (error) {
       const stale = error instanceof PreconditionFailedError;
       summary.show(
-        [stale ? staleRule : errorMessage(error, 'The rule could not be saved.')],
-        'Not saved:',
+        [stale ? staleRule : errorMessage(error, 'Não foi possível salvar a regra.')],
+        'Não salvo:',
       );
       if (stale) {
         events.stale();
@@ -357,22 +363,26 @@ function buildEditor(
     'form',
     {
       className: 'border rounded p-3 mt-3',
-      attrs: { 'aria-label': 'Rule editor', novalidate: '' },
+      attrs: { 'aria-label': 'Editor de regra', novalidate: '' },
     },
     h('h3', {
       className: 'h5',
       text:
         existing === undefined
-          ? 'New discount rule'
-          : `Edit ${existing.name} (version ${String(existing.version)})`,
+          ? 'Nova regra de desconto'
+          : `Editar ${existing.name} (versão ${String(existing.version)})`,
     }),
     summary.element,
     h(
       'div',
       { className: 'row' },
-      h('div', { className: 'col-md-6' }, labelled('Name', name)),
-      h('div', { className: 'col-md-3' }, labelled('Type', typeSelect)),
-      h('div', { className: 'col-md-3' }, labelled('Priority', priority, 'Lower runs first.')),
+      h('div', { className: 'col-md-6' }, labelled('Nome', name)),
+      h('div', { className: 'col-md-3' }, labelled('Tipo', typeSelect)),
+      h(
+        'div',
+        { className: 'col-md-3' },
+        labelled('Prioridade', priority, 'O menor valor roda primeiro.'),
+      ),
     ),
     parametersBox,
     h(
@@ -381,9 +391,13 @@ function buildEditor(
       h(
         'div',
         { className: 'col-md-6' },
-        labelled('Valid from', validFrom, 'Leave empty to start now.'),
+        labelled('Válida a partir de', validFrom, 'Deixe em branco para começar agora.'),
       ),
-      h('div', { className: 'col-md-6' }, labelled('Valid to', validTo, 'Leave empty for no end.')),
+      h(
+        'div',
+        { className: 'col-md-6' },
+        labelled('Válida até', validTo, 'Deixe em branco para não ter fim.'),
+      ),
     ),
     stackable.element,
     oncePerClient.element,
@@ -393,8 +407,8 @@ function buildEditor(
     h(
       'div',
       { className: 'd-flex gap-2 mb-3' },
-      actionButton('Save rule', 'btn btn-primary', () => void save(), 'submit'),
-      actionButton('Cancel', 'btn btn-outline-secondary', events.closed),
+      actionButton('Salvar regra', 'btn btn-primary', () => void save(), 'submit'),
+      actionButton('Cancelar', 'btn btn-outline-secondary', events.closed),
     ),
     preview,
   );
@@ -426,8 +440,8 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
       const percentInput = numberInput(percent, { min: '0', max: '100' });
       const scope = selectOf(
         [
-          ['order', 'The whole order'],
-          ['line', 'Each line'],
+          ['order', 'O pedido inteiro'],
+          ['line', 'Cada linha'],
         ],
         appliesTo,
       );
@@ -436,8 +450,8 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
         element: h(
           'div',
           { className: 'row' },
-          h('div', { className: 'col-md-6' }, labelled('Percent', percentInput)),
-          h('div', { className: 'col-md-6' }, labelled('Applies to', scope)),
+          h('div', { className: 'col-md-6' }, labelled('Percentual', percentInput)),
+          h('div', { className: 'col-md-6' }, labelled('Aplica-se a', scope)),
         ),
         read: () => ({ percent: percentInput.valueAsNumber, appliesTo: scope.value as AppliesTo }),
       };
@@ -454,19 +468,19 @@ function parametersFor(type: DiscountType, value: DiscountParameters): Parameter
         element: h(
           'div',
           { className: 'row' },
-          h('div', { className: 'col-md-3' }, labelled('Buy', buyInput)),
+          h('div', { className: 'col-md-3' }, labelled('Compre', buyInput)),
           h(
             'div',
             { className: 'col-md-3' },
-            labelled('Get', getInput, 'Units given free for every Buy bought.'),
+            labelled('Leve', getInput, 'Unidades dadas de graça a cada Compre comprado.'),
           ),
           h(
             'div',
             { className: 'col-md-6' },
             labelled(
-              'Only these SKUs (optional)',
+              'Somente estes SKUs (opcional)',
               only,
-              'Separate with commas. Leave empty for every SKU.',
+              'Separe por vírgulas. Deixe em branco para todos os SKUs.',
             ),
           ),
         ),
@@ -503,7 +517,7 @@ function rowsEditor<T>(
 
   function addRow(value: T): HTMLElement {
     const { fields, read } = fieldsOf(value);
-    const remove = actionButton('Remove', 'btn btn-outline-danger btn-sm', () => {
+    const remove = actionButton('Remover', 'btn btn-outline-danger btn-sm', () => {
       rows.splice(rows.indexOf(row), 1);
       row.element.remove();
       renumber();
@@ -551,9 +565,9 @@ function rowsEditor<T>(
 
 function fixedAmountFields(value: FixedAmountParameters): Parameters {
   const amounts = rowsEditor(
-    'Amounts off',
-    'Add amount',
-    'Remove amount',
+    'Valores de desconto',
+    'Adicionar valor',
+    'Remover valor',
     value.amounts,
     () => ({ currency: 'BRL', amount: Number.NaN }),
     (item) => {
@@ -562,8 +576,8 @@ function fixedAmountFields(value: FixedAmountParameters): Parameters {
 
       return {
         fields: [
-          h('div', { className: 'col-md-4' }, labelled('Currency', currency)),
-          h('div', { className: 'col-md-4' }, labelled('Amount', amount)),
+          h('div', { className: 'col-md-4' }, labelled('Moeda', currency)),
+          h('div', { className: 'col-md-4' }, labelled('Valor', amount)),
         ],
         read: () => ({ currency: currency.value, amount: amount.valueAsNumber }),
       };
@@ -576,9 +590,9 @@ function fixedAmountFields(value: FixedAmountParameters): Parameters {
 function tieredFields(value: TieredParameters): Parameters {
   const currency = textInput(value.currency, { maxlength: '3' });
   const tiers = rowsEditor(
-    'Bands',
-    'Add band',
-    'Remove band',
+    'Faixas',
+    'Adicionar faixa',
+    'Remover faixa',
     value.tiers,
     () => ({ minSubtotal: Number.NaN, percent: Number.NaN }),
     (tier) => {
@@ -587,8 +601,8 @@ function tieredFields(value: TieredParameters): Parameters {
 
       return {
         fields: [
-          h('div', { className: 'col-md-4' }, labelled('Min subtotal', minimum)),
-          h('div', { className: 'col-md-4' }, labelled('Percent', percent)),
+          h('div', { className: 'col-md-4' }, labelled('Subtotal mínimo', minimum)),
+          h('div', { className: 'col-md-4' }, labelled('Percentual', percent)),
         ],
         read: () => ({ minSubtotal: minimum.valueAsNumber, percent: percent.valueAsNumber }),
       };
@@ -599,7 +613,7 @@ function tieredFields(value: TieredParameters): Parameters {
     element: h(
       'div',
       {},
-      h('div', { className: 'col-md-4' }, labelled('Currency', currency)),
+      h('div', { className: 'col-md-4' }, labelled('Moeda', currency)),
       tiers.element,
     ),
     read: () => ({ currency: currency.value, tiers: tiers.read() }),
@@ -615,12 +629,12 @@ function buildPreview(
   summary: ReturnType<typeof errorSummary>,
 ): HTMLElement {
   const currency = textInput('BRL', { maxlength: '3' });
-  const result = h('section', { attrs: { 'aria-label': 'Preview result' } });
+  const result = h('section', { attrs: { 'aria-label': 'Resultado da simulação' } });
   result.hidden = true;
   const items = rowsEditor(
-    'Sample cart',
-    'Add sample item',
-    'Remove sample item',
+    'Carrinho de exemplo',
+    'Adicionar item de exemplo',
+    'Remover item de exemplo',
     [{ sku: '', quantity: 1 }],
     () => ({ sku: '', quantity: 1 }),
     (item) => {
@@ -629,8 +643,8 @@ function buildPreview(
 
       return {
         fields: [
-          h('div', { className: 'col-md-5' }, labelled('Preview SKU', sku)),
-          h('div', { className: 'col-md-3' }, labelled('Preview quantity', quantity)),
+          h('div', { className: 'col-md-5' }, labelled('SKU da simulação', sku)),
+          h('div', { className: 'col-md-3' }, labelled('Quantidade da simulação', quantity)),
         ],
         read: () => ({ sku: sku.value.trim(), quantity: quantity.valueAsNumber }),
       };
@@ -647,7 +661,7 @@ function buildPreview(
       cart.length === 0 ||
       !cart.every((item) => Number.isInteger(item.quantity) && item.quantity >= 1)
     ) {
-      summary.show(['Add at least one SKU with a quantity of 1 or more to the sample cart.']);
+      summary.show(['Adicione ao carrinho de exemplo pelo menos um SKU com quantidade 1 ou mais.']);
       return;
     }
 
@@ -663,21 +677,21 @@ function buildPreview(
       result.hidden = false;
     } catch (error) {
       result.hidden = true;
-      summary.show([errorMessage(error, 'The preview failed.')], 'No preview:');
+      summary.show([errorMessage(error, 'A simulação falhou.')], 'Sem simulação:');
     }
   }
 
   return h(
     'fieldset',
     { className: 'border-top pt-3' },
-    h('legend', { className: 'h5', text: 'Preview' }),
+    h('legend', { className: 'h5', text: 'Simulação' }),
     h('p', {
       className: 'text-body-secondary',
-      text: 'Prices a sample cart with the rule as it is in the form. Nothing is saved.',
+      text: 'Precifica um carrinho de exemplo com a regra como está no formulário. Nada é salvo.',
     }),
-    h('div', { className: 'col-md-3' }, labelled('Preview currency', currency)),
+    h('div', { className: 'col-md-3' }, labelled('Moeda da simulação', currency)),
     items.element,
-    actionButton('Preview rule', 'btn btn-outline-primary mb-3', () => void run()),
+    actionButton('Simular regra', 'btn btn-outline-primary mb-3', () => void run()),
     result,
   );
 }
@@ -700,19 +714,19 @@ function previewRows(
       { className: 'row' },
       h('dt', { className: 'col-6', text: 'Subtotal' }),
       h('dd', { className: 'col-6 text-end', text: money(preview.quote.subtotal) }),
-      h('dt', { className: 'col-6', text: 'Discounts' }),
+      h('dt', { className: 'col-6', text: 'Descontos' }),
       h('dd', { className: 'col-6 text-end', text: `-${money(preview.quote.discountTotal)}` }),
       h('dt', { className: 'col-6', text: 'Total' }),
       h('dd', { className: 'col-6 text-end fw-semibold', text: money(preview.quote.total) }),
     ),
     preview.applied.length === 0
-      ? h('p', { text: 'No rule applies to this cart.' })
+      ? h('p', { text: 'Nenhuma regra se aplica a este carrinho.' })
       : h(
           'ul',
           {},
           ...preview.applied.map((applied) =>
             h('li', {
-              text: `${nameOf(applied.ruleId)} (version ${String(applied.ruleVersion)}): -${money(applied.amount)}`,
+              text: `${nameOf(applied.ruleId)} (versão ${String(applied.ruleVersion)}): -${money(applied.amount)}`,
             }),
           ),
         ),
@@ -721,6 +735,6 @@ function previewRows(
 
 function validity(rule: DiscountRule): string {
   return rule.validTo === null
-    ? `From ${formatDateTime(rule.validFrom)}`
+    ? `A partir de ${formatDateTime(rule.validFrom)}`
     : `${formatDateTime(rule.validFrom)} – ${formatDateTime(rule.validTo)}`;
 }

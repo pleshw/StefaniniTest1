@@ -34,7 +34,7 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
     h(
       'section',
       { attrs: { 'aria-labelledby': 'onhold-heading' } },
-      h('h2', { className: 'h4', text: 'OnHold queue', attrs: { id: 'onhold-heading' } }),
+      h('h2', { className: 'h4', text: 'Fila em espera', attrs: { id: 'onhold-heading' } }),
       status,
       alertBox,
       list,
@@ -45,12 +45,12 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
     list.replaceChildren(...orders.map(item));
     list.hidden = orders.length === 0;
     status.textContent = !loaded
-      ? 'Loading the queue…'
+      ? 'Carregando a fila…'
       : failure !== undefined
         ? ''
         : orders.length === 0
-          ? 'No orders are on hold.'
-          : `${String(orders.length)} ${orders.length === 1 ? 'order' : 'orders'} waiting`;
+          ? 'Nenhum pedido em espera.'
+          : `${String(orders.length)} ${orders.length === 1 ? 'pedido aguardando' : 'pedidos aguardando'}`;
     alertBox.hidden = failure === undefined;
     alertBox.replaceChildren(
       ...(failure === undefined ? [] : [h('span', { text: failure }), retry()]),
@@ -61,7 +61,7 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
     const inspect = h('button', {
       className: 'btn btn-link p-0',
       text: order.number,
-      attrs: { type: 'button', 'aria-label': `Inspect ${order.number}` },
+      attrs: { type: 'button', 'aria-label': `Inspecionar ${order.number}` },
     });
     inspect.addEventListener('click', () => {
       options.onInspect(order.id);
@@ -81,7 +81,7 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
   function retry(): HTMLButtonElement {
     const button = h('button', {
       className: 'btn btn-sm btn-outline-danger ms-auto',
-      text: 'Try again',
+      text: 'Tentar novamente',
       attrs: { type: 'button' },
     });
     button.addEventListener('click', refresh);
@@ -99,7 +99,7 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
         }
         loaded = true;
         if (answer.onHold === null) {
-          failure = 'The OnHold queue could not be loaded.';
+          failure = 'Não foi possível carregar a fila em espera.';
         } else {
           failure = undefined;
           orders = answer.onHold;
@@ -111,7 +111,7 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
           return;
         }
         loaded = true;
-        failure = errorMessage(error, 'The OnHold queue could not be loaded.');
+        failure = errorMessage(error, 'Não foi possível carregar a fila em espera.');
         render();
       },
     );

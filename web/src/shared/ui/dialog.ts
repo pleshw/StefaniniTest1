@@ -39,7 +39,7 @@ export function askReason(options: ReasonDialog): Promise<string | null> {
   });
   const cancel = h('button', {
     className: 'btn btn-outline-secondary',
-    text: 'Cancel',
+    text: 'Cancelar',
     attrs: { type: 'button' },
   });
   const form = h(
@@ -49,7 +49,7 @@ export function askReason(options: ReasonDialog): Promise<string | null> {
     ...(options.message === undefined ? [] : [h('p', { text: options.message })]),
     h('label', {
       className: 'form-label',
-      text: options.required ? options.label : `${options.label} (optional)`,
+      text: options.required ? options.label : `${options.label} (opcional)`,
       attrs: { for: `${id}-reason` },
     }),
     field,
@@ -72,7 +72,7 @@ export function askReason(options: ReasonDialog): Promise<string | null> {
       if (options.required && reason === '') {
         field.classList.add('is-invalid');
         field.setAttribute('aria-invalid', 'true');
-        error.textContent = `${options.label} is required.`;
+        error.textContent = `${options.label} é obrigatório.`;
         field.focus();
         return;
       }
@@ -114,7 +114,7 @@ export function confirmAction(options: ConfirmDialog): Promise<boolean> {
   });
   const cancel = h('button', {
     className: 'btn btn-outline-secondary',
-    text: 'Cancel',
+    text: 'Cancelar',
     attrs: { type: 'button' },
   });
   const dialog = h(

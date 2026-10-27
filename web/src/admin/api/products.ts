@@ -42,7 +42,7 @@ export interface ProductChange {
 /** The product changed between the reads of two currencies, and kept changing. */
 export class ProductChangedWhileReadingError extends Error {
   constructor() {
-    super('The product changed while it was being read. Try again.');
+    super('O produto mudou enquanto era lido. Tente novamente.');
     this.name = 'ProductChangedWhileReadingError';
   }
 }

@@ -9,6 +9,7 @@ import { rowOf } from '../domain/feed';
 import { PreconditionFailedError } from '../../shared/api/errors';
 import type { HttpClient } from '../../shared/api/http';
 import { formatDateTime } from '../../shared/domain/dates';
+import { statusView } from '../../shared/domain/status';
 import { timelineOf } from '../../shared/domain/orderTimeline';
 import type { TimelineEntry } from '../../shared/domain/timeline';
 import { askReason } from '../../shared/ui/dialog';
@@ -33,20 +34,24 @@ const actionTexts: Readonly<
   Record<OrderAction, { button: string; title: (number: string) => string; confirm: string }>
 > = {
   confirm: {
-    button: 'Confirm',
-    title: (number) => `Confirm order ${number}`,
-    confirm: 'Confirm order',
+    button: 'Confirmar',
+    title: (number) => `Confirmar pedido ${number}`,
+    confirm: 'Confirmar pedido',
   },
   hold: {
-    button: 'Hold',
-    title: (number) => `Put order ${number} on hold`,
-    confirm: 'Put on hold',
+    button: 'Colocar em espera',
+    title: (number) => `Colocar o pedido ${number} em espera`,
+    confirm: 'Colocar em espera',
   },
-  block: { button: 'Block', title: (number) => `Block order ${number}`, confirm: 'Block order' },
+  block: {
+    button: 'Bloquear',
+    title: (number) => `Bloquear pedido ${number}`,
+    confirm: 'Bloquear pedido',
+  },
   cancel: {
-    button: 'Cancel',
-    title: (number) => `Cancel order ${number}`,
-    confirm: 'Cancel order',
+    button: 'Cancelar',
+    title: (number) => `Cancelar pedido ${number}`,
+    confirm: 'Cancelar pedido',
   },
 };
 
@@ -62,7 +67,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
 
   const heading = h('h2', {
     className: 'h4',
-    text: 'Order inspector',
+    text: 'Inspetor de pedidos',
     attrs: { id: 'inspector-heading', tabindex: '-1' },
   });
   const body = h('div');
@@ -75,7 +80,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       body.replaceChildren(
         h('p', {
           className: 'text-body-secondary',
-          text: 'Choose an order from the live events or the OnHold queue.',
+          text: 'Escolha um pedido nos eventos ao vivo ou na fila em espera.',
         }),
       );
       return;
@@ -87,7 +92,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       return;
     }
     if (current === undefined) {
-      body.replaceChildren(h('p', { text: 'Loading order…', attrs: { role: 'status' } }));
+      body.replaceChildren(h('p', { text: 'Carregando pedido…', attrs: { role: 'status' } }));
       return;
     }
     const { order } = current;
@@ -101,7 +106,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       ),
       h('p', {
         className: 'mb-2 text-body-secondary',
-        text: `Client: ${order.client.name} · Channel: ${order.channel}`,
+        text: `Cliente: ${order.client.name} · Canal: ${order.channel}`,
       }),
       actionButtons(order.status, order.number),
       eventsTable(current),
@@ -115,7 +120,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       found.push(
         h('div', {
           className: 'alert alert-warning',
-          text: `Some parts could not be loaded: ${view.unavailable.join(', ')}.`,
+          text: `Algumas partes não puderam ser carregadas: ${view.unavailable.join(', ')}.`,
           attrs: { role: 'alert' },
         }),
       );
@@ -129,7 +134,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       if (actionError.stale) {
         const reload = h('button', {
           className: 'btn btn-sm btn-outline-danger ms-auto',
-          text: 'Reload',
+          text: 'Recarregar',
           attrs: { type: 'button' },
         });
         reload.addEventListener('click', () => {
@@ -163,7 +168,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       'div',
       {
         className: 'd-flex flex-wrap gap-2 my-3',
-        attrs: { role: 'group', 'aria-label': 'Order actions' },
+        attrs: { role: 'group', 'aria-label': 'Ações do pedido' },
       },
       ...buttons,
     );
@@ -175,23 +180,24 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
     return h(
       'div',
       {},
-      h('h4', { className: 'h6', text: 'Events' }),
+      h('h4', { className: 'h6', text: 'Eventos' }),
       events.length === 0
         ? h('p', {
             className: 'text-body-secondary',
-            text: view.events === null ? 'Events are not available.' : 'No events yet.',
+            text:
+              view.events === null ? 'Os eventos não estão disponíveis.' : 'Ainda não há eventos.',
           })
         : h(
             'table',
             { className: 'table table-sm' },
-            h('caption', { className: 'visually-hidden', text: 'Events' }),
+            h('caption', { className: 'visually-hidden', text: 'Eventos' }),
             h(
               'thead',
               {},
               h(
                 'tr',
                 {},
-                ...['Time', 'Event', 'Details'].map((name) =>
+                ...['Hora', 'Evento', 'Detalhes'].map((name) =>
                   h('th', { text: name, attrs: { scope: 'col' } }),
                 ),
               ),
@@ -233,7 +239,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       if (mine !== generation) {
         return;
       }
-      loadError = errorMessage(error, 'The order could not be loaded.');
+      loadError = errorMessage(error, 'Não foi possível carregar o pedido.');
     }
     render();
   }
@@ -246,7 +252,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
     const texts = actionTexts[action];
     const reason = await askReason({
       title: texts.title(number),
-      label: 'Reason',
+      label: 'Motivo',
       confirmLabel: texts.confirm,
       required: reasonRequired(action),
       maxLength: maxReasonLength,
@@ -264,7 +270,7 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
         reason,
         rowVersion: view.order.rowVersion,
       });
-      message = `Order ${updated.number} is now ${updated.status}.`;
+      message = `O pedido ${updated.number} agora está ${statusView(updated.status).label}.`;
       busy = false;
       options.onChanged();
       await load(updated.id, false);
@@ -273,8 +279,8 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       actionError = {
         message:
           error instanceof PreconditionFailedError
-            ? 'This order was changed by someone else. Reload it to see its current state.'
-            : errorMessage(error, 'The action failed.'),
+            ? 'Este pedido foi alterado por outra pessoa. Recarregue-o para ver o estado atual.'
+            : errorMessage(error, 'A ação falhou.'),
         stale: error instanceof PreconditionFailedError,
       };
     }
@@ -296,11 +302,14 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
 function historyTimeline(history: readonly OrderStatusChange[]): readonly TimelineEntry[] {
   return history.map((change) => ({
     status: change.to,
-    label: change.from === null ? 'Placed' : `${change.from} → ${change.to}`,
+    label:
+      change.from === null
+        ? 'Pedido realizado'
+        : `${statusView(change.from).label} → ${statusView(change.to).label}`,
     at: change.changedAt,
     note:
       change.reason === null || change.reason === ''
-        ? `by ${change.actor}`
-        : `by ${change.actor}: ${change.reason}`,
+        ? `por ${change.actor}`
+        : `por ${change.actor}: ${change.reason}`,
   }));
 }

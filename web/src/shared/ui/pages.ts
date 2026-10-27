@@ -1,6 +1,6 @@
 import type { NavLink } from './layout';
 
 export const pageLinks: readonly NavLink[] = [
-  { label: 'Shop', href: '/shop.html' },
-  { label: 'Admin', href: '/admin.html' },
+  { label: 'Loja', href: '/shop.html' },
+  { label: 'Administração', href: '/admin.html' },
 ];

@@ -113,7 +113,7 @@ describe('live events', () => {
     send(changed(2, 'Pending', 'OnHold'));
 
     const [first, second] = rows(container);
-    expect(first?.textContent).toContain('Pending → OnHold by system:worker: Rule');
+    expect(first?.textContent).toContain('Pendente → Em espera por system:worker: Rule');
     expect(first?.querySelector('.badge')?.className).toContain('text-bg-warning');
     expect(second?.textContent).toContain('OrderPlaced.v1');
   });
@@ -154,7 +154,7 @@ describe('live events', () => {
     const { container, send, onInspect } = mount();
     send(placed(1));
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Inspect ORD-1' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Inspecionar ORD-1' }));
 
     expect(onInspect).toHaveBeenCalledExactlyOnceWith(orderId);
   });
@@ -222,7 +222,7 @@ describe('pause and filters', () => {
       target: { value: 'OnHold' },
     });
     expect(rows(container)).toHaveLength(1);
-    expect(rows(container)[0]?.textContent).toContain('Pending → OnHold');
+    expect(rows(container)[0]?.textContent).toContain('Pendente → Em espera');
 
     fireEvent.change(getByRole(container, 'combobox', { name: 'Event type' }), {
       target: { value: '' },

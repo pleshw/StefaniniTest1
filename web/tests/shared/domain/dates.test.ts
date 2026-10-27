@@ -9,9 +9,9 @@ describe('formatDateTime', () => {
     expect(formatDateTime('2026-10-26T12:00:00Z', 'pt-BR')).toMatch(/^26 de out\. de 2026/);
   });
 
-  it('defaults to en-US and reuses the formatter', () => {
+  it('defaults to pt-BR and reuses the formatter', () => {
     expect(formatDateTime('2026-10-26T12:00:00Z')).toBe(
-      formatDateTime('2026-10-26T12:00:00Z', 'en-US'),
+      formatDateTime('2026-10-26T12:00:00Z', 'pt-BR'),
     );
   });
 

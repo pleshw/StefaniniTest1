@@ -26,7 +26,7 @@ interface Row {
 export function createConditionsEditor(
   kinds: readonly ConditionKind[],
   initial: readonly Condition[],
-  legend = 'Conditions',
+  legend = 'Condições',
 ): ConditionsEditor {
   const rows: Row[] = [];
   const list = h('div');
@@ -36,7 +36,7 @@ export function createConditionsEditor(
   );
   const add = h('button', {
     className: 'btn btn-outline-secondary btn-sm',
-    text: 'Add condition',
+    text: 'Adicionar condição',
     attrs: { type: 'button' },
   });
   const element = h(
@@ -47,7 +47,7 @@ export function createConditionsEditor(
     h(
       'div',
       { className: 'd-flex flex-wrap gap-2 align-items-end' },
-      labelled('Kind of condition', picker),
+      labelled('Tipo de condição', picker),
       add,
     ),
   );
@@ -102,8 +102,8 @@ function createRow(condition: Condition, remove: () => void): Row {
   const { fields, read } = fieldsFor(condition);
   const button = h('button', {
     className: 'btn btn-outline-danger btn-sm',
-    text: 'Remove',
-    attrs: { type: 'button', 'aria-label': `Remove condition ${label}` },
+    text: 'Remover',
+    attrs: { type: 'button', 'aria-label': `Remover condição ${label}` },
   });
   button.addEventListener('click', remove);
 
@@ -135,7 +135,7 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
       const currency = textInput(condition.currency, { maxlength: '3' });
 
       return {
-        fields: [column(amount, `${label}: amount`), column(currency, `${label}: currency`)],
+        fields: [column(amount, `${label}: valor`), column(currency, `${label}: moeda`)],
         read: () => ({
           kind: condition.kind,
           amount: amount.valueAsNumber,
@@ -147,7 +147,7 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
       const skus = textArea(condition.skus.join(', '));
 
       return {
-        fields: [column(skus, 'SKUs', 'Separate with commas or new lines.', 'col-12')],
+        fields: [column(skus, 'SKUs', 'Separe por vírgulas ou quebras de linha.', 'col-12')],
         read: () => ({ kind: 'SkuIn', skus: splitList(skus.value) }),
       };
     }
@@ -155,7 +155,9 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
       const categories = textArea(condition.categories.join(', '));
 
       return {
-        fields: [column(categories, 'Categories', 'Separate with commas or new lines.', 'col-12')],
+        fields: [
+          column(categories, 'Categorias', 'Separe por vírgulas ou quebras de linha.', 'col-12'),
+        ],
         read: () => ({ kind: 'CategoryIn', categories: splitList(categories.value) }),
       };
     }
@@ -163,7 +165,9 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
       const segments = textArea(condition.segments.join(', '));
 
       return {
-        fields: [column(segments, 'Segments', 'Separate with commas or new lines.', 'col-12')],
+        fields: [
+          column(segments, 'Segmentos', 'Separe por vírgulas ou quebras de linha.', 'col-12'),
+        ],
         read: () => ({ kind: 'ClientSegment', segments: splitList(segments.value) }),
       };
     }
@@ -173,11 +177,11 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
 
       return {
         fields: [
-          column(quantity, 'Min quantity: units'),
+          column(quantity, 'Quantidade mínima: unidades'),
           column(
             skus,
-            'Min quantity: only these SKUs (optional)',
-            'Leave empty to count every SKU.',
+            'Quantidade mínima: somente estes SKUs (opcional)',
+            'Deixe em branco para contar todos os SKUs.',
           ),
         ],
         read: () => {
@@ -197,8 +201,8 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
 
       return {
         fields: [
-          column(from, 'Date window: from', 'Leave empty for no start.'),
-          column(to, 'Date window: to', 'Leave empty for no end.'),
+          column(from, 'Janela de datas: de', 'Deixe em branco para não ter início.'),
+          column(to, 'Janela de datas: até', 'Deixe em branco para não ter fim.'),
         ],
         read: () => {
           const start = fromLocalInput(from.value);
@@ -217,7 +221,7 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
         fields: [
           h('p', {
             className: 'col-12 mb-0',
-            text: 'Matches when the client has no earlier order.',
+            text: 'Vale quando o cliente não tem nenhum pedido anterior.',
           }),
         ],
         read: () => ({ kind: 'FirstOrderOfClient' }),
@@ -225,14 +229,14 @@ function fieldsFor(condition: Condition): { fields: HTMLElement[]; read: () => C
     case 'ChannelIs': {
       const channel = selectOf(
         [
-          ['shop', 'Shop'],
-          ['admin', 'Admin'],
+          ['shop', 'Loja'],
+          ['admin', 'Administração'],
         ],
         condition.channel,
       );
 
       return {
-        fields: [column(channel, 'Channel is')],
+        fields: [column(channel, 'Canal é')],
         read: () => ({ kind: 'ChannelIs', channel: channel.value === 'admin' ? 'admin' : 'shop' }),
       };
     }

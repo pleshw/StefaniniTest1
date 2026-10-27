@@ -37,7 +37,7 @@ function useQueue(answer: object): void {
   server.use(http.get('*/bff/admin/orders', () => HttpResponse.json(answer)));
 }
 
-describe('OnHold queue', () => {
+describe('Fila em espera', () => {
   it('loads when it is mounted and lists the oldest order first, as the BFF returns them', async () => {
     useQueue({
       onHold: [
@@ -73,7 +73,7 @@ describe('OnHold queue', () => {
     });
     const { container, onInspect } = mount();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Inspect ORD-OLD' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Inspecionar ORD-OLD' }));
 
     expect(onInspect).toHaveBeenCalledExactlyOnceWith('id-ORD-OLD');
   });
@@ -106,7 +106,7 @@ describe('OnHold queue', () => {
       unavailable: [],
     });
     fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
-    expect(await findByRole(container, 'button', { name: 'Inspect ORD-1' })).toBeTruthy();
+    expect(await findByRole(container, 'button', { name: 'Inspecionar ORD-1' })).toBeTruthy();
     expect(queryByRole(container, 'alert')).toBeNull();
 
     useQueue({ onHold: [], orders: null, partial: false, unavailable: [] });
@@ -134,12 +134,12 @@ describe('OnHold queue', () => {
       unavailable: [],
     });
     const { container, queue } = mount();
-    await findByRole(container, 'button', { name: 'Inspect ORD-1' });
+    await findByRole(container, 'button', { name: 'Inspecionar ORD-1' });
     server.use(http.get('*/bff/admin/orders', () => new Promise<never>(() => undefined)));
 
     queue.refresh();
 
-    expect(getByRole(container, 'button', { name: 'Inspect ORD-1' })).toBeTruthy();
+    expect(getByRole(container, 'button', { name: 'Inspecionar ORD-1' })).toBeTruthy();
   });
 });
 
@@ -152,7 +152,7 @@ describe('OnHold queue accessibility', () => {
       unavailable: [],
     });
     const full = mount();
-    await findByRole(full.container, 'button', { name: 'Inspect ORD-1' });
+    await findByRole(full.container, 'button', { name: 'Inspecionar ORD-1' });
     await expectAccessible(full.container);
     full.container.remove();
 

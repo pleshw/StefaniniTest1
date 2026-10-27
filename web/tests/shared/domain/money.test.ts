@@ -16,13 +16,14 @@ describe('formatMoney', () => {
     expect(plain(formatMoney(amount, currency, locale))).toBe(expected);
   });
 
-  it('defaults to en-US, the language of the pages', () => {
-    expect(formatMoney(10, 'USD')).toBe('$10.00');
+  it('defaults to pt-BR, the language of the pages', () => {
+    expect(plain(formatMoney(10, 'USD'))).toBe('US$ 10,00');
+    expect(plain(formatMoney(10, 'BRL'))).toBe('R$ 10,00');
   });
 
   it('rounds to the cents of the currency', () => {
-    expect(formatMoney(0.005, 'USD')).toBe('$0.01');
-    expect(formatMoney(10.999, 'USD')).toBe('$11.00');
+    expect(plain(formatMoney(0.005, 'USD'))).toBe('US$ 0,01');
+    expect(plain(formatMoney(10.999, 'USD'))).toBe('US$ 11,00');
   });
 
   it('shows the amount with its code when the currency is not a valid code', () => {

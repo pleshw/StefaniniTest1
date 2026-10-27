@@ -71,12 +71,12 @@ describe('discount rule validation', () => {
   });
 
   it('asks for a name', () => {
-    expect(validateDiscount({ ...percentage, name: '  ' })).toEqual(['Name is required.']);
+    expect(validateDiscount({ ...percentage, name: '  ' })).toEqual(['O nome é obrigatório.']);
   });
 
   it.each([0, -1, 100.5, Number.NaN])('rejects the percent %s', (percent) => {
     expect(validateDiscount(withParameters('Percentage', { percent, appliesTo: 'order' }))).toEqual(
-      ['Percent must be greater than 0 and at most 100.'],
+      ['O percentual deve ser maior que 0 e no máximo 100.'],
     );
   });
 
@@ -88,15 +88,15 @@ describe('discount rule validation', () => {
 
   it('checks the fixed amounts: at least one, a currency code, a positive amount, one per currency', () => {
     expect(validateDiscount(withParameters('FixedAmount', { amounts: [] }))).toEqual([
-      'Add at least one amount.',
+      'Adicione pelo menos um valor.',
     ]);
     expect(
       validateDiscount(
         withParameters('FixedAmount', { amounts: [{ currency: 'REAL', amount: 0 }] }),
       ),
     ).toEqual([
-      'Every currency must be a three-letter code.',
-      'Every amount must be greater than 0.',
+      'Toda moeda deve ser um código de três letras.',
+      'Todo valor deve ser maior que 0.',
     ]);
     expect(
       validateDiscount(
@@ -107,31 +107,31 @@ describe('discount rule validation', () => {
           ],
         }),
       ),
-    ).toEqual(['Each currency can appear only once.']);
+    ).toEqual(['Cada moeda pode aparecer só uma vez.']);
   });
 
   it('checks buy and get', () => {
     expect(validateDiscount(withParameters('BuyXGetY', { buy: 0, get: Number.NaN }))).toEqual([
-      'Buy must be a whole number of at least 1.',
-      'Get must be a whole number of at least 1.',
+      'Compre deve ser um número inteiro de pelo menos 1.',
+      'Leve deve ser um número inteiro de pelo menos 1.',
     ]);
     expect(validateDiscount(withParameters('BuyXGetY', { buy: 1.5, get: 1 }))).toEqual([
-      'Buy must be a whole number of at least 1.',
+      'Compre deve ser um número inteiro de pelo menos 1.',
     ]);
   });
 
   it('checks the tiers: currency, at least one band, no negative minimum, a percent, one band per minimum', () => {
     expect(validateDiscount(withParameters('Tiered', { currency: 'X', tiers: [] }))).toEqual([
-      'Currency must be a three-letter code.',
-      'Add at least one band.',
+      'A moeda deve ser um código de três letras.',
+      'Adicione pelo menos uma faixa.',
     ]);
     expect(
       validateDiscount(
         withParameters('Tiered', { currency: 'BRL', tiers: [{ minSubtotal: -1, percent: 0 }] }),
       ),
     ).toEqual([
-      'Min subtotal must not be negative.',
-      'Percent must be greater than 0 and at most 100.',
+      'O subtotal mínimo não pode ser negativo.',
+      'O percentual deve ser maior que 0 e no máximo 100.',
     ]);
     expect(
       validateDiscount(
@@ -143,15 +143,15 @@ describe('discount rule validation', () => {
           ],
         }),
       ),
-    ).toEqual(['Every band needs its own min subtotal.']);
+    ).toEqual(['Cada faixa precisa de um subtotal mínimo próprio.']);
   });
 
   it('checks the priority and the validity window', () => {
     expect(validateDiscount({ ...percentage, priority: 1.5 })).toEqual([
-      'Priority must be a whole number.',
+      'A prioridade deve ser um número inteiro.',
     ]);
     expect(validateDiscount({ ...percentage, priority: Number.NaN })).toEqual([
-      'Priority must be a whole number.',
+      'A prioridade deve ser um número inteiro.',
     ]);
     expect(
       validateDiscount({
@@ -159,7 +159,7 @@ describe('discount rule validation', () => {
         validFrom: '2026-10-02T00:00:00.000Z',
         validTo: '2026-10-01T00:00:00.000Z',
       }),
-    ).toEqual(['Valid to must be later than valid from.']);
+    ).toEqual(['O fim da validade deve ser posterior ao início.']);
     expect(
       validateDiscount({
         ...percentage,
@@ -173,21 +173,21 @@ describe('discount rule validation', () => {
     [
       { kind: 'MinSubtotal', amount: -1, currency: 'BR' },
       [
-        'Min subtotal: the amount must not be negative.',
-        'Min subtotal: the currency must be a three-letter code.',
+        'Subtotal mínimo: o valor não pode ser negativo.',
+        'Subtotal mínimo: a moeda deve ser um código de três letras.',
       ],
     ],
-    [{ kind: 'SkuIn', skus: [] }, ['SKU in: list at least one SKU.']],
-    [{ kind: 'CategoryIn', categories: [] }, ['Category in: list at least one category.']],
+    [{ kind: 'SkuIn', skus: [] }, ['SKU em: informe pelo menos um SKU.']],
+    [{ kind: 'CategoryIn', categories: [] }, ['Categoria em: informe pelo menos uma categoria.']],
     [
       { kind: 'MinQuantity', quantity: 0 },
-      ['Min quantity: the quantity must be a whole number of at least 1.'],
+      ['Quantidade mínima: a quantidade deve ser um número inteiro de pelo menos 1.'],
     ],
-    [{ kind: 'ClientSegment', segments: [] }, ['Client segment: list at least one segment.']],
-    [{ kind: 'DateWindow' }, ['Date window: give a start, an end or both.']],
+    [{ kind: 'ClientSegment', segments: [] }, ['Segmento do cliente: informe pelo menos um segmento.']],
+    [{ kind: 'DateWindow' }, ['Janela de datas: informe um início, um fim ou ambos.']],
     [
       { kind: 'DateWindow', from: '2026-10-02T00:00:00.000Z', to: '2026-10-01T00:00:00.000Z' },
-      ['Date window: the start must be earlier than the end.'],
+      ['Janela de datas: o início deve ser anterior ao fim.'],
     ],
   ])('checks the condition %j', (condition, errors) => {
     expect(validateDiscount({ ...percentage, conditions: [condition] })).toEqual(errors);
@@ -240,9 +240,9 @@ describe('confirmation rule validation', () => {
 
   it('needs a name, at least one condition and a whole priority', () => {
     expect(validateConfirmation({ ...hold, name: '', conditions: [], priority: 0.5 })).toEqual([
-      'Name is required.',
-      'Priority must be a whole number.',
-      'Add at least one condition.',
+      'O nome é obrigatório.',
+      'A prioridade deve ser um número inteiro.',
+      'Adicione pelo menos uma condição.',
     ]);
   });
 
@@ -253,14 +253,14 @@ describe('confirmation rule validation', () => {
         conditions: [{ kind: 'TotalAbove', amount: Number.NaN, currency: '' }],
       }),
     ).toEqual([
-      'Total above: the amount must not be negative.',
-      'Total above: the currency must be a three-letter code.',
+      'Total acima de: o valor não pode ser negativo.',
+      'Total acima de: a moeda deve ser um código de três letras.',
     ]);
   });
 
   it('refuses the kinds of discount rules', () => {
     expect(validateConfirmation({ ...hold, conditions: [{ kind: 'SkuIn', skus: ['A'] }] })).toEqual(
-      ['SKU in is not a condition of confirmation rules.'],
+      ['SKU em não é uma condição de regras de confirmação.'],
     );
   });
 });

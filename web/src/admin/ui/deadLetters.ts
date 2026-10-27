@@ -27,14 +27,14 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
   const table = h(
     'table',
     { className: 'table align-middle' },
-    h('caption', { className: 'visually-hidden', text: 'Dead letters' }),
+    h('caption', { className: 'visually-hidden', text: 'Mensagens mortas' }),
     h(
       'thead',
       {},
       h(
         'tr',
         {},
-        ...['Message', 'Type', 'Destination', 'Error', 'Attempts', 'Actions'].map((name) =>
+        ...['Mensagem', 'Tipo', 'Destino', 'Erro', 'Tentativas', 'Ações'].map((name) =>
           h('th', { text: name, attrs: { scope: 'col' } }),
         ),
       ),
@@ -42,7 +42,7 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
     body,
   );
   const refresh = actionButton(
-    'Refresh',
+    'Atualizar',
     'btn btn-outline-secondary btn-sm mb-2',
     () => void load(),
   );
@@ -51,10 +51,10 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
     h(
       'section',
       { attrs: { 'aria-labelledby': 'dead-letters-heading' } },
-      h('h2', { className: 'h4', text: 'Dead letters', attrs: { id: 'dead-letters-heading' } }),
+      h('h2', { className: 'h4', text: 'Mensagens mortas', attrs: { id: 'dead-letters-heading' } }),
       h('p', {
         className: 'text-body-secondary',
-        text: 'Messages the worker could not process after every retry. A replay sends the message through its exchange again and removes it from this queue.',
+        text: 'Mensagens que o worker não conseguiu processar após todas as novas tentativas. Reprocessar envia a mensagem de novo pela sua exchange e a remove desta fila.',
       }),
       refresh,
       message,
@@ -70,30 +70,34 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
     message.hidden = notice === '';
     message.textContent = notice;
     status.textContent = !loaded
-      ? 'Loading the dead-letter queue…'
+      ? 'Carregando a fila de mensagens mortas…'
       : failure !== undefined
         ? ''
         : letters.length === 0
-          ? 'The dead-letter queue is empty.'
-          : `${String(letters.length)} ${letters.length === 1 ? 'message' : 'messages'} in the dead-letter queue`;
+          ? 'A fila de mensagens mortas está vazia.'
+          : `${String(letters.length)} ${letters.length === 1 ? 'mensagem' : 'mensagens'} na fila de mensagens mortas`;
     alertBox.hidden = failure === undefined;
     alertBox.replaceChildren(
       ...(failure === undefined
         ? []
         : [
             h('span', { text: failure }),
-            actionButton('Try again', 'btn btn-sm btn-outline-danger ms-auto', () => void load()),
+            actionButton(
+              'Tentar novamente',
+              'btn btn-sm btn-outline-danger ms-auto',
+              () => void load(),
+            ),
           ]),
     );
   }
 
   function rowOf(letter: DeadLetter): HTMLElement {
     const replay = actionButton(
-      'Replay',
+      'Reprocessar',
       'btn btn-outline-primary btn-sm',
       () => void replayLetter(letter),
     );
-    replay.setAttribute('aria-label', `Replay ${letter.messageId}`);
+    replay.setAttribute('aria-label', `Reprocessar ${letter.messageId}`);
     const headers = Object.entries(letter.headers).map(([name, value]) => `${name}: ${value}`);
 
     return h(
@@ -106,26 +110,26 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
         h(
           'details',
           {},
-          h('summary', { text: 'Details' }),
+          h('summary', { text: 'Detalhes' }),
           h(
             'div',
-            { attrs: { role: 'group', 'aria-label': `Details of ${letter.messageId}` } },
+            { attrs: { role: 'group', 'aria-label': `Detalhes de ${letter.messageId}` } },
             h('h3', { className: 'h6 mt-2', text: 'Payload' }),
             h('pre', { className: 'small', text: letter.payload }),
-            h('h3', { className: 'h6', text: 'Headers' }),
+            h('h3', { className: 'h6', text: 'Cabeçalhos' }),
             h('pre', { className: 'small', text: headers.join('\n') }),
           ),
         ),
       ),
-      h('td', { text: letter.messageType ?? 'Unknown' }),
-      h('td', { text: letter.originalDestination ?? 'Unknown' }),
+      h('td', { text: letter.messageType ?? 'Desconhecido' }),
+      h('td', { text: letter.originalDestination ?? 'Desconhecido' }),
       h(
         'td',
         {},
-        h('div', { text: letter.exceptionType ?? 'Unknown' }),
+        h('div', { text: letter.exceptionType ?? 'Desconhecido' }),
         h('small', { className: 'text-body-secondary', text: letter.exceptionMessage ?? '' }),
       ),
-      h('td', { text: letter.attempts === null ? 'Unknown' : String(letter.attempts) }),
+      h('td', { text: letter.attempts === null ? 'Desconhecido' : String(letter.attempts) }),
       h('td', {}, replay),
     );
   }
@@ -143,7 +147,7 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
       if (mine !== generation) {
         return;
       }
-      failure = errorMessage(error, 'The dead-letter queue could not be read.');
+      failure = errorMessage(error, 'Não foi possível ler a fila de mensagens mortas.');
     }
     loaded = true;
     render();
@@ -151,9 +155,9 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
 
   async function replayLetter(letter: DeadLetter): Promise<void> {
     const yes = await confirmAction({
-      title: 'Replay this message?',
-      message: `Message ${letter.messageId} goes back through its exchange and leaves the dead-letter queue.`,
-      confirmLabel: 'Replay',
+      title: 'Reprocessar esta mensagem?',
+      message: `A mensagem ${letter.messageId} volta pela sua exchange e sai da fila de mensagens mortas.`,
+      confirmLabel: 'Reprocessar',
     });
 
     if (!yes) {
@@ -163,9 +167,9 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
     notice = '';
     try {
       const done = await replayDeadLetter(options.http, letter.messageId);
-      notice = `Replayed ${letter.messageId} as ${done.newMessageId} through ${done.exchange} (${done.routingKey}).`;
+      notice = `${letter.messageId} reprocessada como ${done.newMessageId} pela exchange ${done.exchange} (${done.routingKey}).`;
     } catch (error) {
-      problem = errorMessage(error, 'The message could not be replayed.');
+      problem = errorMessage(error, 'Não foi possível reprocessar a mensagem.');
     }
     await load();
     if (problem !== undefined) {

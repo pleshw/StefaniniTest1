@@ -41,7 +41,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
       { className: 'col-12 col-md' },
       h('label', {
         className: 'form-label',
-        text: 'Search products',
+        text: 'Buscar produtos',
         attrs: { for: 'catalog-search' },
       }),
       search,
@@ -49,13 +49,17 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
     h(
       'div',
       { className: 'col-12 col-md-4' },
-      h('label', { className: 'form-label', text: 'Category', attrs: { for: 'catalog-category' } }),
+      h('label', {
+        className: 'form-label',
+        text: 'Categoria',
+        attrs: { for: 'catalog-category' },
+      }),
       category,
     ),
     h(
       'div',
       { className: 'col-12 col-md-auto' },
-      h('button', { className: 'btn btn-primary', text: 'Search', attrs: { type: 'submit' } }),
+      h('button', { className: 'btn btn-primary', text: 'Buscar', attrs: { type: 'submit' } }),
     ),
   );
   const status = h('p', { className: 'text-body-secondary', attrs: { role: 'status' } });
@@ -69,7 +73,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
   });
   const more = h('button', {
     className: 'btn btn-outline-primary',
-    text: 'Load more',
+    text: 'Carregar mais',
     attrs: { type: 'button' },
   });
 
@@ -77,7 +81,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
     h(
       'section',
       { attrs: { 'aria-labelledby': 'catalog-heading' } },
-      h('h2', { className: 'h4', text: 'Catalog', attrs: { id: 'catalog-heading' } }),
+      h('h2', { className: 'h4', text: 'Catálogo', attrs: { id: 'catalog-heading' } }),
       form,
       status,
       alertBox,
@@ -100,22 +104,22 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
 
   function statusText(): string {
     if (loading) {
-      return 'Loading products…';
+      return 'Carregando produtos…';
     }
     if (failure !== undefined) {
       return '';
     }
     if (products.length === 0) {
-      return 'No products found.';
+      return 'Nenhum produto encontrado.';
     }
 
-    return `${String(products.length)} ${products.length === 1 ? 'product' : 'products'}`;
+    return `${String(products.length)} ${products.length === 1 ? 'produto' : 'produtos'}`;
   }
 
   function retryButton(): HTMLButtonElement {
     const button = h('button', {
       className: 'btn btn-sm btn-outline-danger ms-auto',
-      text: 'Try again',
+      text: 'Tentar novamente',
       attrs: { type: 'button' },
     });
     button.addEventListener('click', () => void load(loadingMore));
@@ -128,7 +132,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
     const names = [...categories].sort((a, b) => a.localeCompare(b));
 
     category.replaceChildren(
-      h('option', { text: 'All categories', attrs: { value: '' } }),
+      h('option', { text: 'Todas as categorias', attrs: { value: '' } }),
       ...names.map((name) => h('option', { text: name, attrs: { value: name } })),
     );
     category.value = selected;
@@ -137,11 +141,11 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
   function card(product: ShopProduct): HTMLElement {
     const add = h('button', {
       className: 'btn btn-primary mt-auto',
-      attrs: { type: 'button', 'aria-label': `Add ${product.name} to cart` },
+      attrs: { type: 'button', 'aria-label': `Adicionar ${product.name} ao carrinho` },
     });
     add.append(
       h('i', { className: 'bi bi-cart-plus me-1', attrs: { 'aria-hidden': 'true' } }),
-      'Add to cart',
+      'Adicionar ao carrinho',
     );
     add.disabled = product.price === null;
     add.addEventListener('click', () => {
@@ -167,7 +171,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
             className: 'fs-5 fw-semibold mb-0',
             text:
               product.price === null
-                ? 'Price unavailable'
+                ? 'Preço indisponível'
                 : formatMoney(product.price.amount, product.price.currency),
           }),
           add,
@@ -211,7 +215,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
       if (signal.aborted) {
         return;
       }
-      failure = errorMessage(error, 'The products could not be loaded.');
+      failure = errorMessage(error, 'Não foi possível carregar os produtos.');
     }
 
     loading = false;

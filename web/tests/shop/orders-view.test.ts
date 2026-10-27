@@ -23,7 +23,7 @@ const summary = (number: string, status = 'Confirmed', total = 100): OrderSummar
   number,
   client,
   status,
-  channel: 'Shop',
+  channel: 'Loja',
   currency: 'BRL',
   itemCount: 3,
   subtotal: total + 10,
@@ -95,13 +95,13 @@ describe('my orders list', () => {
     expect(rows).toHaveLength(3);
     const first = within(rows[1] as HTMLElement);
     expect(first.getByRole('button', { name: 'ORD-1' })).toBeTruthy();
-    expect(rows[1]?.textContent).toContain('Oct 26, 2026');
-    expect(rows[1]?.textContent).toContain('On hold');
+    expect(rows[1]?.textContent).toContain('26 de out. de 2026');
+    expect(rows[1]?.textContent).toContain('Em espera');
     expect(rows[1]?.textContent).toContain('3');
-    expect(rows[1]?.textContent).toContain('R$1,924.40');
+    expect(rows[1]?.textContent).toContain('R$\u00a01.924,40');
     expect(rows[1]?.querySelector('.badge')?.className).toContain('text-bg-warning');
-    expect(getByRole(container, 'table', { name: 'My orders' })).toBeTruthy();
-    expect(getByRole(container, 'status').textContent).toBe('2 orders');
+    expect(getByRole(container, 'table', { name: 'Meus pedidos' })).toBeTruthy();
+    expect(getByRole(container, 'status').textContent).toBe('2 pedidos');
   });
 
   it('says so when there are no orders', async () => {
@@ -110,7 +110,7 @@ describe('my orders list', () => {
 
     view.refresh();
 
-    await findByText(container, 'You have not placed any orders yet.');
+    await findByText(container, 'Você ainda não fez nenhum pedido.');
     expect(queryByRole(container, 'table')).toBeNull();
   });
 
@@ -129,7 +129,7 @@ describe('my orders list', () => {
     const alert = await findByRole(container, 'alert');
     expect(alert.textContent).toContain('Orders is unavailable');
     fail = false;
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
 
     expect(await findByRole(container, 'button', { name: 'ORD-1' })).toBeTruthy();
     expect(queryByRole(container, 'alert')).toBeNull();
@@ -151,12 +151,12 @@ describe('my orders list', () => {
     const { container, view } = mount(1);
     view.refresh();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Load more' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Carregar mais' }));
 
     await findByRole(container, 'button', { name: 'ORD-2' });
     expect(getByRole(container, 'button', { name: 'ORD-1' })).toBeTruthy();
     expect(afters).toEqual([null, 'cursor-1']);
-    expect(queryByRole(container, 'button', { name: 'Load more' })).toBeNull();
+    expect(queryByRole(container, 'button', { name: 'Carregar mais' })).toBeNull();
   });
 
   it('starts again from the first page every time it is opened', async () => {
@@ -177,6 +177,14 @@ describe('my orders list', () => {
   });
 });
 
+const statusLabels: Record<string, string> = {
+  OnHold: 'Em espera',
+  Confirmed: 'Confirmado',
+  Blocked: 'Bloqueado',
+  Cancelled: 'Cancelado',
+  Failed: 'Falhou',
+};
+
 describe('order detail', () => {
   async function open(order: Order) {
     useList([summary(order.number, order.status)]);
@@ -184,7 +192,7 @@ describe('order detail', () => {
     const { container, view } = mount();
     view.refresh();
     fireEvent.click(await findByRole(container, 'button', { name: order.number }));
-    await findByRole(container, 'heading', { level: 3, name: `Order ${order.number}` });
+    await findByRole(container, 'heading', { level: 3, name: `Pedido ${order.number}` });
 
     return container;
   }
@@ -192,20 +200,20 @@ describe('order detail', () => {
   it('shows the items, quantity, subtotal, discount, total and currency', async () => {
     const container = await open(detail());
 
-    const items = getByRole(container, 'table', { name: 'Items' });
+    const items = getByRole(container, 'table', { name: 'Itens' });
     expect(items.textContent).toContain('Standing desk');
     expect(items.textContent).toContain('DESK-1');
-    expect(items.textContent).toContain('R$1,999.90');
-    expect(items.textContent).toContain('-R$100.00');
-    expect(items.textContent).toContain('R$1,899.90');
+    expect(items.textContent).toContain('R$\u00a01.999,90');
+    expect(items.textContent).toContain('-R$\u00a0100,00');
+    expect(items.textContent).toContain('R$\u00a01.899,90');
     expect(items.textContent).toContain('Coffee mug');
-    expect(items.textContent).toContain('R$12.25');
-    const summaryList = getByRole(container, 'group', { name: 'Order totals' });
-    expect(summaryList.textContent).toContain('Items3');
-    expect(summaryList.textContent).toContain('SubtotalR$2,024.40');
-    expect(summaryList.textContent).toContain('Discounts-R$100.00');
-    expect(summaryList.textContent).toContain('TotalR$1,924.40');
-    expect(summaryList.textContent).toContain('CurrencyBRL');
+    expect(items.textContent).toContain('R$\u00a012,25');
+    const summaryList = getByRole(container, 'group', { name: 'Totais do pedido' });
+    expect(summaryList.textContent).toContain('Itens3');
+    expect(summaryList.textContent).toContain('SubtotalR$\u00a02.024,40');
+    expect(summaryList.textContent).toContain('Descontos-R$\u00a0100,00');
+    expect(summaryList.textContent).toContain('TotalR$\u00a01.924,40');
+    expect(summaryList.textContent).toContain('MoedaBRL');
   });
 
   it.each([...orderStatuses, 'Shipped'])(
@@ -213,15 +221,13 @@ describe('order detail', () => {
     async (status) => {
       const container = await open(detail(status));
 
-      const timeline = getByRole(container, 'list', { name: 'Status timeline' });
-      expect(timeline.textContent).toContain('Placed');
-      expect(timeline.textContent).toContain('Oct 26, 2026');
+      const timeline = getByRole(container, 'list', { name: 'Linha do tempo do status' });
+      expect(timeline.textContent).toContain('Pedido realizado');
+      expect(timeline.textContent).toContain('26 de out. de 2026');
       expect(container.querySelector('.order-status .badge')).not.toBeNull();
       if (status !== 'Pending') {
         expect(within(timeline).getAllByRole('listitem')).toHaveLength(2);
-        expect(timeline.lastElementChild?.textContent).toContain(
-          status === 'OnHold' ? 'On hold' : status,
-        );
+        expect(timeline.lastElementChild?.textContent).toContain(statusLabels[status] ?? status);
       } else {
         expect(within(timeline).getAllByRole('listitem')).toHaveLength(1);
       }
@@ -231,10 +237,10 @@ describe('order detail', () => {
   it('goes back to the list with the focus on the order that was open', async () => {
     const container = await open(detail());
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Back to my orders' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Voltar para meus pedidos' }));
 
     const again = await findByRole(container, 'button', { name: 'ORD-1' });
-    expect(queryByRole(container, 'heading', { name: 'Order ORD-1' })).toBeNull();
+    expect(queryByRole(container, 'heading', { name: 'Pedido ORD-1' })).toBeNull();
     expect(document.activeElement).toBe(again);
   });
 
@@ -251,7 +257,7 @@ describe('order detail', () => {
     fireEvent.click(await findByRole(container, 'button', { name: 'ORD-9' }));
 
     expect((await findByRole(container, 'alert')).textContent).toContain('Order not found.');
-    fireEvent.click(getByRole(container, 'button', { name: 'Back to my orders' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Voltar para meus pedidos' }));
     expect(await findByRole(container, 'button', { name: 'ORD-9' })).toBeTruthy();
   });
 
@@ -263,7 +269,7 @@ describe('order detail', () => {
 
     fireEvent.click(await findByRole(container, 'button', { name: 'ORD-9' }));
 
-    expect(getByRole(container, 'status').textContent).toBe('Loading order…');
+    expect(getByRole(container, 'status').textContent).toBe('Carregando o pedido…');
   });
 });
 
@@ -277,14 +283,14 @@ describe('my orders accessibility', () => {
     await expectAccessible(list.container);
 
     fireEvent.click(getByRole(list.container, 'button', { name: 'ORD-1' }));
-    await findByRole(list.container, 'heading', { name: 'Order ORD-1' });
+    await findByRole(list.container, 'heading', { name: 'Pedido ORD-1' });
     await expectAccessible(list.container);
     list.container.remove();
 
     useList([]);
     const empty = mount();
     empty.view.refresh();
-    await findByText(empty.container, 'You have not placed any orders yet.');
+    await findByText(empty.container, 'Você ainda não fez nenhum pedido.');
     await expectAccessible(empty.container);
     empty.container.remove();
 

@@ -32,7 +32,7 @@ export function mountAdmin(
   dependencies: AdminDependencies = { http: createHttpClient() },
 ): void {
   const { http } = dependencies;
-  const { content } = renderShell(root, 'Admin', pageLinks);
+  const { content } = renderShell(root, 'Administração', pageLinks);
 
   const live = h('div', { className: 'col-lg-7' });
   const side = h('div', { className: 'col-lg-5 d-grid gap-4 align-content-start' });
@@ -67,7 +67,7 @@ export function mountAdmin(
     >
   > = {
     create: {
-      label: 'Create order',
+      label: 'Criar pedido',
       box: h('div'),
       mount: (box) => {
         mountCreateOrder(box, {
@@ -78,28 +78,28 @@ export function mountAdmin(
       },
     },
     discounts: {
-      label: 'Discount rules',
+      label: 'Regras de desconto',
       box: h('div'),
       mount: (box) => {
         mountDiscountRules(box, { http });
       },
     },
     confirmation: {
-      label: 'Confirmation rules',
+      label: 'Regras de confirmação',
       box: h('div'),
       mount: (box) => {
         mountConfirmationRules(box, { http });
       },
     },
     deadLetters: {
-      label: 'Dead letters',
+      label: 'Mensagens mortas',
       box: h('div'),
       mount: (box) => {
         mountDeadLetters(box, { http });
       },
     },
     catalog: {
-      label: 'Catalog',
+      label: 'Catálogo',
       box: h('div'),
       mount: (box) => {
         mountCatalogEditor(box, { http });
@@ -107,7 +107,7 @@ export function mountAdmin(
     },
   };
   const mounted = new Set<Section>();
-  const buttons = new Map<Section, HTMLButtonElement>([['live', sectionButton('Live events')]]);
+  const buttons = new Map<Section, HTMLButtonElement>([['live', sectionButton('Eventos ao vivo')]]);
   for (const [section, { label }] of Object.entries(lazy)) {
     buttons.set(section as Section, sectionButton(label));
   }
@@ -135,7 +135,10 @@ export function mountAdmin(
   content.append(
     h(
       'div',
-      { className: 'nav nav-pills mb-3', attrs: { role: 'group', 'aria-label': 'Admin sections' } },
+      {
+        className: 'nav nav-pills mb-3',
+        attrs: { role: 'group', 'aria-label': 'Seções da administração' },
+      },
       ...buttons.values(),
     ),
     monitoring,

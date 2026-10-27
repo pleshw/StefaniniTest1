@@ -23,7 +23,7 @@ export function mountShop(
   root: HTMLElement,
   dependencies: ShopDependencies = { http: createHttpClient() },
 ): void {
-  const { content } = renderShell(root, 'Shop', pageLinks);
+  const { content } = renderShell(root, 'Loja', pageLinks);
   const cart = createCart();
 
   const catalog = h('div', { className: 'col-lg-8' });
@@ -47,8 +47,8 @@ export function mountShop(
   });
   const orders = mountOrders(ordersSection, { http: dependencies.http });
 
-  const shopButton = sectionButton('Shop');
-  const ordersButton = sectionButton('My orders');
+  const shopButton = sectionButton('Loja');
+  const ordersButton = sectionButton('Meus pedidos');
   const show = (section: 'shop' | 'orders'): void => {
     shopping.hidden = section !== 'shop';
     ordersSection.hidden = section !== 'orders';
@@ -70,7 +70,7 @@ export function mountShop(
   content.append(
     h(
       'div',
-      { className: 'nav nav-pills mb-3', attrs: { role: 'group', 'aria-label': 'Shop sections' } },
+      { className: 'nav nav-pills mb-3', attrs: { role: 'group', 'aria-label': 'Seções da loja' } },
       shopButton,
       ordersButton,
     ),

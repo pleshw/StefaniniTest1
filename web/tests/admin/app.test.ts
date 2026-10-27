@@ -38,13 +38,13 @@ describe('Admin page', () => {
   it('shows the live table, the OnHold queue and the inspector together', async () => {
     const { root } = mountPage();
 
-    expect(getByRole(root, 'heading', { level: 2, name: 'Live events' })).toBeTruthy();
-    expect(getByRole(root, 'heading', { level: 2, name: 'OnHold queue' })).toBeTruthy();
-    expect(getByRole(root, 'heading', { level: 2, name: 'Order inspector' })).toBeTruthy();
-    expect(getByRole(root, 'button', { name: 'Live events' }).getAttribute('aria-current')).toBe(
+    expect(getByRole(root, 'heading', { level: 2, name: 'Eventos ao vivo' })).toBeTruthy();
+    expect(getByRole(root, 'heading', { level: 2, name: 'Fila em espera' })).toBeTruthy();
+    expect(getByRole(root, 'heading', { level: 2, name: 'Inspetor de pedidos' })).toBeTruthy();
+    expect(getByRole(root, 'button', { name: 'Eventos ao vivo' }).getAttribute('aria-current')).toBe(
       'true',
     );
-    await findByRole(root, 'button', { name: 'Inspect ORD-2026-STUB00000003' });
+    await findByRole(root, 'button', { name: 'Inspecionar ORD-2026-STUB00000003' });
   });
 
   it('opens the inspector from a live event and refreshes the OnHold queue when an order enters it', async () => {
@@ -69,9 +69,9 @@ describe('Admin page', () => {
     await vi.waitFor(() => {
       expect(queueCalls).toBe(2);
     });
-    fireEvent.click(await findByRole(root, 'button', { name: `Inspect ${orderId.slice(0, 8)}` }));
+    fireEvent.click(await findByRole(root, 'button', { name: `Inspecionar ${orderId.slice(0, 8)}` }));
 
-    expect(await findByRole(root, 'heading', { level: 3, name: /^Order ORD-/ })).toBeTruthy();
+    expect(await findByRole(root, 'heading', { level: 3, name: /^Pedido ORD-/ })).toBeTruthy();
   });
 
   it('refreshes the queue after an action on an order', async () => {
@@ -104,11 +104,11 @@ describe('Admin page', () => {
     );
     const { root } = mountPage();
 
-    fireEvent.click(await findByRole(root, 'button', { name: 'Inspect ORD-9' }));
-    await findByRole(root, 'heading', { level: 3, name: /^Order ORD-/ });
+    fireEvent.click(await findByRole(root, 'button', { name: 'Inspecionar ORD-9' }));
+    await findByRole(root, 'heading', { level: 3, name: /^Pedido ORD-/ });
     const before = queueCalls;
-    fireEvent.click(getByRole(root, 'button', { name: 'Confirm' }));
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Confirm order' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Confirmar' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Confirmar pedido' }));
 
     await vi.waitFor(() => {
       expect(queueCalls).toBeGreaterThan(before);
@@ -132,25 +132,25 @@ describe('Admin page', () => {
     );
     const { root } = mountPage();
     expect(clientCalls).toBe(0);
-    expect(queryByRole(root, 'heading', { name: 'Create order for a client' })).toBeNull();
+    expect(queryByRole(root, 'heading', { name: 'Criar pedido para um cliente' })).toBeNull();
 
-    fireEvent.click(getByRole(root, 'button', { name: 'Create order' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Criar pedido' }));
 
-    expect(await findByRole(root, 'heading', { name: 'Create order for a client' })).toBeTruthy();
-    expect(queryByRole(root, 'heading', { name: 'Live events' })).toBeNull();
+    expect(await findByRole(root, 'heading', { name: 'Criar pedido para um cliente' })).toBeTruthy();
+    expect(queryByRole(root, 'heading', { name: 'Eventos ao vivo' })).toBeNull();
     await vi.waitFor(() => {
       expect(clientCalls).toBe(1);
     });
-    fireEvent.click(getByRole(root, 'button', { name: 'Live events' }));
-    fireEvent.click(getByRole(root, 'button', { name: 'Create order' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Eventos ao vivo' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Criar pedido' }));
     expect(clientCalls).toBe(1);
     await expectAccessible(root);
   });
 
   it.each([
-    ['Discount rules', 'Discount rules', '*/bff/admin/discount-rules'],
-    ['Confirmation rules', 'Confirmation rules', '*/bff/admin/confirmation-rules'],
-    ['Dead letters', 'Dead letters', '*/bff/admin/dead-letters'],
+    ['Regras de desconto', 'Regras de desconto', '*/bff/admin/discount-rules'],
+    ['Regras de confirmação', 'Regras de confirmação', '*/bff/admin/confirmation-rules'],
+    ['Mensagens mortas', 'Mensagens mortas', '*/bff/admin/dead-letters'],
   ])('opens "%s" only when asked and asks for its data once', async (label, heading, route) => {
     let calls = 0;
     server.use(
@@ -167,11 +167,11 @@ describe('Admin page', () => {
 
     expect(await findByRole(root, 'heading', { level: 2, name: heading })).toBeTruthy();
     expect(getByRole(root, 'button', { name: label }).getAttribute('aria-current')).toBe('true');
-    expect(queryByRole(root, 'heading', { name: 'Live events' })).toBeNull();
+    expect(queryByRole(root, 'heading', { name: 'Eventos ao vivo' })).toBeNull();
     await vi.waitFor(() => {
       expect(calls).toBe(1);
     });
-    fireEvent.click(getByRole(root, 'button', { name: 'Live events' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Eventos ao vivo' }));
     fireEvent.click(getByRole(root, 'button', { name: label }));
     expect(calls).toBe(1);
     await expectAccessible(root);
@@ -188,9 +188,9 @@ describe('Admin page', () => {
     const { root } = mountPage();
     expect(calls).toBe(0);
 
-    fireEvent.click(getByRole(root, 'button', { name: 'Catalog' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Catálogo' }));
 
-    expect(await findByRole(root, 'heading', { level: 2, name: 'Catalog' })).toBeTruthy();
+    expect(await findByRole(root, 'heading', { level: 2, name: 'Catálogo' })).toBeTruthy();
     await vi.waitFor(() => {
       expect(calls).toBe(1);
     });

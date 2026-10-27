@@ -47,26 +47,26 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
 
   const heading = h('h2', {
     className: 'h4',
-    text: 'Cart',
+    text: 'Carrinho',
     attrs: { id: 'cart-heading', tabindex: '-1' },
   });
-  const empty = h('p', { text: 'Your cart is empty.' });
+  const empty = h('p', { text: 'Seu carrinho está vazio.' });
   const list = h('ul', { className: 'list-group mb-3' });
   const totals = h('dl', { className: 'row mb-0' });
   const totalsGroup = h(
     'div',
-    { className: 'mb-3', attrs: { role: 'group', 'aria-label': 'Totals', 'aria-live': 'polite' } },
+    { className: 'mb-3', attrs: { role: 'group', 'aria-label': 'Totais', 'aria-live': 'polite' } },
     totals,
   );
   const quoteAlert = h('div', { className: 'alert alert-warning', attrs: { role: 'alert' } });
   const orderAlert = h('div', {
     className: 'alert alert-danger',
-    attrs: { role: 'alert', 'aria-label': 'Order error' },
+    attrs: { role: 'alert', 'aria-label': 'Erro no pedido' },
   });
   const submit = h('button', { className: 'btn btn-success w-100', attrs: { type: 'button' } });
   const result = h('p', {
     className: 'mt-3 mb-0',
-    attrs: { role: 'status', 'aria-label': 'Order result' },
+    attrs: { role: 'status', 'aria-label': 'Resultado do pedido' },
   });
 
   container.append(
@@ -92,7 +92,7 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
     list.hidden = lines.length === 0;
     renderTotals(lines);
     quoteAlert.hidden = !quoteFailed || lines.length === 0;
-    quoteAlert.textContent = 'The prices could not be updated.';
+    quoteAlert.textContent = 'Não foi possível atualizar os preços.';
     renderOrderErrors();
     submit.disabled = submitting || lines.length === 0;
     submit.replaceChildren(
@@ -100,9 +100,9 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
         className: `bi ${submitting ? 'bi-hourglass-split' : 'bi-bag-check'} me-1`,
         attrs: { 'aria-hidden': 'true' },
       }),
-      submitting ? 'Placing order…' : 'Place order',
+      submitting ? 'Fazendo o pedido…' : 'Fazer pedido',
     );
-    result.textContent = placedNumber === undefined ? '' : `Order ${placedNumber} was placed.`;
+    result.textContent = placedNumber === undefined ? '' : `O pedido ${placedNumber} foi feito.`;
   }
 
   function renderLines(lines: readonly CartLine[]): void {
@@ -139,7 +139,7 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
     });
     const remove = h('button', {
       className: 'btn btn-sm btn-outline-danger',
-      attrs: { type: 'button', 'aria-label': `Remove ${line.name}` },
+      attrs: { type: 'button', 'aria-label': `Remover ${line.name}` },
     });
     remove.append(h('i', { className: 'bi bi-trash', attrs: { 'aria-hidden': 'true' } }));
     remove.addEventListener('click', () => {
@@ -153,7 +153,7 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
       h('div', { className: 'flex-grow-1' }, h('strong', { text: line.name }), price),
       h('label', {
         className: 'visually-hidden',
-        text: `Quantity of ${line.name}`,
+        text: `Quantidade de ${line.name}`,
         attrs: { for: quantityId },
       }),
       h('div', { className: 'cart-quantity' }, quantity),
@@ -173,7 +173,7 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
     const total = formatMoney(priced.lineTotal, quote?.currency ?? currency);
 
     return priced.lineDiscount > 0
-      ? `${total} · Discount -${formatMoney(priced.lineDiscount, quote?.currency ?? currency)}`
+      ? `${total} · Desconto -${formatMoney(priced.lineDiscount, quote?.currency ?? currency)}`
       : total;
   }
 
@@ -184,17 +184,17 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
       totals.replaceChildren(
         ...(lines.length === 0 || quoteFailed
           ? []
-          : [h('dd', { className: 'col-12 mb-0', text: 'Calculating prices…' })]),
+          : [h('dd', { className: 'col-12 mb-0', text: 'Calculando os preços…' })]),
       );
       return;
     }
     const money = (amount: number): string => formatMoney(amount, quote?.currency ?? currency);
-    const items = quote.itemCount === 1 ? '1 item' : `${String(quote.itemCount)} items`;
+    const items = quote.itemCount === 1 ? '1 item' : `${String(quote.itemCount)} itens`;
 
     totals.replaceChildren(
       h('dt', { className: 'col-6', text: 'Subtotal' }),
       h('dd', { className: 'col-6 text-end', text: money(quote.subtotal) }),
-      h('dt', { className: 'col-6', text: 'Discounts' }),
+      h('dt', { className: 'col-6', text: 'Descontos' }),
       h('dd', {
         className: 'col-6 text-end',
         text: quote.discountTotal > 0 ? `-${money(quote.discountTotal)}` : money(0),
@@ -312,5 +312,5 @@ function messagesOf(error: unknown): readonly string[] {
     return [error.message];
   }
 
-  return ['The order could not be placed.'];
+  return ['Não foi possível fazer o pedido.'];
 }

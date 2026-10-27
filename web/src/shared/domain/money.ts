@@ -3,7 +3,7 @@ export type Locale = 'pt-BR' | 'en-US';
 const formatters = new Map<string, Intl.NumberFormat>();
 
 /** An amount in a currency, written the way the locale does ("R$ 1.234,50" in pt-BR, "R$1,234.50" in en-US). */
-export function formatMoney(amount: number, currency: string, locale: Locale = 'en-US'): string {
+export function formatMoney(amount: number, currency: string, locale: Locale = 'pt-BR'): string {
   const key = `${locale}|${currency}`;
   let formatter = formatters.get(key);
 

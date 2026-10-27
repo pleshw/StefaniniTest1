@@ -167,7 +167,7 @@ describe('error mapping', () => {
       .catch((caught: unknown) => caught);
 
     expect((titled as ApiError).messages).toEqual(['Problem']);
-    expect((bare as ApiError).messages).toEqual(['The request failed with status 404.']);
+    expect((bare as ApiError).messages).toEqual(['A requisição falhou com o status 404.']);
   });
 
   it('keeps the text of an answer that is not JSON', async () => {

@@ -14,7 +14,7 @@ export class ApiError extends Error {
   readonly problem: ProblemDetails;
 
   constructor(status: number, problem: ProblemDetails) {
-    super(problem.detail ?? problem.title ?? `The request failed with status ${String(status)}.`);
+    super(problem.detail ?? problem.title ?? `A requisição falhou com o status ${String(status)}.`);
     this.name = new.target.name;
     this.status = status;
     this.problem = problem;
@@ -55,7 +55,7 @@ export class ServerError extends ApiError {}
 /** The request never got an answer: offline, reset or timed out. */
 export class NetworkError extends Error {
   constructor(options?: ErrorOptions) {
-    super('The server could not be reached.', options);
+    super('Não foi possível acessar o servidor.', options);
     this.name = 'NetworkError';
   }
 }

@@ -32,7 +32,8 @@ export interface ConfirmationRulesOptions {
   readonly http: HttpClient;
 }
 
-const staleRule = 'This rule was changed by someone else. Reload the list and open it again.';
+const staleRule =
+  'Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.';
 
 /**
  * Confirmation rules: an active Hold rule that matches a new order sends it to OnHold for an admin; otherwise the
@@ -52,7 +53,7 @@ export function mountConfirmationRules(
     className: 'alert alert-danger d-flex align-items-center gap-3',
     attrs: { role: 'alert' },
   });
-  const create = actionButton('New rule', 'btn btn-primary btn-sm mb-2', () => {
+  const create = actionButton('Nova regra', 'btn btn-primary btn-sm mb-2', () => {
     status.textContent = '';
     openEditor();
   });
@@ -67,14 +68,14 @@ export function mountConfirmationRules(
       h(
         'tr',
         {},
-        ...['Name', 'Action', 'Priority', 'Version', 'State', 'Actions'].map((name) =>
+        ...['Nome', 'Ação', 'Prioridade', 'Versão', 'Situação', 'Ações'].map((name) =>
           h('th', { text: name, attrs: { scope: 'col' } }),
         ),
       ),
     ),
     body,
   );
-  const empty = h('p', { text: 'There are no confirmation rules.' });
+  const empty = h('p', { text: 'Não há regras de confirmação.' });
   const editor = h('div');
 
   container.append(
@@ -83,12 +84,12 @@ export function mountConfirmationRules(
       { attrs: { 'aria-labelledby': 'confirmation-heading' } },
       h('h2', {
         className: 'h4',
-        text: 'Confirmation rules',
+        text: 'Regras de confirmação',
         attrs: { id: 'confirmation-heading' },
       }),
       h('p', {
         className: 'text-body-secondary',
-        text: 'A new order that matches an active Hold rule waits in the OnHold queue; any other order is confirmed.',
+        text: 'Um novo pedido que casa com uma regra Reter ativa fica na fila Em espera; qualquer outro pedido é confirmado.',
       }),
       create,
       status,
@@ -109,25 +110,29 @@ export function mountConfirmationRules(
         ? []
         : [
             h('span', { text: failure }),
-            actionButton('Try again', 'btn btn-sm btn-outline-danger ms-auto', () => void load()),
+            actionButton(
+              'Tentar novamente',
+              'btn btn-sm btn-outline-danger ms-auto',
+              () => void load(),
+            ),
           ]),
     );
   }
 
   function rowOf(rule: ConfirmationRule): HTMLElement {
-    const edit = actionButton('Edit', 'btn btn-outline-primary btn-sm', () => {
+    const edit = actionButton('Editar', 'btn btn-outline-primary btn-sm', () => {
       openEditor(rule);
     });
-    edit.setAttribute('aria-label', `Edit ${rule.name}`);
+    edit.setAttribute('aria-label', `Editar ${rule.name}`);
     const actions = h('td', { className: 'd-flex gap-2' }, edit);
 
     if (rule.isActive) {
       const deactivate = actionButton(
-        'Deactivate',
+        'Desativar',
         'btn btn-outline-danger btn-sm',
         () => void deactivateRule(rule),
       );
-      deactivate.setAttribute('aria-label', `Deactivate ${rule.name}`);
+      deactivate.setAttribute('aria-label', `Desativar ${rule.name}`);
       actions.append(deactivate);
     }
 
@@ -135,10 +140,10 @@ export function mountConfirmationRules(
       'tr',
       {},
       h('th', { text: rule.name, attrs: { scope: 'row' } }),
-      h('td', { text: rule.action }),
+      h('td', { text: rule.action === 'Hold' ? 'Reter' : rule.action }),
       h('td', { text: String(rule.priority) }),
       h('td', { text: String(rule.version) }),
-      h('td', { text: rule.isActive ? 'Active' : 'Inactive' }),
+      h('td', { text: rule.isActive ? 'Ativa' : 'Inativa' }),
       actions,
     );
   }
@@ -156,7 +161,7 @@ export function mountConfirmationRules(
       if (mine !== generation) {
         return;
       }
-      failure = errorMessage(error, 'The confirmation rules could not be loaded.');
+      failure = errorMessage(error, 'Não foi possível carregar as regras de confirmação.');
     }
     loaded = true;
     render();
@@ -164,9 +169,9 @@ export function mountConfirmationRules(
 
   async function deactivateRule(rule: ConfirmationRule): Promise<void> {
     const yes = await confirmAction({
-      title: `Deactivate "${rule.name}"?`,
-      message: 'New orders stop being checked against this rule from now on.',
-      confirmLabel: 'Deactivate',
+      title: `Desativar "${rule.name}"?`,
+      message: 'Os novos pedidos deixam de ser verificados com esta regra a partir de agora.',
+      confirmLabel: 'Desativar',
     });
 
     if (!yes) {
@@ -175,13 +180,13 @@ export function mountConfirmationRules(
     let problem: string | undefined;
     try {
       const stored = await deactivateConfirmationRule(options.http, rule.id, rule.version);
-      status.textContent = `Deactivated "${stored.name}" (version ${String(stored.version)}).`;
+      status.textContent = `Regra "${stored.name}" desativada (versão ${String(stored.version)}).`;
     } catch (error) {
       status.textContent = '';
       problem =
         error instanceof PreconditionFailedError
           ? staleRule
-          : errorMessage(error, 'The rule could not be deactivated.');
+          : errorMessage(error, 'Não foi possível desativar a regra.');
     }
     await load();
     if (problem !== undefined) {
@@ -194,7 +199,7 @@ export function mountConfirmationRules(
     const form = buildEditor(options.http, rule, {
       saved: (stored) => {
         editor.replaceChildren();
-        status.textContent = `Saved "${stored.name}" as version ${String(stored.version)}.`;
+        status.textContent = `Regra "${stored.name}" salva como versão ${String(stored.version)}.`;
         void load();
         create.focus();
       },
@@ -231,9 +236,9 @@ function buildEditor(
       : confirmationDefinitionOf(existing);
   const summary = errorSummary();
   const name = textInput(initial.name);
-  const action = selectOf([['Hold', 'Hold (send to the OnHold queue)']], initial.action);
+  const action = selectOf([['Hold', 'Reter (enviar à fila Em espera)']], initial.action);
   const priority = numberInput(initial.priority, { step: '1' });
-  const active = checkbox('Active', initial.isActive);
+  const active = checkbox('Ativa', initial.isActive);
   const conditions = createConditionsEditor(confirmationConditionKinds, initial.conditions);
   let saving = false;
 
@@ -266,8 +271,8 @@ function buildEditor(
     } catch (error) {
       const stale = error instanceof PreconditionFailedError;
       summary.show(
-        [stale ? staleRule : errorMessage(error, 'The rule could not be saved.')],
-        'Not saved:',
+        [stale ? staleRule : errorMessage(error, 'Não foi possível salvar a regra.')],
+        'Não salvo:',
       );
       if (stale) {
         events.stale();
@@ -280,30 +285,34 @@ function buildEditor(
     'form',
     {
       className: 'border rounded p-3 mt-3',
-      attrs: { 'aria-label': 'Confirmation rule editor', novalidate: '' },
+      attrs: { 'aria-label': 'Editor de regra de confirmação', novalidate: '' },
     },
     h('h3', {
       className: 'h5',
       text:
         existing === undefined
-          ? 'New confirmation rule'
-          : `Edit ${existing.name} (version ${String(existing.version)})`,
+          ? 'Nova regra de confirmação'
+          : `Editar ${existing.name} (versão ${String(existing.version)})`,
     }),
     summary.element,
     h(
       'div',
       { className: 'row' },
-      h('div', { className: 'col-md-6' }, labelled('Name', name)),
-      h('div', { className: 'col-md-3' }, labelled('Action', action)),
-      h('div', { className: 'col-md-3' }, labelled('Priority', priority, 'Lower runs first.')),
+      h('div', { className: 'col-md-6' }, labelled('Nome', name)),
+      h('div', { className: 'col-md-3' }, labelled('Ação', action)),
+      h(
+        'div',
+        { className: 'col-md-3' },
+        labelled('Prioridade', priority, 'O menor valor roda primeiro.'),
+      ),
     ),
     active.element,
     conditions.element,
     h(
       'div',
       { className: 'd-flex gap-2' },
-      actionButton('Save rule', 'btn btn-primary', () => void save(), 'submit'),
-      actionButton('Cancel', 'btn btn-outline-secondary', events.closed),
+      actionButton('Salvar regra', 'btn btn-primary', () => void save(), 'submit'),
+      actionButton('Cancelar', 'btn btn-outline-secondary', events.closed),
     ),
   );
   form.addEventListener('submit', (event) => {

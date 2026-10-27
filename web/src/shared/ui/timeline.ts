@@ -7,7 +7,7 @@ import { statusBadge } from './status';
 export function renderTimeline(entries: readonly TimelineEntry[]): HTMLElement {
   return h(
     'ol',
-    { className: 'list-unstyled d-grid gap-2', attrs: { 'aria-label': 'Status timeline' } },
+    { className: 'list-unstyled d-grid gap-2', attrs: { 'aria-label': 'Linha do tempo do status' } },
     ...entries.map((entry) =>
       h(
         'li',
