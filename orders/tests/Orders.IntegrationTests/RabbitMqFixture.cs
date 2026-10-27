@@ -35,6 +35,20 @@ public sealed class RabbitMqFixture : IAsyncLifetime
         await _container.DisposeAsync();
     }
 
+    /// <summary>
+    /// Stops the RabbitMQ application inside the container, so every client loses its connection. The container keeps
+    /// running: stopping it would give it new host ports, and the hosts under test could never reconnect.
+    /// </summary>
+    public async Task StopBrokerAsync(CancellationToken cancellationToken) =>
+        (await _container.ExecAsync(["rabbitmqctl", "stop_app"], cancellationToken)).ExitCode.ShouldBe(0);
+
+    /// <summary>Starts the RabbitMQ application again and waits until it accepts connections; durable queues keep their messages.</summary>
+    public async Task StartBrokerAsync(CancellationToken cancellationToken)
+    {
+        (await _container.ExecAsync(["rabbitmqctl", "start_app"], cancellationToken)).ExitCode.ShouldBe(0);
+        (await _container.ExecAsync(["rabbitmqctl", "await_startup"], cancellationToken)).ExitCode.ShouldBe(0);
+    }
+
     /// <summary>Loads <c>deploy/rabbitmq/definitions.json</c>, so the tests run on the topology and policies compose starts with.</summary>
     private async Task ImportDefinitionsAsync()
     {

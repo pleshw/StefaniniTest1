@@ -64,10 +64,13 @@ public static class OrdersMessagingExtensions
         });
 
         wolverine.PublishMessage<OrderPlacedV1>()
-            .ToRabbitTopic(OrdersTopology.PlacedRoutingKey, OrdersTopology.EventsExchange)
-            .UseDurableOutbox();
+            .ToRabbitTopic(OrdersTopology.PlacedRoutingKey, OrdersTopology.EventsExchange);
         wolverine.PublishMessage<OrderStatusChangedV1>()
-            .ToRabbitTopic(OrdersTopology.StatusChangedRoutingKey, OrdersTopology.EventsExchange)
-            .UseDurableOutbox();
+            .ToRabbitTopic(OrdersTopology.StatusChangedRoutingKey, OrdersTopology.EventsExchange);
+
+        // ToRabbitTopic(...).UseDurableOutbox() marks only the exchange endpoint durable; the messages leave through the
+        // per-topic endpoints (rabbitmq://topic/orders.events/...), which stayed inline, so nothing reached the outbox table
+        // and an event sent while the broker was down was lost. Every sender goes through the durable outbox instead.
+        wolverine.Policies.UseDurableOutboxOnAllSendingEndpoints();
     }
 }
