@@ -1,0 +1,215 @@
+ANALYZE
+=== 1. List: one client, newest first, first page (ix_orders_client_created)
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..86.19 rows=21 width=51) (actual time=0.015..0.046 rows=21 loops=1)
+   Buffers: shared hit=25
+   ->  Index Scan using ix_orders_client_created on orders o  (cost=0.42..490.51 rows=120 width=51) (actual time=0.014..0.043 rows=21 loops=1)
+         Index Cond: (client_id = '00000000-0000-0000-0000-000000000042'::uuid)
+         Buffers: shared hit=25
+ Planning:
+   Buffers: shared hit=51 read=1
+ Planning Time: 0.226 ms
+ Execution Time: 0.065 ms
+(9 rows)
+
+=== 2. List: one client, keyset page 2
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..94.44 rows=21 width=51) (actual time=0.012..0.054 rows=21 loops=1)
+   Buffers: shared hit=29 read=5
+   ->  Index Scan using ix_orders_client_created on orders o  (cost=0.42..492.91 rows=110 width=51) (actual time=0.012..0.052 rows=21 loops=1)
+         Index Cond: (client_id = '00000000-0000-0000-0000-000000000042'::uuid)
+         Filter: ((created_at < (now() - '30 days'::interval)) OR ((created_at = (now() - '30 days'::interval)) AND (id > gen_random_uuid())))
+         Rows Removed by Filter: 10
+         Buffers: shared hit=29 read=5
+ Planning Time: 0.079 ms
+ Execution Time: 0.065 ms
+(9 rows)
+
+=== 3. List: admin, by status (ix_orders_status_created)
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..13.47 rows=21 width=51) (actual time=0.052..0.077 rows=21 loops=1)
+   Buffers: shared hit=3 read=4
+   ->  Index Scan using ix_orders_created on orders o  (cost=0.42..62571.68 rows=100760 width=51) (actual time=0.052..0.075 rows=21 loops=1)
+         Filter: (status = 'OnHold'::text)
+         Rows Removed by Filter: 102
+         Buffers: shared hit=3 read=4
+ Planning Time: 0.035 ms
+ Execution Time: 0.083 ms
+(8 rows)
+
+=== 4. List: admin, no filter
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..2.56 rows=21 width=51) (actual time=0.004..0.009 rows=21 loops=1)
+   Buffers: shared hit=4
+   ->  Index Scan using ix_orders_created on orders o  (cost=0.42..61071.68 rows=600000 width=51) (actual time=0.003..0.007 rows=21 loops=1)
+         Buffers: shared hit=4
+ Planning Time: 0.024 ms
+ Execution Time: 0.014 ms
+(6 rows)
+
+=== 5. List: admin, status and date range
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..57.20 rows=21 width=51) (actual time=0.008..0.017 rows=21 loops=1)
+   Buffers: shared hit=5
+   ->  Index Scan using ix_orders_created on orders o  (cost=0.43..16440.07 rows=6081 width=51) (actual time=0.008..0.015 rows=21 loops=1)
+         Index Cond: ((created_at >= (now() - '7 days'::interval)) AND (created_at < now()))
+         Filter: (status = 'Confirmed'::text)
+         Rows Removed by Filter: 21
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=7
+ Planning Time: 0.069 ms
+ Execution Time: 0.023 ms
+(11 rows)
+
+=== 6. Search: full text OR partial client name, as the API sends it
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..63.55 rows=21 width=51) (actual time=0.015..1.100 rows=21 loops=1)
+   Buffers: shared hit=26 read=21
+   ->  Index Scan using ix_orders_created on orders o  (cost=0.42..64071.68 rows=21316 width=51) (actual time=0.014..1.096 rows=21 loops=1)
+         Filter: ((search_vector @@ '''carla'' & ''silva'''::tsquery) OR (client_name ~~* '%carla silva%'::text))
+         Rows Removed by Filter: 1261
+         Buffers: shared hit=26 read=21
+ Planning:
+   Buffers: shared hit=30 read=11
+ Planning Time: 0.808 ms
+ Execution Time: 1.116 ms
+(10 rows)
+
+=== 7. Search: order number
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=813.82..813.87 rows=21 width=51) (actual time=0.179..0.181 rows=1 loops=1)
+   Buffers: shared hit=48
+   ->  Sort  (cost=813.82..814.22 rows=160 width=51) (actual time=0.179..0.180 rows=1 loops=1)
+         Sort Key: created_at DESC, id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=48
+         ->  Bitmap Heap Scan on orders o  (cost=213.16..809.51 rows=160 width=51) (actual time=0.171..0.172 rows=1 loops=1)
+               Recheck Cond: ((search_vector @@ '''ord'' <-> ''-00012345'''::tsquery) OR (client_name ~~* '%ORD-00012345%'::text))
+               Heap Blocks: exact=1
+               Buffers: shared hit=48
+               ->  BitmapOr  (cost=213.16..213.16 rows=160 width=0) (actual time=0.163..0.163 rows=0 loops=1)
+                     Buffers: shared hit=47
+                     ->  Bitmap Index Scan on ix_orders_search  (cost=0.00..43.33 rows=100 width=0) (actual time=0.070..0.070 rows=1 loops=1)
+                           Index Cond: (search_vector @@ '''ord'' <-> ''-00012345'''::tsquery)
+                           Buffers: shared hit=12
+                     ->  Bitmap Index Scan on ix_orders_client_trgm  (cost=0.00..169.75 rows=60 width=0) (actual time=0.092..0.092 rows=0 loops=1)
+                           Index Cond: (client_name ~~* '%ORD-00012345%'::text)
+                           Buffers: shared hit=35
+ Planning:
+   Buffers: shared hit=2
+ Planning Time: 0.156 ms
+ Execution Time: 0.257 ms
+(22 rows)
+
+=== 8. Detail: order by id
+                                                                     QUERY PLAN                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_orders" on orders o  (cost=34.92..42.93 rows=1 width=194) (actual time=0.156..0.156 rows=1 loops=1)
+   Index Cond: (id = $0)
+   Buffers: shared hit=12
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=34.46..34.49 rows=1 width=16) (actual time=0.148..0.149 rows=1 loops=1)
+           Buffers: shared hit=8
+           ->  Index Only Scan using "PK_orders" on orders  (cost=0.42..20420.42 rows=600000 width=16) (actual time=0.015..0.109 rows=1001 loops=1)
+                 Heap Fetches: 0
+                 Buffers: shared hit=8
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.096 ms
+ Execution Time: 0.166 ms
+(13 rows)
+
+=== 9. Detail: items of an order
+                                                                     QUERY PLAN                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_order_items" on order_items i  (cost=34.92..50.97 rows=3 width=56) (actual time=0.177..0.179 rows=3 loops=1)
+   Index Cond: (order_id = $0)
+   Buffers: shared hit=14
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=34.46..34.49 rows=1 width=16) (actual time=0.167..0.167 rows=1 loops=1)
+           Buffers: shared hit=8
+           ->  Index Only Scan using "PK_orders" on orders  (cost=0.42..20420.42 rows=600000 width=16) (actual time=0.009..0.102 rows=1001 loops=1)
+                 Heap Fetches: 0
+                 Buffers: shared hit=8
+ Planning:
+   Buffers: shared hit=35
+ Planning Time: 0.122 ms
+ Execution Time: 0.190 ms
+(13 rows)
+
+=== 10. History of an order
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_order_status_history" on order_status_history h  (cost=34.92..42.93 rows=1 width=137) (actual time=0.135..0.136 rows=1 loops=1)
+   Index Cond: (order_id = $0)
+   Buffers: shared hit=12
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=34.46..34.49 rows=1 width=16) (actual time=0.127..0.127 rows=1 loops=1)
+           Buffers: shared hit=8
+           ->  Index Only Scan using "PK_orders" on orders  (cost=0.42..20420.42 rows=600000 width=16) (actual time=0.006..0.087 rows=1001 loops=1)
+                 Heap Fetches: 0
+                 Buffers: shared hit=8
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.079 ms
+ Execution Time: 0.143 ms
+(13 rows)
+
+=== 11. Create: has the client any earlier order (first-order discount)
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Result  (cost=0.56..0.57 rows=1 width=1) (actual time=0.034..0.034 rows=1 loops=1)
+   Buffers: shared hit=4
+   InitPlan 1 (returns $0)
+     ->  Index Only Scan using ix_orders_client_created on orders o  (cost=0.42..16.93 rows=120 width=0) (actual time=0.033..0.033 rows=1 loops=1)
+           Index Cond: (client_id = '00000000-0000-0000-0000-000000000042'::uuid)
+           Filter: ((id <> gen_random_uuid()) AND ((created_at < now()) OR ((created_at = now()) AND (id < gen_random_uuid()))))
+           Heap Fetches: 0
+           Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=4
+ Planning Time: 0.072 ms
+ Execution Time: 0.043 ms
+(12 rows)
+
+=== 12. Create: idempotency lookup
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on idempotency_requests  (cost=0.00..0.00 rows=1 width=130) (actual time=0.002..0.002 rows=0 loops=1)
+   Filter: ((client_id = '00000000-0000-0000-0000-000000000042'::uuid) AND (idempotency_key = '11111111-1111-1111-1111-111111111111'::uuid))
+ Planning:
+   Buffers: shared hit=18 read=2
+ Planning Time: 0.074 ms
+ Execution Time: 0.006 ms
+(6 rows)
+
+=== 13. Create: number lookup (ux_orders_number)
+                                                        QUERY PLAN                                                        
+--------------------------------------------------------------------------------------------------------------------------
+ Index Scan using ux_orders_number on orders  (cost=0.42..8.44 rows=1 width=16) (actual time=0.012..0.013 rows=1 loops=1)
+   Index Cond: (number = 'ORD-00012345'::text)
+   Buffers: shared hit=4
+ Planning Time: 0.019 ms
+ Execution Time: 0.016 ms
+(5 rows)
+
+=== 14. Create: the insert (rolled back)
+BEGIN
+                                          QUERY PLAN                                          
+----------------------------------------------------------------------------------------------
+ Insert on orders  (cost=0.00..0.02 rows=0 width=0) (actual time=0.130..0.130 rows=0 loops=1)
+   Buffers: shared hit=34 dirtied=3
+   ->  Result  (cost=0.00..0.02 rows=1 width=324) (actual time=0.009..0.009 rows=1 loops=1)
+ Planning Time: 0.018 ms
+ Execution Time: 0.141 ms
+(5 rows)
+
+ROLLBACK

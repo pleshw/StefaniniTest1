@@ -4,7 +4,7 @@
 
 Uma plataforma RESTful de pedidos construída com .NET 10: uma **Orders API** (PostgreSQL, CQRS, RabbitMQ), um **serviço Catalog** (MongoDB), um **BFF** que é a única porta de entrada do navegador e duas páginas de front-end (Shop e Admin) escritas em HTML, TypeScript e Bootstrap puros.
 
-> **Status:** planejamento concluído, implementação não iniciada. O trabalho avança etapa por etapa pelo [Guia de execução](docs/pt-br/02-execution-guide.md), começando pela etapa C01. Os comandos de [Primeiros passos](#primeiros-passos) descrevem o ambiente final e se tornam executáveis conforme as etapas são entregues (compose em C06–C07, front-end em C45, smoke test em C54).
+> **Status:** implementação das etapas C01–C56 entregue; a **C57** (baseline do Stryker.NET) está pendente e a tag **v1.0.0** ainda não foi criada. O trabalho avançou etapa por etapa pelo [Guia de execução](docs/pt-br/02-execution-guide.md); o que falta antes da release está em [Qualidade](docs/pt-br/quality.md). Os comandos de [Primeiros passos](#primeiros-passos) rodam com o Docker Compose; nada do compose real foi executado pelas sessões de IA sem Docker (veja as [evidências](docs/pt-br/05-ai-development.md#sessões-de-implementação)).
 
 ## Entregáveis do desafio
 
@@ -15,7 +15,7 @@ Uma plataforma RESTful de pedidos construída com .NET 10: uma **Orders API** (P
 | Guia de code review / governança | [Guia de code review](docs/pt-br/03-code-review-guide.md) (pt-BR) · [en-US](docs/en-us/03-code-review-guide.md) |
 | Dimensionamento da proposta (diferenciais) | [Dimensionamento técnico](docs/pt-br/04-tech-dimensioning.md) (pt-BR) · [en-US](docs/en-us/04-tech-dimensioning.md) |
 | Link das sessões de chat com IA (obrigatório) | [Links das conversas com IA](#links-das-conversas-com-ia) e as tabelas de evidências em [Desenvolvimento assistido por IA](docs/pt-br/05-ai-development.md#evidências) |
-| Apresentação (desejável) | `docs/pt-br/presentation/` e `docs/en-us/presentation/` (produzida na etapa C58) |
+| Apresentação (desejável) | [Apresentação](docs/pt-br/presentation/presentation.md) (pt-BR) · [en-US](docs/en-us/presentation/presentation.md) |
 
 ## Primeiros passos
 
@@ -88,6 +88,22 @@ Os testes de integração usam Testcontainers, então o Docker precisa estar em 
 
 O smoke test (`scripts/smoke.sh`) passa só pelo BFF: entra como `shopper` e como `admin` pelo login de desenvolvimento, faz um pedido, confere que ele chega ao stream de eventos do admin e termina em `Confirmed` ou `OnHold`, e repete a mesma `Idempotency-Key` para receber o mesmo número de pedido. Com a pilha de desenvolvimento no ar basta rodá-lo; com `--up` ele sobe a pilha antes (`docker compose up -d --build --wait`). Ele depende do login de desenvolvimento, que só o `docker-compose.yml` liga, então ainda não roda contra staging nem produção.
 
+O teste de carga usa o k6 no profile `load` do compose e cobra as metas de latência do dimensionamento (criar pedido < 300 ms, lote de preços < 50 ms, listar pedidos < 200 ms, p95): com a pilha no ar, `docker compose --profile load run --rm k6`. `LOAD_DURATION` no `.env` encurta a execução (por exemplo `30s`). Os planos `EXPLAIN` das consultas do Orders estão em `docs/perf/`.
+
+### Solução de problemas
+
+| Sintoma | Causa provável e o que fazer |
+| --- | --- |
+| `docker compose up` falha com "set SERVICE_TOKEN_SIGNING_KEY in .env" (ou outra variável) | O `.env` não existe ou está incompleto: `cp .env.example .env` |
+| `/bff/login` não responde 200 | A pilha ainda sobe: use `--wait` e veja `docker compose ps`; o login de desenvolvimento só existe no compose de desenvolvimento |
+| O catálogo da Shop está vazio | O seed do Catalog (`Catalog__Seed__Enabled`) está desligado ou o MongoDB não iniciou o replica set: veja `docker compose logs mongo catalog-api` |
+| Criar pedido responde 503 | O Catalog está fora do ar ou o circuit breaker abriu; espere o `break` de 15 s e veja a saúde em `docker compose ps` |
+| O Admin só mostra "Aguardando eventos…" | A tabela ao vivo começa vazia e só mostra o que acontece depois de aberta (não lê o histórico): faça um pedido na Shop e ele aparece em poucos segundos. Se nada aparecer, veja `docker compose logs orders-bff orders-worker` (procure "Live events: the event log could not be read") e se o RabbitMQ está saudável |
+| Um pedido fica em `OnHold` | Uma regra de confirmação o reteve; confirme-o no Admin (veja o [runbook](docs/pt-br/operations/runbook.md)) |
+| Mensagens na DLQ | Veja o replay no [runbook](docs/pt-br/operations/runbook.md) e os limites em [Métricas e alertas](docs/pt-br/operations/alerts.md) |
+| Os testes de integração falham ao iniciar | O Docker não está em execução (Testcontainers) |
+| `dotnet restore --locked-mode` falha | Um pacote mudou sem regenerar os arquivos de lock: `dotnet restore` e faça commit dos `packages.lock.json` |
+
 ## Documentação
 
 A documentação é mantida em dois idiomas, com os mesmos nomes de arquivo: [`docs/pt-br/`](docs/pt-br/) (português do Brasil, a fonte da verdade) e [`docs/en-us/`](docs/en-us/) (espelho em inglês). As mudanças são escritas primeiro em pt-BR e espelhadas em en-US no mesmo PR; quando divergem, vale o pt-BR. Este README é espelhado por [`README-en-us.md`](README-en-us.md) (en-US). As regras para agentes estão em [AGENTS.md](AGENTS.md).
@@ -99,6 +115,9 @@ A documentação é mantida em dois idiomas, com os mesmos nomes de arquivo: [`d
 | [Guia de code review](docs/pt-br/03-code-review-guide.md) | [en-US](docs/en-us/03-code-review-guide.md) | Governança: princípios de clean code, critérios de aceite de PR, o que bloqueia um PR, fluxo de revisão, checklists por stack, artefatos e pipelines |
 | [Dimensionamento técnico](docs/pt-br/04-tech-dimensioning.md) | [en-US](docs/en-us/04-tech-dimensioning.md) | Premissas, dimensionamento de runtime, esforço por fase, composição e senioridade da equipe, cronograma de entrega, riscos da estimativa |
 | [Desenvolvimento assistido por IA](docs/pt-br/05-ai-development.md) | [en-US](docs/en-us/05-ai-development.md) | Escolha da ferramenta (Claude Code com Opus 5.5 e Sonnet 5.5), motivos, uso em cada etapa do ciclo de vida, salvaguardas, evidências das sessões |
+| [Qualidade](docs/pt-br/quality.md) | [en-US](docs/en-us/quality.md) | Tabela de evidências dos critérios de aceite, metas de latência, estado do teste de mutação |
+| [ADRs](docs/pt-br/adr/0001-bff.md) | [en-US](docs/en-us/adr/0001-bff.md) | Decisões: BFF, Wolverine, replica set do MongoDB, várias moedas, regras de confirmação (0001–0005) |
+| [Operação](docs/pt-br/operations/runbook.md) | [en-US](docs/en-us/operations/runbook.md) | Runbook (replay da DLQ, mudanças de regras, reversão) e [métricas e alertas](docs/pt-br/operations/alerts.md) |
 
 ## Links das conversas com IA
 
@@ -132,7 +151,7 @@ flowchart TB
 - **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, driver C# do MongoDB, Wolverine (handlers CQRS, outbox/inbox, RabbitMQ), YARP no BFF
 - **Dados e mensageria:** PostgreSQL 17, MongoDB 8 (replica set), RabbitMQ 4 (quorum queues, retentativas, DLQ)
 - **Front end:** TypeScript (strict), Vite, Vitest, Bootstrap 5.3 e Bootstrap Icons
-- **Qualidade:** xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest, axe-core, Stryker.NET
+- **Qualidade:** xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest, axe-core, k6 (carga); o teste de mutação (Stryker.NET) está pendente
 - **Operação:** Docker Compose, OpenTelemetry, GitHub Actions com um gate de deploy antes de cada deploy
 
 ## Contribuindo

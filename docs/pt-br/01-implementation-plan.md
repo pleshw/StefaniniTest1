@@ -87,6 +87,7 @@ Regras que mantêm o BFF enxuto: nenhuma lógica de domínio, nenhum banco de da
 | Erros | ProblemDetails (RFC 9457) | Mesmo formato em todos os serviços |
 | Observabilidade | OpenTelemetry → OTel Collector → Aspire Dashboard | Profile `observability` do Compose |
 | Testes de back-end | xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest | Evitar FluentAssertions v8 (licença comercial) |
+| Teste de carga | k6 (imagem `grafana/k6`, profile `load` do Compose) | Roda `tests/load/orders.js` com o perfil de pico do dimensionamento; sem pacote npm ou NuGet; os thresholds são as metas de latência |
 | Front-end | TypeScript, Vite, Vitest + jsdom, Bootstrap 5.3 + Bootstrap Icons via npm | axe-core para verificações de acessibilidade; ferramentas de desenvolvimento: ESLint (typescript-eslint) + Prettier, @testing-library/dom, MSW para stubs do BFF, @vitest/coverage-v8 |
 
 ## Estrutura do repositório e das solutions
@@ -436,7 +437,7 @@ Todo serviço exporta traces, métricas e logs via OpenTelemetry; a auditoria fi
 - O projeto `ServiceDefaults` configura o OTel para ASP.NET Core, HttpClient, EF Core/Npgsql, driver do MongoDB e RabbitMQ, exportando OTLP para o Collector. Visualização local: container do Aspire Dashboard (`docker compose --profile observability up`).
 - O contexto de trace atravessa o HTTP automaticamente e o RabbitMQ por meio do header `traceparent` armazenado nas linhas de outbox.
 - Logs: `ILogger` com `LoggerMessage` via source generator, saída JSON no console, trace id em toda entrada. Nada de dados pessoais ou corpos completos de requisição nos logs.
-- Métricas customizadas: `orders.created`, `orders.duplicate_replayed`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth`.
+- Métricas customizadas: `orders.created`, `orders.duplicate_replayed`, `orders.on_hold`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth`, com os limites de alerta em [Métricas e alertas](operations/alerts.md).
 - Health: `/health/live` e `/health/ready` (DB, broker, Catalog acessível), usados pelos healthchecks do compose.
 
 **Auditoria**

@@ -105,6 +105,18 @@ Capacity notes:
 - Scale-out path: Orders API, BFF, Worker and Catalog are stateless and scale horizontally; SSE connections pin to a BFF instance, and each instance has its own RabbitMQ feed queue.
 - Developer machine: 16 GB RAM minimum, Docker Desktop with WSL 2 set to at least 6 GB.
 
+## Load test and query review
+
+The peak profile from the [Premises](#premises) runs with k6: `docker compose --profile load run --rm k6` (the stack must be up). The script `tests/load/orders.js` lasts 10 minutes (`LOAD_DURATION` in `.env` changes that, for example `30s` to check the script) and uses at most 100 virtual users: 50 orders/min through nginx and the BFF (up to 30), 20 price queries/s straight at Catalog API with a service token the script signs itself (up to 40), and order listings through the BFF, as `admin` and as `shopper` (30). The thresholds are the p95 targets from the [Summary](#summary), and the run exits non-zero if one fails or if k6 drops iterations:
+
+| Scenario | Target (p95) | Note |
+| --- | --- | --- |
+| Create an order | < 300 ms | Measured through nginx and the BFF; the runtime table sets the target for Orders API alone, so this measure is stricter |
+| Price query batch | < 50 ms | Straight at Catalog API (`POST /api/v1/products/prices:query`) |
+| List orders | < 200 ms | Through the BFF, as `admin` (every order) and as `shopper` (their own) |
+
+The `EXPLAIN (ANALYZE, BUFFERS)` plans for Orders' listing, search and creation queries are in `docs/perf/` (`seed.sql` creates 600,000 orders, about a year at the sizing rate; `explain.sql` has the queries; `explain-orders.txt` has the plans after the fix and `explain-orders-before-0004.txt` the plan that motivated the migration). One finding: the admin's unfiltered listing did a Parallel Seq Scan and sorted the whole table (97 ms); migration `0004_OrdersCreatedIndex` (it only adds the index `ix_orders_created` on `(created_at DESC, id)`, compatible with the previous code version) brought the query to 0.014 ms. Every other query already used an index. The numbers came from a local PostgreSQL, not the Compose PostgreSQL 17, and Catalog (MongoDB) is left out, because `EXPLAIN (ANALYZE, BUFFERS)` is a PostgreSQL feature.
+
 ## Effort by phase
 
 Orders core and the front-end are the two largest phases at 22 person-days each; together with messaging they hold half of the 116 person-days. Effort covers AI-assisted implementation, review, tests and CI for each commit in the execution guide.

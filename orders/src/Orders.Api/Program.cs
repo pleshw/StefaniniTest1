@@ -2,6 +2,7 @@ using System.Reflection;
 using Orders.Api.Endpoints;
 using Orders.Api.Security;
 using Orders.Application;
+using Orders.Application.Observability;
 using Orders.Infrastructure.Catalog;
 using Orders.Infrastructure.Persistence;
 using ServiceDefaults;
@@ -13,7 +14,7 @@ if (HealthCheckCommand.IsRequested(args))
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
+builder.AddServiceDefaults().AddMeters(OrdersMetrics.MeterName);
 
 // The build writes the OpenAPI document by starting this host through GetDocument.Insider: it needs the endpoints only,
 // so it gets no database, outbox or broker.

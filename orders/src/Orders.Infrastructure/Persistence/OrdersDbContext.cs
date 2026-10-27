@@ -69,6 +69,9 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
             .HasDatabaseName("ix_orders_client_created");
         order.HasIndex(record => new { record.Status, record.CreatedAt, record.Id }).IsDescending(false, true, false)
             .HasDatabaseName("ix_orders_status_created");
+        // The admin list without a filter reads the newest orders: without this index it scans and sorts the whole table.
+        order.HasIndex(record => new { record.CreatedAt, record.Id }).IsDescending(true, false)
+            .HasDatabaseName("ix_orders_created");
         order.HasIndex(record => record.SearchVector).HasMethod("GIN").HasDatabaseName("ix_orders_search");
         order.HasIndex(record => record.ClientName).HasMethod("gin").HasOperators("gin_trgm_ops").HasDatabaseName("ix_orders_client_trgm");
 

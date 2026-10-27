@@ -105,6 +105,18 @@ Observações de capacidade:
 - Caminho de escala: Orders API, BFF, Worker e Catalog são stateless e escalam horizontalmente; as conexões SSE ficam fixadas a uma instância do BFF, e cada instância tem sua própria fila de feed no RabbitMQ.
 - Máquina de desenvolvedor: mínimo de 16 GB de RAM, Docker Desktop com WSL 2 configurado com pelo menos 6 GB.
 
+## Teste de carga e revisão de consultas
+
+O perfil de pico das [Premissas](#premissas) roda com o k6: `docker compose --profile load run --rm k6` (a pilha precisa estar no ar). O script `tests/load/orders.js` dura 10 minutos (`LOAD_DURATION` no `.env` muda isso, por exemplo `30s` para conferir o script) e usa, no máximo, 100 usuários virtuais: 50 pedidos/min pelo nginx e pelo BFF (até 30), 20 consultas de preço/s direto no Catalog API com um token de serviço assinado pelo próprio script (até 40) e listagens de pedidos pelo BFF, como `admin` e como `shopper` (30). Os thresholds são as metas de p95 do [Resumo](#resumo), e a execução sai com código diferente de zero se alguma falhar ou se o k6 descartar iterações:
+
+| Cenário | Meta (p95) | Observação |
+| --- | --- | --- |
+| Criar pedido | < 300 ms | Medido pelo nginx e pelo BFF; a tabela de runtime fixa a meta só para o Orders API, então esta medida é mais rígida |
+| Lote de preços | < 50 ms | Direto no Catalog API (`POST /api/v1/products/prices:query`) |
+| Listar pedidos | < 200 ms | Pelo BFF, como `admin` (todos os pedidos) e como `shopper` (os próprios) |
+
+Os planos de `EXPLAIN (ANALYZE, BUFFERS)` das consultas de listagem, busca e criação do Orders estão em `docs/perf/` (`seed.sql` cria 600.000 pedidos, cerca de um ano no ritmo do dimensionamento; `explain.sql` tem as consultas; `explain-orders.txt` tem os planos de depois da correção e `explain-orders-before-0004.txt` o plano que motivou a migration). Um achado: a listagem do admin sem filtro fazia Parallel Seq Scan e ordenava a tabela inteira (97 ms); a migration `0004_OrdersCreatedIndex` (só adiciona o índice `ix_orders_created` em `(created_at DESC, id)`, compatível com a versão anterior do código) levou a consulta a 0,014 ms. Todas as outras consultas já usavam índice. As medidas vieram de um PostgreSQL local, não do PostgreSQL 17 do Compose, e o Catalog (MongoDB) fica fora, porque `EXPLAIN (ANALYZE, BUFFERS)` é do PostgreSQL.
+
 ## Esforço por fase
 
 O núcleo do Orders e o front-end são as duas maiores fases, com 22 pessoas-dia cada; junto com a mensageria, concentram metade das 116 pessoas-dia. O esforço cobre implementação assistida por IA, revisão, testes e CI para cada commit do guia de execução.

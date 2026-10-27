@@ -3,6 +3,7 @@ using NSubstitute.ExceptionExtensions;
 using Orders.Application.Catalog;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
+using Orders.Application.Observability;
 using Orders.Application.Ordering;
 using Orders.Application.Pricing;
 using Orders.Domain;
@@ -10,7 +11,7 @@ using Orders.Domain.Discounts;
 
 namespace Orders.Application.UnitTests;
 
-public sealed class CreateOrderHandlerTests
+public sealed class CreateOrderHandlerTests : IDisposable
 {
     private static readonly DateTimeOffset _now = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
     private static readonly Guid _client = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -27,6 +28,8 @@ public sealed class CreateOrderHandlerTests
     private readonly IActiveDiscountRules _rules = Substitute.For<IActiveDiscountRules>();
     private readonly IOrderQueries _queries = Substitute.For<IOrderQueries>();
     private readonly IOrderDiscountStore _discounts = Substitute.For<IOrderDiscountStore>();
+    private readonly OrdersMetrics _metrics = new();
+    private readonly MetricsRecorder _recorder;
     private readonly CreateOrderHandler _handler;
 
     public CreateOrderHandlerTests()
@@ -37,6 +40,7 @@ public sealed class CreateOrderHandlerTests
         _catalog.GetPricesAsync(_brl, Arg.Any<IReadOnlyCollection<string>>(), Token).Returns(Result.Ok(new CatalogPrices(
             [Price("KB-1", 19.99m, 3), Price("MS-1", 10m, 1)], [])));
         _rules.GetAsync(_brl, Token).Returns([]);
+        _recorder = new MetricsRecorder(_metrics.Meter);
         var clock = new FixedTimeProvider(_now);
         _handler = new CreateOrderHandler(
             new IdempotencyService(_store),
@@ -47,7 +51,14 @@ public sealed class CreateOrderHandlerTests
             _discounts,
             _transaction,
             new OrderStatusChangeRecorder(_log, _events),
-            new CreateOrderCommandValidator());
+            new CreateOrderCommandValidator(),
+            _metrics);
+    }
+
+    public void Dispose()
+    {
+        _recorder.Dispose();
+        _metrics.Dispose();
     }
 
     [Fact]
@@ -330,6 +341,97 @@ public sealed class CreateOrderHandlerTests
         var number = OrderNumbers.For(Guid.Parse("3f9a1c2b-7d40-4e8a-b1c2-9d8e7f6a5b4c"), _now);
 
         number.ShouldBe("ORD-2026-3F9A1C2B7D40");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_NewKey_CountsOneCreatedOrderAndNoReplay()
+    {
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        var created = _recorder.Of("orders.created").ShouldHaveSingleItem();
+        created.Value.ShouldBe(1);
+        created.Tag("channel").ShouldBe("shop");
+        created.Tag("currency").ShouldBe("BRL");
+        _recorder.Of("orders.duplicate_replayed").ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_KeyAlreadyStored_CountsAReplayAndNoCreatedOrder()
+    {
+        _store.TryGetAsync(_client, Guid.Parse(_key), Token)
+            .Returns(new IdempotencyRecord(_client, Guid.Parse(_key), _hash, 201, """{"id":"abc"}""", Guid.NewGuid()));
+
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        _recorder.Of("orders.duplicate_replayed").ShouldHaveSingleItem().Tag("channel").ShouldBe("shop");
+        _recorder.Of("orders.created").ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_ConcurrentRequestCommittedFirst_CountsAReplayAndNoCreatedOrder()
+    {
+        var winner = new IdempotencyRecord(_client, Guid.Parse(_key), _hash, 201, """{"id":"winner"}""", Guid.NewGuid());
+        _store.TryGetAsync(_client, Guid.Parse(_key), Token).Returns(Task.FromResult<IdempotencyRecord?>(null), Task.FromResult<IdempotencyRecord?>(winner));
+        _store.TryReserveAsync(default, default, default!, default, Token).ReturnsForAnyArgs(false);
+
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        _recorder.Of("orders.duplicate_replayed").ShouldHaveSingleItem();
+        _recorder.Of("orders.created").ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_UnknownSku_CountsNothing()
+    {
+        _catalog.GetPricesAsync(_brl, Arg.Any<IReadOnlyCollection<string>>(), Token)
+            .Returns(Result.Ok(new CatalogPrices([Price("MS-1", 10m, 1)], ["KB-1"])));
+
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        _recorder.Of("orders.created").ShouldBeEmpty();
+        _recorder.Of("orders.duplicate_replayed").ShouldBeEmpty();
+        _recorder.Of("discount.applied").ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_ActiveRuleApplies_CountsTheAppliedDiscount()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", oncePerClient: true)]);
+
+        await _handler.HandleAsync(Command(Line("KB-1", 2), Line("MS-1", 1)), Token);
+
+        var applied = _recorder.Of("discount.applied").ShouldHaveSingleItem();
+        applied.Value.ShouldBe(1);
+        applied.Tag("currency").ShouldBe("BRL");
+        applied.Tag("once_per_client").ShouldBe(true);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_NoActiveRules_CountsNoDiscount()
+    {
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        _recorder.Of("discount.applied").ShouldBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task HandleAsync_OncePerClientDiscountAlreadyRedeemed_CountsNothing()
+    {
+        _rules.GetAsync(_brl, Token).Returns([Rule("""{ "percent": 10, "appliesTo": "order" }""", oncePerClient: true)]);
+        _discounts.AddAsync(Arg.Any<Order>(), Arg.Any<IReadOnlyList<AppliedDiscount>>(), Token)
+            .ThrowsAsyncForAnyArgs(new DiscountAlreadyUsedException("used", new InvalidOperationException()));
+
+        await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        _recorder.Of("orders.created").ShouldBeEmpty();
+        _recorder.Of("discount.applied").ShouldBeEmpty();
     }
 
     private static CreateOrderCommand Command(params CartLine[] lines) => new(

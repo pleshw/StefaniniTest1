@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using Orders.Application.Discounts;
 using Orders.Application.Idempotency;
+using Orders.Application.Observability;
 using Orders.Application.Pricing;
 using Orders.Domain;
 using Orders.Domain.Validation;
@@ -64,7 +65,8 @@ public sealed class CreateOrderHandler(
     IOrderDiscountStore discounts,
     IOrderTransaction transaction,
     OrderStatusChangeRecorder recorder,
-    IValidator<CreateOrderCommand> validator)
+    IValidator<CreateOrderCommand> validator,
+    OrdersMetrics metrics)
 {
     private const int _createdStatus = 201;
 
@@ -90,7 +92,14 @@ public sealed class CreateOrderHandler(
 
         if (!replay.IsSuccess || replay.Value is not null)
         {
-            return replay.IsSuccess ? Result.Ok(ToReplay(replay.Value!)) : Fail(replay.Error!);
+            if (!replay.IsSuccess)
+            {
+                return Fail(replay.Error!);
+            }
+
+            metrics.DuplicateReplayed(command.Channel);
+
+            return Result.Ok(ToReplay(replay.Value!));
         }
 
         var draft = await drafter.DraftAsync(
@@ -112,7 +121,7 @@ public sealed class CreateOrderHandler(
 
         try
         {
-            return await transaction.ExecuteAsync(
+            var result = await transaction.ExecuteAsync(
                 async token =>
                 {
                     if (!await idempotencyStore.TryReserveAsync(command.ClientId, key, command.RequestHash, order.Id, token))
@@ -131,10 +140,37 @@ public sealed class CreateOrderHandler(
                     return Result.Ok(new CreateOrderOutcome(_createdStatus, body, order.Id, Replayed: false));
                 },
                 cancellationToken);
+
+            Count(command, draft, result);
+
+            return result;
         }
         catch (DiscountAlreadyUsedException exception)
         {
             return Result.Fail<CreateOrderOutcome>(ErrorKind.DiscountAlreadyUsed, exception.Message);
+        }
+    }
+
+    /// <summary>Counted after the commit, so a rolled-back order is never counted.</summary>
+    private void Count(CreateOrderCommand command, OrderDraft draft, Result<CreateOrderOutcome> result)
+    {
+        if (!result.IsSuccess)
+        {
+            return;
+        }
+
+        if (result.Value.Replayed)
+        {
+            metrics.DuplicateReplayed(command.Channel);
+
+            return;
+        }
+
+        metrics.OrderCreated(command.Channel, draft.Order.Total.Currency);
+
+        foreach (var applied in draft.Discounts)
+        {
+            metrics.DiscountApplied(applied.Amount.Currency, applied.OncePerClient);
         }
     }
 

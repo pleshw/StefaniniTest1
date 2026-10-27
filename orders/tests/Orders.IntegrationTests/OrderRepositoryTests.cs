@@ -145,6 +145,7 @@ public sealed class OrderRepositoryTests : IClassFixture<PostgresFixture>
         indexes.ShouldContain("ix_orders_client_trgm");
         indexes.ShouldContain("ix_orders_client_created");
         indexes.ShouldContain("ix_orders_status_created");
+        indexes.ShouldContain("ix_orders_created");
         indexes.ShouldContain("ix_idempotency_expires");
     }
 

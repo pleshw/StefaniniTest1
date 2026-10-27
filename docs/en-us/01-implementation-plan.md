@@ -87,6 +87,7 @@ Rules that keep the BFF thin: no domain logic, no database, no price or discount
 | Errors | ProblemDetails (RFC 9457) | Same shape in all services |
 | Observability | OpenTelemetry → OTel Collector → Aspire Dashboard | Compose profile `observability` |
 | Back-end tests | xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest | Avoid FluentAssertions v8 (commercial licence) |
+| Load test | k6 (`grafana/k6` image, Compose profile `load`) | Runs `tests/load/orders.js` with the sizing document's peak profile; no npm or NuGet package; the thresholds are the latency targets |
 | Front-end | TypeScript, Vite, Vitest + jsdom, Bootstrap 5.3 + Bootstrap Icons via npm | axe-core for accessibility checks; development tools: ESLint (typescript-eslint) + Prettier, @testing-library/dom, MSW for BFF stubs, @vitest/coverage-v8 |
 
 ## Repository and solution structure
@@ -436,7 +437,7 @@ Every service exports OpenTelemetry traces, metrics and logs; audit lives in eac
 - `ServiceDefaults` project wires OTel for ASP.NET Core, HttpClient, EF Core/Npgsql, MongoDB driver and RabbitMQ, exporting OTLP to the Collector. Local view: Aspire Dashboard container (`docker compose --profile observability up`).
 - Trace context crosses HTTP automatically and RabbitMQ through the `traceparent` header stored in outbox rows.
 - Logs: `ILogger` with source-generated `LoggerMessage`, JSON console output, trace id on every entry. No personal data or full request bodies in logs.
-- Custom metrics: `orders.created`, `orders.duplicate_replayed`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth`.
+- Custom metrics: `orders.created`, `orders.duplicate_replayed`, `orders.on_hold`, `discount.applied`, `catalog.price_lookup.duration`, `rabbitmq.dlq.depth`, with the alert thresholds in [Metrics and alerts](operations/alerts.md).
 - Health: `/health/live` and `/health/ready` (DB, broker, Catalog reachable) used by compose healthchecks.
 
 **Audit**
