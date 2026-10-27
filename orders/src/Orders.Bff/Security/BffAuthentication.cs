@@ -117,9 +117,12 @@ internal static class BffAuthentication
             statusCode: failed ? StatusCodes.Status401Unauthorized : StatusCodes.Status200OK);
     }
 
-    /// <summary>Only a path on this site: "/x" but not "//host" or "/\host", which browsers treat as another origin.</summary>
+    /// <summary>
+    /// Only a path on this site: "/x" but not "//host" or "/\host", which browsers treat as another origin, nor a path with a
+    /// control character, because browsers drop tabs and line breaks from a URL and "/&lt;tab&gt;/host" becomes "//host".
+    /// </summary>
     private static bool IsLocal(string? url) =>
-        !string.IsNullOrEmpty(url) && url[0] == '/' && (url.Length == 1 || (url[1] != '/' && url[1] != '\\'));
+        !string.IsNullOrEmpty(url) && url[0] == '/' && (url.Length == 1 || (url[1] != '/' && url[1] != '\\')) && !url.Any(char.IsControl);
 
     private static Task Status(RedirectContext<CookieAuthenticationOptions> context, int status)
     {
