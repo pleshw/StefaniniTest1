@@ -2,6 +2,7 @@ import { listDeadLetters, replayDeadLetter, type DeadLetter } from '../api/deadL
 import type { HttpClient } from '../../shared/api/http';
 import { confirmAction } from '../../shared/ui/dialog';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import { actionButton } from '../../shared/ui/form';
 
@@ -51,7 +52,14 @@ export function mountDeadLetters(container: HTMLElement, options: DeadLettersOpt
     h(
       'section',
       { attrs: { 'aria-labelledby': 'dead-letters-heading' } },
-      h('h2', { className: 'h4', text: 'Mensagens mortas', attrs: { id: 'dead-letters-heading' } }),
+      withIcon(
+        h('h2', {
+          className: 'h4',
+          text: 'Mensagens mortas',
+          attrs: { id: 'dead-letters-heading' },
+        }),
+        'bi-envelope-exclamation',
+      ),
       h('p', {
         className: 'text-body-secondary',
         text: 'Mensagens que o worker não conseguiu processar após todas as novas tentativas. Reprocessar envia a mensagem de novo pela sua exchange e a remove desta fila.',

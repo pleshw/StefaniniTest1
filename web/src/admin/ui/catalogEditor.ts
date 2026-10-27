@@ -10,6 +10,7 @@ import { PreconditionFailedError } from '../../shared/api/errors';
 import type { HttpClient } from '../../shared/api/http';
 import { formatMoney } from '../../shared/domain/money';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import { actionButton, errorSummary, labelled, numberInput, textInput } from '../../shared/ui/form';
 import { listProducts, type ShopProduct } from '../../shop/api/catalog';
@@ -74,7 +75,10 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
     h(
       'section',
       { attrs: { 'aria-labelledby': 'catalog-editor-heading' } },
-      h('h2', { className: 'h4', text: 'Catálogo', attrs: { id: 'catalog-editor-heading' } }),
+      withIcon(
+        h('h2', { className: 'h4', text: 'Catálogo', attrs: { id: 'catalog-editor-heading' } }),
+        'bi-box-seam',
+      ),
       form,
       status,
       alertBox,

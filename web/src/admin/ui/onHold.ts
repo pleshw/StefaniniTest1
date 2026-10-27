@@ -4,6 +4,7 @@ import type { OrderSummary } from '../../shared/api/orders';
 import { formatDateTime } from '../../shared/domain/dates';
 import { formatMoney } from '../../shared/domain/money';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 
 export interface OnHoldOptions {
@@ -34,7 +35,10 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
     h(
       'section',
       { attrs: { 'aria-labelledby': 'onhold-heading' } },
-      h('h2', { className: 'h4', text: 'Fila em espera', attrs: { id: 'onhold-heading' } }),
+      withIcon(
+        h('h2', { className: 'h4', text: 'Fila em espera', attrs: { id: 'onhold-heading' } }),
+        'bi-pause-circle',
+      ),
       status,
       alertBox,
       list,
@@ -79,11 +83,15 @@ export function mountOnHold(container: HTMLElement, options: OnHoldOptions): OnH
   }
 
   function retry(): HTMLButtonElement {
-    const button = h('button', {
-      className: 'btn btn-sm btn-outline-danger ms-auto',
-      text: 'Tentar novamente',
-      attrs: { type: 'button' },
-    });
+    const button = withIcon(
+      h('button', {
+        className: 'btn btn-sm btn-outline-danger ms-auto',
+        text: 'Tentar novamente',
+        attrs: { type: 'button' },
+      }),
+      'bi-arrow-clockwise',
+      'me-1',
+    );
     button.addEventListener('click', refresh);
 
     return button;

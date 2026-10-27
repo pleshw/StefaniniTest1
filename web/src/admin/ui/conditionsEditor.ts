@@ -1,5 +1,6 @@
 import { fromLocalInput, toLocalInput } from '../../shared/domain/dates';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import {
   dateTimeInput,
   labelled,
@@ -34,11 +35,15 @@ export function createConditionsEditor(
     kinds.map((kind) => [kind, conditionLabels[kind]] as const),
     kinds[0] ?? 'MinSubtotal',
   );
-  const add = h('button', {
-    className: 'btn btn-outline-secondary btn-sm',
-    text: 'Adicionar condição',
-    attrs: { type: 'button' },
-  });
+  const add = withIcon(
+    h('button', {
+      className: 'btn btn-outline-secondary btn-sm',
+      text: 'Adicionar condição',
+      attrs: { type: 'button' },
+    }),
+    'bi-plus-lg',
+    'me-1',
+  );
   const element = h(
     'fieldset',
     { className: 'mb-3' },
@@ -100,11 +105,15 @@ function emptyCondition(kind: ConditionKind): Condition {
 function createRow(condition: Condition, remove: () => void): Row {
   const label = conditionLabels[condition.kind];
   const { fields, read } = fieldsFor(condition);
-  const button = h('button', {
-    className: 'btn btn-outline-danger btn-sm',
-    text: 'Remover',
-    attrs: { type: 'button', 'aria-label': `Remover condição ${label}` },
-  });
+  const button = withIcon(
+    h('button', {
+      className: 'btn btn-outline-danger btn-sm',
+      text: 'Remover',
+      attrs: { type: 'button', 'aria-label': `Remover condição ${label}` },
+    }),
+    'bi-trash',
+    'me-1',
+  );
   button.addEventListener('click', remove);
 
   return {

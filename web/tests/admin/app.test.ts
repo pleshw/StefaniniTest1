@@ -1,4 +1,4 @@
-import { findByRole, fireEvent, getByRole, queryByRole } from '@testing-library/dom';
+import { findByRole, findByText, fireEvent, getByRole, queryByRole } from '@testing-library/dom';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { server } from '../../mocks/server';
@@ -9,11 +9,12 @@ import { expectAccessible } from '../helpers';
 
 const orderId = 'b6c1f0a2-0000-4000-8000-000000000001';
 
-function mountPage() {
+function mountPage(navigate: (url: string) => void = () => undefined) {
   const root = document.createElement('div');
   document.body.append(root);
   const sources: FakeSource[] = [];
   mountAdmin(root, {
+    navigate,
     http: createHttpClient({ sleep: () => Promise.resolve() }),
     createSource: (url) => {
       const source = new FakeSource(url);
@@ -45,6 +46,60 @@ describe('Admin page', () => {
       getByRole(root, 'button', { name: 'Eventos ao vivo' }).getAttribute('aria-current'),
     ).toBe('true');
     await findByRole(root, 'button', { name: 'Inspecionar ORD-2026-STUB00000003' });
+  });
+
+  it('keeps a side menu with every section, what each one is for and the current one marked', async () => {
+    const { root } = mountPage();
+    const menu = getByRole(root, 'navigation', { name: 'Menu da administração' });
+    const sections = [
+      'Eventos ao vivo',
+      'Criar pedido',
+      'Regras de desconto',
+      'Regras de confirmação',
+      'Catálogo',
+      'Mensagens mortas',
+    ];
+
+    for (const name of sections) {
+      const button = getByRole(menu, 'button', { name });
+      const hint = document.getElementById(button.getAttribute('aria-describedby') ?? '');
+      expect(hint?.textContent).not.toBe('');
+    }
+    expect(getByRole(menu, 'link', { name: 'Ir para Loja' }).getAttribute('href')).toBe(
+      '/shop.html',
+    );
+    expect(root.querySelector('.admin-current')?.textContent).toContain('Eventos ao vivo');
+
+    fireEvent.click(getByRole(menu, 'button', { name: 'Regras de confirmação' }));
+
+    expect(root.querySelector('.admin-current')?.textContent).toContain(
+      'Quando um pedido fica em espera',
+    );
+    expect(
+      getByRole(menu, 'button', { name: 'Eventos ao vivo' }).getAttribute('aria-current'),
+    ).toBe('false');
+    expect(await findByText(root, 'admin')).toBeTruthy();
+    await expectAccessible(root);
+  });
+
+  it('signs out and goes to the sign-in page, back to this page afterwards', async () => {
+    let csrf: string | null = null;
+    server.use(
+      http.post('*/bff/logout', ({ request }) => {
+        csrf = request.headers.get('X-CSRF');
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const navigate = vi.fn<(url: string) => void>();
+    const { root } = mountPage(navigate);
+
+    fireEvent.click(getByRole(root, 'button', { name: 'Sair' }));
+
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith('/bff/login?returnUrl=%2Fadmin.html');
+    });
+    expect(csrf).toBe('1');
+    expect(getByRole(root, 'button', { name: 'Sair' })).toHaveProperty('disabled', true);
   });
 
   it('opens the inspector from a live event and refreshes the OnHold queue when an order enters it', async () => {

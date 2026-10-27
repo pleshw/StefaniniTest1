@@ -5,3 +5,8 @@
 [hidden] {
   display: none !important;
 }
+
+/* A button with an icon in a narrow table cell keeps the icon beside its text. */
+.table .btn {
+  white-space: nowrap;
+}

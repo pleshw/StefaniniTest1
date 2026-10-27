@@ -1,4 +1,5 @@
 import { h } from './dom';
+import { actionIcons, withIcon } from './icons';
 
 let count = 0;
 
@@ -131,7 +132,7 @@ export function errorSummary(): {
   };
 }
 
-/** A button with text; a "button" type runs `onClick`, a "submit" type leaves the click to the form's submit event. */
+/** A button with text (and the action's icon, when it has one); a "button" type runs `onClick`, a "submit" type leaves the click to the form's submit event. */
 export function actionButton(
   text: string,
   className: string,
@@ -139,6 +140,10 @@ export function actionButton(
   type: 'button' | 'submit' = 'button',
 ): HTMLButtonElement {
   const element = h('button', { className, text, attrs: { type } });
+  const glyph = actionIcons[text];
+  if (glyph !== undefined) {
+    withIcon(element, glyph, 'me-1');
+  }
   if (type === 'button') {
     element.addEventListener('click', onClick);
   }

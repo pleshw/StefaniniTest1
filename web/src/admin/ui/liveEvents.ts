@@ -10,6 +10,7 @@ import {
 import { formatDateTime } from '../../shared/domain/dates';
 import { orderStatuses, statusView } from '../../shared/domain/status';
 import { h } from '../../shared/ui/dom';
+import { setIconText, withIcon } from '../../shared/ui/icons';
 import { statusBadge } from '../../shared/ui/status';
 
 export interface LiveEventsOptions {
@@ -39,7 +40,10 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
       h(
         'section',
         { attrs: { 'aria-labelledby': 'live-heading' } },
-        h('h2', { className: 'h4', text: 'Eventos ao vivo', attrs: { id: 'live-heading' } }),
+        withIcon(
+          h('h2', { className: 'h4', text: 'Eventos ao vivo', attrs: { id: 'live-heading' } }),
+          'bi-broadcast',
+        ),
         h('p', {
           className: 'alert alert-warning',
           text: 'As atualizações ao vivo exigem um navegador com suporte a server-sent events.',
@@ -104,7 +108,10 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
     h(
       'section',
       { attrs: { 'aria-labelledby': 'live-heading' } },
-      h('h2', { className: 'h4', text: 'Eventos ao vivo', attrs: { id: 'live-heading' } }),
+      withIcon(
+        h('h2', { className: 'h4', text: 'Eventos ao vivo', attrs: { id: 'live-heading' } }),
+        'bi-broadcast',
+      ),
       h(
         'div',
         { className: 'd-flex flex-wrap align-items-end gap-3 mb-3' },
@@ -129,7 +136,11 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
     const rows = feed.rows(filter);
 
     status.textContent = feed.paused() ? pausedText() : connectionText[connection];
-    pause.textContent = feed.paused() ? 'Retomar' : 'Pausar';
+    if (feed.paused()) {
+      setIconText(pause, 'bi-play-fill', 'Retomar');
+    } else {
+      setIconText(pause, 'bi-pause-fill', 'Pausar');
+    }
     renderRows(rows);
     table.hidden = rows.length === 0;
     empty.hidden = rows.length > 0;
@@ -215,11 +226,15 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
   }
 
   function reconnectButton(): HTMLButtonElement {
-    const button = h('button', {
-      className: 'btn btn-sm btn-outline-secondary ms-auto',
-      text: 'Reconectar',
-      attrs: { type: 'button' },
-    });
+    const button = withIcon(
+      h('button', {
+        className: 'btn btn-sm btn-outline-secondary ms-auto',
+        text: 'Reconectar',
+        attrs: { type: 'button' },
+      }),
+      'bi-plug',
+      'me-1',
+    );
     button.addEventListener('click', () => void reconnect());
 
     return button;

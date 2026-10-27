@@ -31,6 +31,7 @@ import { formatDateTime, fromLocalInput, toLocalInput } from '../../shared/domai
 import { formatMoney } from '../../shared/domain/money';
 import { confirmAction } from '../../shared/ui/dialog';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import {
   actionButton,
@@ -70,11 +71,15 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
     attrs: { role: 'alert' },
   });
   const activeFilter = checkbox('Somente ativas', false);
-  const create = h('button', {
-    className: 'btn btn-primary btn-sm',
-    text: 'Nova regra',
-    attrs: { type: 'button' },
-  });
+  const create = withIcon(
+    h('button', {
+      className: 'btn btn-primary btn-sm',
+      text: 'Nova regra',
+      attrs: { type: 'button' },
+    }),
+    'bi-plus-lg',
+    'me-1',
+  );
   const body = h('tbody');
   const table = h(
     'table',
@@ -100,7 +105,10 @@ export function mountDiscountRules(container: HTMLElement, options: DiscountRule
     h(
       'section',
       { attrs: { 'aria-labelledby': 'discount-heading' } },
-      h('h2', { className: 'h4', text: 'Regras de desconto', attrs: { id: 'discount-heading' } }),
+      withIcon(
+        h('h2', { className: 'h4', text: 'Regras de desconto', attrs: { id: 'discount-heading' } }),
+        'bi-percent',
+      ),
       h(
         'div',
         { className: 'd-flex flex-wrap align-items-center gap-3 mb-2' },

@@ -4,6 +4,7 @@ import type { Order, OrderRequest, Quote } from '../../shared/api/orders';
 import { formatMoney } from '../../shared/domain/money';
 import type { IdempotencyKeys } from '../../shared/domain/idempotency';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { placeOrder, quoteCart } from '../api/orders';
 import { maxQuantity, type Cart, type CartLine } from '../domain/cart';
 
@@ -45,12 +46,18 @@ export function mountCart(container: HTMLElement, options: CartViewOptions): voi
   let orderErrors: readonly string[] = [];
   let placedNumber: string | undefined;
 
-  const heading = h('h2', {
-    className: 'h4',
-    text: 'Carrinho',
-    attrs: { id: 'cart-heading', tabindex: '-1' },
-  });
-  const empty = h('p', { text: 'Seu carrinho está vazio.' });
+  const heading = withIcon(
+    h('h2', {
+      className: 'h4',
+      text: 'Carrinho',
+      attrs: { id: 'cart-heading', tabindex: '-1' },
+    }),
+    'bi-cart3',
+  );
+  const empty = withIcon(
+    h('p', { className: 'text-body-secondary', text: 'Seu carrinho está vazio.' }),
+    'bi-cart-x',
+  );
   const list = h('ul', { className: 'list-group mb-3' });
   const totals = h('dl', { className: 'row mb-0' });
   const totalsGroup = h(
