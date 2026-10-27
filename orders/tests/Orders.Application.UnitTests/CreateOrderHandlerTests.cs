@@ -322,6 +322,21 @@ public sealed class CreateOrderHandlerTests : IDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task HandleAsync_OncePerClientRuleRedeemedEarlier_PricesTheOrderWithoutIt()
+    {
+        var rule = Rule("""{ "percent": 10, "appliesTo": "order" }""", oncePerClient: true);
+        _rules.GetAsync(_brl, Token).Returns([rule]);
+        _queries.RedeemedOncePerClientRuleIdsAsync(_client, Token).Returns(new HashSet<Guid> { rule.Id });
+
+        var result = await _handler.HandleAsync(Command(Line("KB-1", 1)), Token);
+
+        using var body = JsonDocument.Parse(result.Value.Body);
+        body.RootElement.GetProperty("discountTotal").GetDecimal().ShouldBe(0m);
+        await _discounts.Received(1).AddAsync(Arg.Any<Order>(), Arg.Is<IReadOnlyList<AppliedDiscount>>(applied => applied.Count == 0), Token);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task HandleAsync_ReplayOfADiscountedOrder_NeverRecalculates()
     {
         _store.TryGetAsync(_client, Guid.Parse(_key), Token)

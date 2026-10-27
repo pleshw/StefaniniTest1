@@ -101,6 +101,8 @@ internal static class BffAuthentication
 
     private static async Task<IResult> SignInAsync(HttpContext context, IAntiforgery antiforgery, IOptions<DevLoginOptions> devLogin, [FromForm] LoginForm form)
     {
+        TokensForAnonymous(context);
+
         if (!await antiforgery.IsRequestValidAsync(context))
         {
             return TypedResults.Problem(
@@ -120,8 +122,16 @@ internal static class BffAuthentication
         return TypedResults.Redirect(IsLocal(form.ReturnUrl) ? form.ReturnUrl! : user.HomePage);
     }
 
+    /// <summary>
+    /// Antiforgery tokens are bound to the signed-in user. The sign-in form must not depend on who is signed in: a page
+    /// opened anonymously and submitted after another sign-in (back button, second tab) would be refused otherwise.
+    /// </summary>
+    private static void TokensForAnonymous(HttpContext context) => context.User = new ClaimsPrincipal(new ClaimsIdentity());
+
     private static IResult LoginForm(HttpContext context, IAntiforgery antiforgery, string? returnUrl, bool failed, string? userName = null)
     {
+        TokensForAnonymous(context);
+
         var tokens = antiforgery.GetAndStoreTokens(context);
 
         return Results.Content(

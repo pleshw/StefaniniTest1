@@ -103,6 +103,26 @@ public sealed class SessionTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task Login_FormOpenedBeforeAnotherSignIn_StillSignsTheShopperIn()
+    {
+        var browser = _factory.CreateClient(new() { AllowAutoRedirect = false });
+        var staleForm = await browser.GetStringAsync("/bff/login", Token);
+        await BffFactory.SignInAsync(browser, "admin", BffFactory.AdminPassword);
+        var token = System.Text.RegularExpressions.Regex.Match(staleForm, "name=\"(?<name>[^\"]+)\" type=\"hidden\" value=\"(?<value>[^\"]+)\"");
+
+        var response = await browser.PostAsync("/bff/login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            [token.Groups["name"].Value] = token.Groups["value"].Value,
+            ["username"] = "shopper",
+            ["password"] = BffFactory.ShopperPassword,
+        }), Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location!.OriginalString.ShouldBe("/shop.html");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task LoginForm_WithoutAReturnUrl_LeavesTheReturnUrlFieldEmpty()
     {
         var browser = _factory.CreateBrowser();
