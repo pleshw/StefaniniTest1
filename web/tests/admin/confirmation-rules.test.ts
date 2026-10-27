@@ -44,7 +44,7 @@ const fill = (form: HTMLElement, label: string, value: string): void => {
   fireEvent.input(getByLabelText(form, label), { target: { value } });
 };
 const save = (form: HTMLElement): void => {
-  fireEvent.click(getByRole(form, 'button', { name: 'Save rule' }));
+  fireEvent.click(getByRole(form, 'button', { name: 'Salvar regra' }));
 };
 
 describe('confirmation rules', () => {
@@ -56,18 +56,18 @@ describe('confirmation rules', () => {
     const rows = await findAllByRole(container, 'row');
     expect(rows).toHaveLength(3);
     expect(rows[1]?.textContent).toContain('Big orders');
-    expect(rows[1]?.textContent).toContain('Hold');
+    expect(rows[1]?.textContent).toContain('Reter');
     expect(rows[1]?.textContent).toContain('10');
     expect(rows[1]?.textContent).toContain('4');
-    expect(rows[1]?.textContent).toContain('Active');
-    expect(rows[2]?.textContent).toContain('Inactive');
-    expect(queryByRole(rows[2] as HTMLElement, 'button', { name: 'Deactivate Off' })).toBeNull();
+    expect(rows[1]?.textContent).toContain('Ativa');
+    expect(rows[2]?.textContent).toContain('Inativa');
+    expect(queryByRole(rows[2] as HTMLElement, 'button', { name: 'Desativar Off' })).toBeNull();
   });
 
   it('says there are none, and shows an error with a way to try again', async () => {
     useRules([]);
     const empty = mount();
-    await findByText(empty, 'There are no confirmation rules.');
+    await findByText(empty, 'Não há regras de confirmação.');
     empty.remove();
 
     let fail = true;
@@ -81,8 +81,8 @@ describe('confirmation rules', () => {
     const failed = mount();
     const alert = await findByRole(failed, 'alert');
     fail = false;
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
-    expect(await findByRole(failed, 'button', { name: 'Edit Big orders' })).toBeTruthy();
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
+    expect(await findByRole(failed, 'button', { name: 'Editar Big orders' })).toBeTruthy();
   });
 
   it('creates a rule with a TotalAbove condition and reports version 1', async () => {
@@ -95,23 +95,23 @@ describe('confirmation rules', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'New rule' }));
-    const form = getByRole(container, 'form', { name: 'Confirmation rule editor' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra de confirmação' });
 
-    fill(form, 'Name', 'Big orders');
-    fill(form, 'Priority', '10');
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fill(form, 'Nome', 'Big orders');
+    fill(form, 'Prioridade', '10');
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'TotalAbove' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fill(form, 'Total above: amount', '5000');
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fill(form, 'Total acima de: valor', '5000');
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'FirstOrderOfClient' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
     save(form);
 
-    await findByText(container, 'Saved "Big orders" as version 1.');
+    await findByText(container, 'Regra "Big orders" salva como versão 1.');
     expect(body).toEqual({
       name: 'Big orders',
       action: 'Hold',
@@ -127,14 +127,14 @@ describe('confirmation rules', () => {
   it('only offers the conditions a confirmation rule understands', async () => {
     useRules([]);
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'New rule' }));
-    const form = getByRole(container, 'form', { name: 'Confirmation rule editor' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra de confirmação' });
 
-    const kinds = [...getByLabelText<HTMLSelectElement>(form, 'Kind of condition').options].map(
+    const kinds = [...getByLabelText<HTMLSelectElement>(form, 'Tipo de condição').options].map(
       (option) => option.text,
     );
 
-    expect(kinds).toEqual(['Total above', 'First order of client', 'Channel is']);
+    expect(kinds).toEqual(['Total acima de', 'Primeiro pedido do cliente', 'Canal é']);
   });
 
   it('does not send a rule without a name or a condition', async () => {
@@ -147,15 +147,15 @@ describe('confirmation rules', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'New rule' }));
-    const form = getByRole(container, 'form', { name: 'Confirmation rule editor' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra de confirmação' });
 
     save(form);
 
     const summary = getByRole(form, 'alert');
     expect([...summary.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
-      'Name is required.',
-      'Add at least one condition.',
+      'O nome é obrigatório.',
+      'Adicione pelo menos uma condição.',
     ]);
     expect(calls).toBe(0);
   });
@@ -170,14 +170,14 @@ describe('confirmation rules', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Edit Big orders' }));
-    const form = getByRole(container, 'form', { name: 'Confirmation rule editor' });
-    expect(getByLabelText<HTMLInputElement>(form, 'Total above: amount').value).toBe('5000');
+    fireEvent.click(await findByRole(container, 'button', { name: 'Editar Big orders' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra de confirmação' });
+    expect(getByLabelText<HTMLInputElement>(form, 'Total acima de: valor').value).toBe('5000');
 
-    fill(form, 'Name', 'Bigger orders');
+    fill(form, 'Nome', 'Bigger orders');
     save(form);
 
-    await findByText(container, 'Saved "Bigger orders" as version 5.');
+    await findByText(container, 'Regra "Bigger orders" salva como versão 5.');
     expect(request?.headers.get('if-match')).toBe('"4"');
   });
 
@@ -189,22 +189,22 @@ describe('confirmation rules', () => {
       ),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Edit Big orders' }));
-    const form = getByRole(container, 'form', { name: 'Confirmation rule editor' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Editar Big orders' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra de confirmação' });
 
     save(form);
 
     expect((await findByRole(form, 'alert')).textContent).toContain(
-      'This rule was changed by someone else.',
+      'Esta regra foi alterada por outra pessoa.',
     );
   });
 
   it('closes the editor on Cancel', async () => {
     useRules([]);
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'New rule' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Cancelar' }));
 
     expect(queryByRole(container, 'form')).toBeNull();
   });
@@ -219,11 +219,11 @@ describe('confirmation rules', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Deactivate Big orders' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Desativar Big orders' }));
     useRules([rule({ isActive: false, version: 5 })]);
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Deactivate' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Desativar' }));
 
-    await findByText(container, 'Deactivated "Big orders" (version 5).');
+    await findByText(container, 'Regra "Big orders" desativada (versão 5).');
     expect(request?.headers.get('if-match')).toBe('"4"');
   });
 
@@ -237,17 +237,17 @@ describe('confirmation rules', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Deactivate Big orders' }));
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Desativar Big orders' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancelar' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(calls).toBe(0);
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Deactivate Big orders' }));
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Deactivate' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Desativar Big orders' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Desativar' }));
 
     await vi.waitFor(() => {
       expect(getByRole(container, 'alert').textContent).toContain(
-        'This rule was changed by someone else.',
+        'Esta regra foi alterada por outra pessoa.',
       );
     });
   });
@@ -255,13 +255,13 @@ describe('confirmation rules', () => {
   it('has no accessibility violations: the list, the editor and its errors', async () => {
     useRules([rule()]);
     const container = mount();
-    await findByRole(container, 'button', { name: 'Edit Big orders' });
+    await findByRole(container, 'button', { name: 'Editar Big orders' });
     await expectAccessible(container);
 
-    fireEvent.click(getByRole(container, 'button', { name: 'New rule' }));
-    const form = getByRole(container, 'form', { name: 'Confirmation rule editor' });
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), { target: { value: 'ChannelIs' } });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Nova regra' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra de confirmação' });
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), { target: { value: 'ChannelIs' } });
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
     await expectAccessible(form);
     save(form);
     await expectAccessible(form);

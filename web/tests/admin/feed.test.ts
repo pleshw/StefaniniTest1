@@ -49,7 +49,7 @@ describe('rowOf', () => {
       orderLabel: 'ORD-2026-AAA',
       status: 'Pending',
       occurredAt: '2026-10-26T12:00:00Z',
-      summary: 'Placed from shop: R$1,924.40, 3 items',
+      summary: 'Pedido realizado via shop: R$ 1.924,40, 3 itens',
     });
   });
 
@@ -59,12 +59,12 @@ describe('rowOf', () => {
     expect(row.status).toBe('OnHold');
     expect(row.from).toBe('Pending');
     expect(row.orderLabel).toBe('3f6c2a10');
-    expect(row.summary).toBe('Pending → OnHold by system:worker: Checked');
+    expect(row.summary).toBe('Pendente → Em espera por system:worker: Checked');
   });
 
   it('leaves out the reason when there is none', () => {
     expect(rowOf(changed(2, 'Pending', 'Confirmed', { reason: null })).summary).toBe(
-      'Pending → Confirmed by system:worker',
+      'Pendente → Confirmado por system:worker',
     );
   });
 
@@ -78,9 +78,9 @@ describe('rowOf', () => {
     };
     const unknown: OrderEvent = { ...replay, id: 4, type: 'Something.v9', payload: 'text' };
 
-    expect(rowOf(replay).summary).toBe('Dead letter replayed by admin-1');
+    expect(rowOf(replay).summary).toBe('Mensagem morta reprocessada por admin-1');
     expect(rowOf(replay).cursor).toBeUndefined();
-    expect(rowOf({ ...replay, payload: {} }).summary).toBe('Dead letter replayed');
+    expect(rowOf({ ...replay, payload: {} }).summary).toBe('Mensagem morta reprocessada');
     expect(rowOf(unknown)).toMatchObject({ summary: '', orderLabel: '3f6c2a10' });
     expect(rowOf(unknown).status).toBeUndefined();
   });
@@ -88,7 +88,7 @@ describe('rowOf', () => {
   it('copes with a payload that lacks the fields', () => {
     const odd = rowOf({ ...placed(5), payload: {} });
     expect(odd.orderLabel).toBe('3f6c2a10');
-    expect(odd.summary).toBe('Placed');
+    expect(odd.summary).toBe('Pedido realizado');
     expect(rowOf({ ...changed(6, 'a', 'b'), payload: null }).summary).toBe('');
   });
 });

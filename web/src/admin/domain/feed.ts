@@ -1,5 +1,6 @@
 import type { OrderEvent } from '../api/events';
 import { formatMoney } from '../../shared/domain/money';
+import { statusView } from '../../shared/domain/status';
 
 /** One line of the live table. */
 export interface FeedRow {
@@ -48,7 +49,10 @@ export function rowOf(event: OrderEvent): FeedRow {
 
       return {
         ...common,
-        summary: by === undefined ? 'Dead letter replayed' : `Dead letter replayed by ${by}`,
+        summary:
+          by === undefined
+            ? 'Mensagem morta reprocessada'
+            : `Mensagem morta reprocessada por ${by}`,
       };
     }
     default:
@@ -63,9 +67,9 @@ function placedSummary(payload: Readonly<Record<string, unknown>>): string {
   const items = payload['itemCount'];
   const parts = [
     typeof total === 'number' && currency !== undefined ? formatMoney(total, currency) : undefined,
-    typeof items === 'number' ? `${String(items)} ${items === 1 ? 'item' : 'items'}` : undefined,
+    typeof items === 'number' ? `${String(items)} ${items === 1 ? 'item' : 'itens'}` : undefined,
   ].filter((part) => part !== undefined);
-  const from = channel === undefined ? 'Placed' : `Placed from ${channel}`;
+  const from = channel === undefined ? 'Pedido realizado' : `Pedido realizado via ${channel}`;
 
   return parts.length === 0 ? from : `${from}: ${parts.join(', ')}`;
 }
@@ -79,7 +83,7 @@ function changedSummary(payload: Readonly<Record<string, unknown>>): string {
   if (from === undefined || to === undefined) {
     return '';
   }
-  const change = `${from} → ${to}${actor === undefined ? '' : ` by ${actor}`}`;
+  const change = `${statusView(from).label} → ${statusView(to).label}${actor === undefined ? '' : ` por ${actor}`}`;
 
   return reason === undefined ? change : `${change}: ${reason}`;
 }

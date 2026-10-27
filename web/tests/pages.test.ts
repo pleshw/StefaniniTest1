@@ -18,8 +18,8 @@ function load(html: string): void {
 }
 
 const pages = [
-  { name: 'Shop', html: shopHtml, mount: mountShop },
-  { name: 'Admin', html: adminHtml, mount: mountAdmin },
+  { name: 'Loja', html: shopHtml, mount: mountShop },
+  { name: 'Administração', html: adminHtml, mount: mountAdmin },
 ];
 
 describe.each(pages)('$name page', ({ name, html, mount }) => {
@@ -28,7 +28,7 @@ describe.each(pages)('$name page', ({ name, html, mount }) => {
 
     mount(requireElement('app'));
 
-    expect(document.documentElement.lang).toBe('en');
+    expect(document.documentElement.lang).toBe('pt-BR');
     expect(document.title).toContain(name);
     expect(getByRole(document.body, 'banner')).toBeTruthy();
     expect(getByRole(document.body, 'navigation')).toBeTruthy();

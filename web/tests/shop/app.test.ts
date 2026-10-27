@@ -26,22 +26,22 @@ describe('Shop page sections', () => {
     await findByRole(root, 'heading', { level: 3, name: 'Standing desk' });
 
     expect(orderCalls).toBe(0);
-    expect(getByRole(root, 'button', { name: 'Shop' }).getAttribute('aria-current')).toBe('true');
-    expect(queryByRole(root, 'heading', { name: 'My orders' })).toBeNull();
+    expect(getByRole(root, 'button', { name: 'Loja' }).getAttribute('aria-current')).toBe('true');
+    expect(queryByRole(root, 'heading', { name: 'Meus pedidos' })).toBeNull();
 
-    fireEvent.click(getByRole(root, 'button', { name: 'My orders' }));
+    fireEvent.click(getByRole(root, 'button', { name: 'Meus pedidos' }));
 
-    expect(await findByRole(root, 'heading', { level: 2, name: 'My orders' })).toBeTruthy();
-    expect(getByRole(root, 'button', { name: 'My orders' }).getAttribute('aria-current')).toBe(
+    expect(await findByRole(root, 'heading', { level: 2, name: 'Meus pedidos' })).toBeTruthy();
+    expect(getByRole(root, 'button', { name: 'Meus pedidos' }).getAttribute('aria-current')).toBe(
       'true',
     );
-    expect(queryByRole(root, 'heading', { name: 'Catalog' })).toBeNull();
+    expect(queryByRole(root, 'heading', { name: 'Catálogo' })).toBeNull();
     await vi.waitFor(() => {
       expect(orderCalls).toBe(1);
     });
 
-    fireEvent.click(getByRole(root, 'button', { name: 'Shop' }));
-    expect(await findByRole(root, 'heading', { name: 'Catalog' })).toBeTruthy();
+    fireEvent.click(getByRole(root, 'button', { name: 'Loja' }));
+    expect(await findByRole(root, 'heading', { name: 'Catálogo' })).toBeTruthy();
     await expectAccessible(root);
   });
 });

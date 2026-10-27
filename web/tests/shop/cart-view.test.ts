@@ -91,7 +91,7 @@ function useQuote(answer: Quote = quote): void {
 }
 
 const placeOrderButton = (container: HTMLElement) =>
-  getByRole<HTMLButtonElement>(container, 'button', { name: /Place order|Placing order/ });
+  getByRole<HTMLButtonElement>(container, 'button', { name: /Fazer pedido|Fazendo o pedido/ });
 
 describe('cart view', () => {
   it('says the cart is empty, asks for nothing and cannot place an order', () => {
@@ -105,7 +105,7 @@ describe('cart view', () => {
 
     const { container } = mount();
 
-    expect(getByText(container, 'Your cart is empty.')).toBeTruthy();
+    expect(getByText(container, 'Seu carrinho está vazio.')).toBeTruthy();
     expect(placeOrderButton(container).disabled).toBe(true);
     expect(quoted).toBe(0);
   });
@@ -115,21 +115,21 @@ describe('cart view', () => {
 
     const { container } = mount({ lines: [desk, mug] });
 
-    const totals = await findByRole(container, 'group', { name: 'Totals' });
+    const totals = await findByRole(container, 'group', { name: 'Totais' });
     await vi.waitFor(() => {
-      expect(totals.textContent).toContain('R$1,924.40');
+      expect(totals.textContent).toContain('R$\u00a01.924,40');
     });
     expect(totals.textContent).toContain('Subtotal');
-    expect(totals.textContent).toContain('R$2,024.40');
-    expect(totals.textContent).toContain('Discounts');
-    expect(totals.textContent).toContain('-R$100.00');
-    expect(totals.textContent).toContain('3 items');
+    expect(totals.textContent).toContain('R$\u00a02.024,40');
+    expect(totals.textContent).toContain('Descontos');
+    expect(totals.textContent).toContain('-R$\u00a0100,00');
+    expect(totals.textContent).toContain('3 itens');
     const rows = container.querySelectorAll('li');
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toContain('Standing desk');
-    expect(rows[0]?.textContent).toContain('R$1,899.90');
-    expect(rows[0]?.textContent).toContain('Discount -R$100.00');
-    expect(rows[1]?.textContent).not.toContain('Discount');
+    expect(rows[0]?.textContent).toContain('R$\u00a01.899,90');
+    expect(rows[0]?.textContent).toContain('Desconto -R$\u00a0100,00');
+    expect(rows[1]?.textContent).not.toContain('Desconto');
   });
 
   it('sends the cart lines and the page currency to the quote', async () => {
@@ -168,14 +168,14 @@ describe('cart view', () => {
       }),
     );
     const { container, cart } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     const quantity = getByRole<HTMLInputElement>(container, 'spinbutton', {
-      name: 'Quantity of Standing desk',
+      name: 'Quantidade de Standing desk',
     });
     fireEvent.change(quantity, { target: { value: '2' } });
 
-    await findByText(container, 'R$3,899.80');
+    await findByText(container, 'R$ 3.899,80');
     expect(cart.lines()[0]?.quantity).toBe(2);
     expect(quantities).toEqual([1, 2]);
   });
@@ -190,7 +190,7 @@ describe('cart view', () => {
     );
     const { container } = mount({ lines: [desk], debounceMilliseconds: 40 });
     const quantity = getByRole<HTMLInputElement>(container, 'spinbutton', {
-      name: 'Quantity of Standing desk',
+      name: 'Quantidade de Standing desk',
     });
 
     for (const value of ['2', '3', '4']) {
@@ -207,13 +207,13 @@ describe('cart view', () => {
   it('removes a line, and an empty cart goes back to the empty message', async () => {
     useQuote();
     const { container } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Remove Standing desk' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Remover Standing desk' }));
 
-    expect(getByText(container, 'Your cart is empty.')).toBeTruthy();
+    expect(getByText(container, 'Seu carrinho está vazio.')).toBeTruthy();
     expect(placeOrderButton(container).disabled).toBe(true);
-    expect(queryByRole(container, 'group', { name: 'Totals' })).toBeNull();
+    expect(queryByRole(container, 'group', { name: 'Totais' })).toBeNull();
   });
 
   it('updates when a product is added from the catalog', async () => {
@@ -222,7 +222,7 @@ describe('cart view', () => {
 
     cart.add(mug);
 
-    expect(await findByRole(container, 'button', { name: 'Remove Coffee mug' })).toBeTruthy();
+    expect(await findByRole(container, 'button', { name: 'Remover Coffee mug' })).toBeTruthy();
     expect(placeOrderButton(container).disabled).toBe(false);
   });
 
@@ -232,7 +232,7 @@ describe('cart view', () => {
     const { container } = mount({ lines: [desk] });
 
     expect((await findByRole(container, 'alert')).textContent).toContain(
-      'The prices could not be updated.',
+      'Não foi possível atualizar os preços.',
     );
     expect(placeOrderButton(container).disabled).toBe(false);
   });
@@ -242,7 +242,7 @@ describe('cart view', () => {
 
     const { container } = mount({ lines: [desk] });
 
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
     expect(container.querySelector('li')?.textContent).not.toContain('R$');
   });
 });
@@ -260,13 +260,13 @@ describe('checkout', () => {
       }),
     );
     const { container, cart } = mount({ lines: [desk, mug] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     fireEvent.click(placeOrderButton(container));
 
-    await findByText(container, 'Order ORD-2026-ABC was placed.');
-    expect(getByRole(container, 'status', { name: 'Order result' }).textContent).toBe(
-      'Order ORD-2026-ABC was placed.',
+    await findByText(container, 'O pedido ORD-2026-ABC foi feito.');
+    expect(getByRole(container, 'status', { name: 'Resultado do pedido' }).textContent).toBe(
+      'O pedido ORD-2026-ABC foi feito.',
     );
     expect(request?.headers.get('idempotency-key')).toBe('key-1');
     expect(request?.headers.get('x-csrf')).toBe('1');
@@ -278,7 +278,7 @@ describe('checkout', () => {
       ],
     });
     expect(cart.lines()).toEqual([]);
-    expect(getByText(container, 'Your cart is empty.')).toBeTruthy();
+    expect(getByText(container, 'Seu carrinho está vazio.')).toBeTruthy();
   });
 
   it('forgets the key after a 201, so the next order gets another one', async () => {
@@ -291,12 +291,12 @@ describe('checkout', () => {
       }),
     );
     const { container, cart } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
     fireEvent.click(placeOrderButton(container));
-    await findByText(container, 'Order ORD-2026-ABC was placed.');
+    await findByText(container, 'O pedido ORD-2026-ABC foi feito.');
 
     cart.add(desk);
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
     fireEvent.click(placeOrderButton(container));
     await vi.waitFor(() => {
       expect(keys).toHaveLength(2);
@@ -320,16 +320,16 @@ describe('checkout', () => {
       }),
     );
     const { container } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     fireEvent.click(placeOrderButton(container));
     fireEvent.click(placeOrderButton(container));
 
     const button = placeOrderButton(container);
     expect(button.disabled).toBe(true);
-    expect(button.textContent).toContain('Placing order…');
+    expect(button.textContent).toContain('Fazendo o pedido…');
     release();
-    await findByText(container, 'Order ORD-2026-ABC was placed.');
+    await findByText(container, 'O pedido ORD-2026-ABC foi feito.');
     expect(calls).toBe(1);
   });
 
@@ -344,16 +344,16 @@ describe('checkout', () => {
       }),
     );
     const { container } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     fireEvent.click(placeOrderButton(container));
-    const alert = await findByRole(container, 'alert', { name: 'Order error' });
-    expect(alert.textContent).toContain('The server could not be reached.');
+    const alert = await findByRole(container, 'alert', { name: 'Erro no pedido' });
+    expect(alert.textContent).toContain('Não foi possível acessar o servidor.');
     expect(placeOrderButton(container).disabled).toBe(false);
 
     failing = false;
     fireEvent.click(placeOrderButton(container));
-    await findByText(container, 'Order ORD-2026-ABC was placed.');
+    await findByText(container, 'O pedido ORD-2026-ABC foi feito.');
 
     expect(new Set(keys)).toEqual(new Set(['key-1']));
     expect(keys).toHaveLength(4);
@@ -372,13 +372,13 @@ describe('checkout', () => {
       }),
     );
     const { container, cart } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     fireEvent.click(placeOrderButton(container));
 
-    expect((await findByRole(container, 'alert', { name: 'Order error' })).textContent).toContain(
-      'The discount was already used.',
-    );
+    expect(
+      (await findByRole(container, 'alert', { name: 'Erro no pedido' })).textContent,
+    ).toContain('The discount was already used.');
     expect(cart.lines()).toHaveLength(1);
     fireEvent.click(placeOrderButton(container));
     await vi.waitFor(() => {
@@ -404,10 +404,10 @@ describe('checkout', () => {
       }),
     );
     const { container, cart } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     fireEvent.click(placeOrderButton(container));
-    const alert = await findByRole(container, 'alert', { name: 'Order error' });
+    const alert = await findByRole(container, 'alert', { name: 'Erro no pedido' });
     expect([...alert.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
       'SKU DESK-1 is inactive.',
       'SKU X is missing.',
@@ -415,7 +415,7 @@ describe('checkout', () => {
 
     cart.add(mug);
     await vi.waitFor(() => {
-      expect(queryByRole(container, 'alert', { name: 'Order error' })).toBeNull();
+      expect(queryByRole(container, 'alert', { name: 'Erro no pedido' })).toBeNull();
     });
     fireEvent.click(placeOrderButton(container));
     await vi.waitFor(() => {
@@ -428,13 +428,13 @@ describe('checkout', () => {
     useQuote();
     server.use(http.post('*/bff/shop/orders', () => HttpResponse.json({}, { status: 500 })));
     const { container } = mount({ lines: [desk] });
-    await findByText(container, 'R$1,924.40');
+    await findByText(container, 'R$ 1.924,40');
 
     fireEvent.click(placeOrderButton(container));
 
-    expect((await findByRole(container, 'alert', { name: 'Order error' })).textContent).toContain(
-      'The request failed with status 500.',
-    );
+    expect(
+      (await findByRole(container, 'alert', { name: 'Erro no pedido' })).textContent,
+    ).toContain('A requisição falhou com o status 500.');
   });
 });
 
@@ -451,19 +451,19 @@ describe('cart view accessibility', () => {
       ),
     );
     const full = mount({ lines: [desk, mug] });
-    await findByText(full.container, 'R$1,924.40');
+    await findByText(full.container, 'R$ 1.924,40');
     await expectAccessible(full.container);
 
     fireEvent.click(placeOrderButton(full.container));
-    await findByRole(full.container, 'alert', { name: 'Order error' });
+    await findByRole(full.container, 'alert', { name: 'Erro no pedido' });
     await expectAccessible(full.container);
     full.container.remove();
 
     server.use(http.post('*/bff/shop/orders', () => HttpResponse.json(placed, { status: 201 })));
     const done = mount({ lines: [desk] });
-    await findByText(done.container, 'R$1,924.40');
+    await findByText(done.container, 'R$ 1.924,40');
     fireEvent.click(placeOrderButton(done.container));
-    await findByText(done.container, 'Order ORD-2026-ABC was placed.');
+    await findByText(done.container, 'O pedido ORD-2026-ABC foi feito.');
     await expectAccessible(done.container);
   });
 });

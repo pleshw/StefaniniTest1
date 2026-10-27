@@ -8,7 +8,7 @@ import {
   type StreamStatus,
 } from '../../shared/api/sse';
 import { formatDateTime } from '../../shared/domain/dates';
-import { orderStatuses } from '../../shared/domain/status';
+import { orderStatuses, statusView } from '../../shared/domain/status';
 import { h } from '../../shared/ui/dom';
 import { statusBadge } from '../../shared/ui/status';
 
@@ -26,10 +26,10 @@ const backfillPageSize = 100;
 const maxBackfillPages = 20;
 
 const connectionText: Readonly<Record<StreamStatus, string>> = {
-  connecting: 'Connecting…',
-  open: 'Live',
-  reconnecting: 'Reconnecting…',
-  closed: 'Disconnected',
+  connecting: 'Conectando…',
+  open: 'Ao vivo',
+  reconnecting: 'Reconectando…',
+  closed: 'Desconectado',
 };
 
 /** The live table of order events: server-sent, newest first, with pause, filters and a backfill after a reconnect. */
@@ -39,10 +39,10 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
       h(
         'section',
         { attrs: { 'aria-labelledby': 'live-heading' } },
-        h('h2', { className: 'h4', text: 'Live events', attrs: { id: 'live-heading' } }),
+        h('h2', { className: 'h4', text: 'Eventos ao vivo', attrs: { id: 'live-heading' } }),
         h('p', {
           className: 'alert alert-warning',
-          text: 'Live updates need a browser that supports server-sent events.',
+          text: 'As atualizações ao vivo exigem um navegador com suporte a server-sent events.',
         }),
       ),
     );
@@ -57,14 +57,20 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
 
   const status = h('p', {
     className: 'mb-0',
-    attrs: { role: 'status', 'aria-label': 'Connection' },
+    attrs: { role: 'status', 'aria-label': 'Conexão' },
   });
   const pause = h('button', {
     className: 'btn btn-outline-secondary btn-sm',
     attrs: { type: 'button' },
   });
-  const typeFilter = select('live-type', 'Event type', 'All events', logEventTypes);
-  const statusFilter = select('live-status', 'Status', 'All statuses', orderStatuses);
+  const typeFilter = select('live-type', 'Tipo de evento', 'Todos os eventos', logEventTypes);
+  const statusFilter = select(
+    'live-status',
+    'Status',
+    'Todos os status',
+    orderStatuses,
+    (value) => statusView(value).label,
+  );
   const closedAlert = h('div', {
     className: 'alert alert-warning d-flex align-items-center gap-3',
     attrs: { role: 'alert' },
@@ -73,20 +79,20 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
   const empty = h('p', { className: 'text-body-secondary' });
   const latest = h('div', {
     className: 'visually-hidden',
-    attrs: { role: 'log', 'aria-label': 'Latest event' },
+    attrs: { role: 'log', 'aria-label': 'Último evento' },
   });
   const body = h('tbody');
   const table = h(
     'table',
     { className: 'table table-sm align-middle' },
-    h('caption', { className: 'visually-hidden', text: 'Live events' }),
+    h('caption', { className: 'visually-hidden', text: 'Eventos ao vivo' }),
     h(
       'thead',
       {},
       h(
         'tr',
         {},
-        ...['Time', 'Event', 'Order', 'Status', 'Details'].map((name) =>
+        ...['Hora', 'Evento', 'Pedido', 'Status', 'Detalhes'].map((name) =>
           h('th', { text: name, attrs: { scope: 'col' } }),
         ),
       ),
@@ -98,7 +104,7 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
     h(
       'section',
       { attrs: { 'aria-labelledby': 'live-heading' } },
-      h('h2', { className: 'h4', text: 'Live events', attrs: { id: 'live-heading' } }),
+      h('h2', { className: 'h4', text: 'Eventos ao vivo', attrs: { id: 'live-heading' } }),
       h(
         'div',
         { className: 'd-flex flex-wrap align-items-end gap-3 mb-3' },
@@ -123,18 +129,18 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
     const rows = feed.rows(filter);
 
     status.textContent = feed.paused() ? pausedText() : connectionText[connection];
-    pause.textContent = feed.paused() ? 'Resume' : 'Pause';
+    pause.textContent = feed.paused() ? 'Retomar' : 'Pausar';
     renderRows(rows);
     table.hidden = rows.length === 0;
     empty.hidden = rows.length > 0;
     empty.textContent =
       feed.rows().length === 0 && !feed.paused()
-        ? 'Waiting for events…'
-        : 'No events match the filters.';
+        ? 'Aguardando eventos…'
+        : 'Nenhum evento corresponde aos filtros.';
     closedAlert.hidden = connection !== 'closed';
     closedAlert.replaceChildren(
       ...(connection === 'closed'
-        ? [h('span', { text: 'Live updates stopped.' }), reconnectButton()]
+        ? [h('span', { text: 'As atualizações ao vivo foram interrompidas.' }), reconnectButton()]
         : []),
     );
     noticeAlert.hidden = notice === undefined;
@@ -183,15 +189,15 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
     const waiting = feed.pending();
 
     return waiting === 0
-      ? 'Paused'
-      : `Paused · ${String(waiting)} new ${waiting === 1 ? 'event' : 'events'} waiting`;
+      ? 'Pausado'
+      : `Pausado · ${String(waiting)} ${waiting === 1 ? 'novo evento aguardando' : 'novos eventos aguardando'}`;
   }
 
   function rowElement(row: FeedRow): HTMLElement {
     const inspect = h('button', {
       className: 'btn btn-link btn-sm p-0',
       text: row.orderLabel,
-      attrs: { type: 'button', 'aria-label': `Inspect ${row.orderLabel}` },
+      attrs: { type: 'button', 'aria-label': `Inspecionar ${row.orderLabel}` },
     });
     inspect.addEventListener('click', () => {
       options.onInspect(row.orderId);
@@ -211,7 +217,7 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
   function reconnectButton(): HTMLButtonElement {
     const button = h('button', {
       className: 'btn btn-sm btn-outline-secondary ms-auto',
-      text: 'Reconnect',
+      text: 'Reconectar',
       attrs: { type: 'button' },
     });
     button.addEventListener('click', () => void reconnect());
@@ -235,7 +241,7 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
     }
     if (message.name === 'backfill-unavailable') {
       notice =
-        'Some events may be missing: the server could not send what was missed. Reload the page to start again.';
+        'Alguns eventos podem estar faltando: o servidor não conseguiu enviar o que foi perdido. Recarregue a página para recomeçar.';
       render();
       return;
     }
@@ -263,7 +269,7 @@ export function mountLiveEvents(container: HTMLElement, options: LiveEventsOptio
         after = events.next;
       }
     } catch {
-      notice = 'The events missed while disconnected could not be loaded.';
+      notice = 'Não foi possível carregar os eventos perdidos durante a desconexão.';
     }
     render();
   }
@@ -298,12 +304,13 @@ function select(
   label: string,
   all: string,
   values: readonly string[],
+  labelOf: (value: string) => string = (value) => value,
 ): { group: HTMLElement; field: HTMLSelectElement } {
   const field = h(
     'select',
     { className: 'form-select form-select-sm', attrs: { id } },
     h('option', { text: all, attrs: { value: '' } }),
-    ...values.map((value) => h('option', { text: value, attrs: { value } })),
+    ...values.map((value) => h('option', { text: labelOf(value), attrs: { value } })),
   );
 
   return {

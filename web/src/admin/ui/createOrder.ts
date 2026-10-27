@@ -26,13 +26,13 @@ const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * list of clients, so the picker offers the clients seen in the latest orders, or an id and a name typed in.
  */
 export function mountCreateOrder(container: HTMLElement, options: CreateOrderOptions): void {
-  const status = h('p', { text: 'Loading clients…', attrs: { role: 'status' } });
+  const status = h('p', { text: 'Carregando clientes…', attrs: { role: 'status' } });
   const section = h(
     'section',
     { attrs: { 'aria-labelledby': 'create-heading' } },
     h('h2', {
       className: 'h4',
-      text: 'Create order for a client',
+      text: 'Criar pedido para um cliente',
       attrs: { id: 'create-heading' },
     }),
     status,
@@ -69,9 +69,9 @@ function build(
   const picker = h(
     'select',
     { className: 'form-select', attrs: { id: 'create-client', name: 'client' } },
-    h('option', { text: 'Choose a client', attrs: { value: '' } }),
+    h('option', { text: 'Escolha um cliente', attrs: { value: '' } }),
     ...clients.map((client) => h('option', { text: client.name, attrs: { value: client.id } })),
-    h('option', { text: 'Another client…', attrs: { value: otherClient } }),
+    h('option', { text: 'Outro cliente…', attrs: { value: otherClient } }),
   );
   const id = h('input', {
     className: 'form-control',
@@ -89,7 +89,7 @@ function build(
       { className: 'col-md-7' },
       h('label', {
         className: 'form-label',
-        text: 'Client id',
+        text: 'ID do cliente',
         attrs: { for: 'create-client-id' },
       }),
       id,
@@ -99,7 +99,7 @@ function build(
       { className: 'col-md-5' },
       h('label', {
         className: 'form-label',
-        text: 'Client name',
+        text: 'Nome do cliente',
         attrs: { for: 'create-client-name' },
       }),
       name,
@@ -112,18 +112,18 @@ function build(
   /** The client the order is for, or what is wrong with the choice. */
   function chosen(): { client: Client } | { problem: string } {
     if (picker.value === '') {
-      return { problem: 'Choose a client first.' };
+      return { problem: 'Escolha um cliente primeiro.' };
     }
     if (picker.value !== otherClient) {
       const client = clients.find((candidate) => candidate.id === picker.value);
 
-      return client === undefined ? { problem: 'Choose a client first.' } : { client };
+      return client === undefined ? { problem: 'Escolha um cliente primeiro.' } : { client };
     }
     if (!guid.test(id.value.trim())) {
-      return { problem: 'Enter a valid client id (a GUID).' };
+      return { problem: 'Informe um ID de cliente válido (um GUID).' };
     }
     if (name.value.trim() === '') {
-      return { problem: 'Enter the client name.' };
+      return { problem: 'Informe o nome do cliente.' };
     }
 
     return { client: { id: id.value.trim().toLowerCase(), name: name.value.trim() } };
@@ -137,12 +137,12 @@ function build(
     h(
       'div',
       { className: 'mb-3' },
-      h('label', { className: 'form-label', text: 'Client', attrs: { for: 'create-client' } }),
+      h('label', { className: 'form-label', text: 'Cliente', attrs: { for: 'create-client' } }),
       picker,
       other,
       h('p', {
         className: 'form-text',
-        text: 'The quote is calculated for you; Orders prices the order for the client.',
+        text: 'A cotação é calculada para você; o Orders precifica o pedido para o cliente.',
       }),
     ),
     h('div', { className: 'row g-4' }, catalog, side),

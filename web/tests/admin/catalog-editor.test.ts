@@ -65,16 +65,16 @@ function mount() {
 }
 
 async function openDesk(container: HTMLElement): Promise<HTMLElement> {
-  fireEvent.click(await findByRole(container, 'button', { name: 'Edit Standing desk' }));
+  fireEvent.click(await findByRole(container, 'button', { name: 'Editar Standing desk' }));
 
-  return findByRole(container, 'form', { name: 'Product editor' });
+  return findByRole(container, 'form', { name: 'Editor de produto' });
 }
 
 const fill = (form: HTMLElement, label: string, value: string): void => {
   fireEvent.input(getByLabelText(form, label), { target: { value } });
 };
 const save = (form: HTMLElement): void => {
-  fireEvent.click(getByRole(form, 'button', { name: 'Save product' }));
+  fireEvent.click(getByRole(form, 'button', { name: 'Salvar produto' }));
 };
 
 describe('catalog search', () => {
@@ -100,7 +100,7 @@ describe('catalog search', () => {
     );
     const container = mount();
 
-    fireEvent.input(getByRole(container, 'searchbox', { name: 'Search products' }), {
+    fireEvent.input(getByRole(container, 'searchbox', { name: 'Buscar produtos' }), {
       target: { value: 'desk' },
     });
     fireEvent.submit(getByRole(container, 'search'));
@@ -111,8 +111,8 @@ describe('catalog search', () => {
     expect(items[0]?.textContent).toContain('DESK-1');
     expect(items[0]?.textContent).toContain('Office');
     expect(asked.at(-1)?.searchParams.get('q')).toBe('desk');
-    expect(getByRole(container, 'status', { name: 'Search result' }).textContent).toBe(
-      '2 products',
+    expect(getByRole(container, 'status', { name: 'Resultado da busca' }).textContent).toBe(
+      '2 produtos',
     );
   });
 
@@ -139,14 +139,14 @@ describe('catalog search', () => {
     );
     const container = mount();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Load more' }));
-    await findByRole(container, 'button', { name: 'Edit Second' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Carregar mais' }));
+    await findByRole(container, 'button', { name: 'Editar Second' });
     expect(afters).toEqual([null, 'c1']);
-    expect(queryByRole(container, 'button', { name: 'Load more' })).toBeNull();
+    expect(queryByRole(container, 'button', { name: 'Carregar mais' })).toBeNull();
 
     server.use(http.get('*/bff/shop/products', () => HttpResponse.json({ items: [], next: null })));
     fireEvent.submit(getByRole(container, 'search'));
-    await findByText(container, 'No products found.');
+    await findByText(container, 'Nenhum produto encontrado.');
 
     server.use(
       http.get('*/bff/shop/products', () =>
@@ -160,7 +160,7 @@ describe('catalog search', () => {
   it('lists the products as soon as it opens', async () => {
     const container = mount();
 
-    expect(await findByRole(container, 'button', { name: 'Edit Standing desk' })).toBeTruthy();
+    expect(await findByRole(container, 'button', { name: 'Editar Standing desk' })).toBeTruthy();
   });
 });
 
@@ -172,12 +172,12 @@ describe('product editor', () => {
     const form = await openDesk(container);
 
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
-    expect(getByLabelText<HTMLInputElement>(form, 'Category').value).toBe('Office');
-    expect(getByLabelText<HTMLInputElement>(form, 'Price in BRL').value).toBe('1999.9');
-    expect(getByLabelText<HTMLInputElement>(form, 'Price in USD').value).toBe('399');
-    expect(getByRole(form, 'heading', { name: 'Standing desk (DESK-1), version 3' })).toBeTruthy();
+    expect(getByLabelText<HTMLInputElement>(form, 'Categoria').value).toBe('Office');
+    expect(getByLabelText<HTMLInputElement>(form, 'Preço em BRL').value).toBe('1999.9');
+    expect(getByLabelText<HTMLInputElement>(form, 'Preço em USD').value).toBe('399');
+    expect(getByRole(form, 'heading', { name: 'Standing desk (DESK-1), versão 3' })).toBeTruthy();
   });
 
   it('shows an empty price box for a currency the product has no price in', async () => {
@@ -187,9 +187,9 @@ describe('product editor', () => {
     const form = await openDesk(container);
 
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Price in BRL').value).toBe('10');
+      expect(getByLabelText<HTMLInputElement>(form, 'Preço em BRL').value).toBe('10');
     });
-    expect(getByLabelText<HTMLInputElement>(form, 'Price in USD').value).toBe('');
+    expect(getByLabelText<HTMLInputElement>(form, 'Preço em USD').value).toBe('');
   });
 
   it('saves with the version it loaded as If-Match, sends the unchanged fields back, and shows the product returned', async () => {
@@ -213,17 +213,19 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
 
-    fill(form, 'Name', '  Standing desk XL ');
-    fill(form, 'Price in BRL', '2100');
-    fill(form, 'Price in USD', '');
+    fill(form, 'Nome', '  Standing desk XL ');
+    fill(form, 'Preço em BRL', '2100');
+    fill(form, 'Preço em USD', '');
     save(form);
 
-    const done = await findByRole(container, 'status', { name: 'Save result' });
+    const done = await findByRole(container, 'status', { name: 'Resultado do salvamento' });
     await vi.waitFor(() => {
-      expect(done.textContent).toBe('Saved Standing desk XL (DESK-1) as version 4: R$2,100.00.');
+      expect(done.textContent).toBe(
+        'Standing desk XL (DESK-1) salvo como versão 4: R$\u00a02.100,00.',
+      );
     });
     expect(new URL(request?.url ?? '').pathname).toBe('/bff/admin/products/DESK-1');
     expect(request?.headers.get('if-match')).toBe('"3"');
@@ -236,9 +238,9 @@ describe('product editor', () => {
       prices: [{ currency: 'BRL', amount: 2100 }],
     });
     expect(
-      getByRole(form, 'heading', { name: 'Standing desk XL (DESK-1), version 4' }),
+      getByRole(form, 'heading', { name: 'Standing desk XL (DESK-1), versão 4' }),
     ).toBeTruthy();
-    expect(getByLabelText<HTMLInputElement>(form, 'Price in USD').value).toBe('');
+    expect(getByLabelText<HTMLInputElement>(form, 'Preço em USD').value).toBe('');
   });
 
   it('the next save uses the new version', async () => {
@@ -253,14 +255,14 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
 
     save(form);
     await vi.waitFor(() => {
       expect(matches).toHaveLength(1);
     });
-    await findByRole(form, 'heading', { name: 'Standing desk (DESK-1), version 4' });
+    await findByRole(form, 'heading', { name: 'Standing desk (DESK-1), versão 4' });
     save(form);
     await vi.waitFor(() => {
       expect(matches).toHaveLength(2);
@@ -282,21 +284,21 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
-    fill(form, 'Name', 'My edit');
+    fill(form, 'Nome', 'My edit');
 
     save(form);
 
     const alert = await findByRole(form, 'alert');
-    expect(alert.textContent).toContain('This product was changed by someone else.');
+    expect(alert.textContent).toContain('Este produto foi alterado por outra pessoa.');
     useProduct(product({ name: 'Their edit', version: 5 }));
-    fireEvent.click(getByRole(alert, 'button', { name: 'Reload' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Recarregar' }));
 
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Their edit');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Their edit');
     });
-    expect(getByRole(form, 'heading', { name: 'Their edit (DESK-1), version 5' })).toBeTruthy();
+    expect(getByRole(form, 'heading', { name: 'Their edit (DESK-1), versão 5' })).toBeTruthy();
     expect(queryByRole(form, 'alert')).toBeNull();
   });
 
@@ -312,19 +314,19 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
 
-    fill(form, 'Name', ' ');
-    fill(form, 'Category', '');
-    fill(form, 'Price in BRL', '-1');
+    fill(form, 'Nome', ' ');
+    fill(form, 'Categoria', '');
+    fill(form, 'Preço em BRL', '-1');
     save(form);
 
     const summary = getByRole(form, 'alert');
     expect([...summary.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
-      'Name is required.',
-      'Category is required.',
-      'The price in BRL must not be negative.',
+      'O nome é obrigatório.',
+      'A categoria é obrigatória.',
+      'O preço em BRL não pode ser negativo.',
     ]);
     expect(document.activeElement).toBe(summary);
     expect(calls).toBe(0);
@@ -343,7 +345,7 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
 
     save(form);
@@ -369,7 +371,7 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
     expect(reads).toBe(4);
 
@@ -384,10 +386,10 @@ describe('product editor', () => {
         });
       }),
     );
-    fireEvent.click(getByRole(container, 'button', { name: 'Edit Standing desk' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Editar Standing desk' }));
     await vi.waitFor(() => {
       expect(getByRole(container, 'alert').textContent).toContain(
-        'The product changed while it was being read. Try again.',
+        'O produto mudou enquanto era lido. Tente novamente.',
       );
     });
   });
@@ -403,12 +405,12 @@ describe('product editor', () => {
     );
     const container = mount();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Edit Standing desk' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Editar Standing desk' }));
 
     expect((await findByRole(container, 'alert')).textContent).toContain(
       'Product DESK-1 was not found.',
     );
-    expect(queryByRole(container, 'form', { name: 'Product editor' })).toBeNull();
+    expect(queryByRole(container, 'form', { name: 'Editor de produto' })).toBeNull();
   });
 
   it('closes the editor on Close', async () => {
@@ -416,9 +418,9 @@ describe('product editor', () => {
     const container = mount();
     const form = await openDesk(container);
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Close' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Fechar' }));
 
-    expect(queryByRole(container, 'form', { name: 'Product editor' })).toBeNull();
+    expect(queryByRole(container, 'form', { name: 'Editor de produto' })).toBeNull();
   });
 });
 
@@ -429,24 +431,24 @@ describe('catalog editor accessibility', () => {
       http.put('*/bff/admin/products/:sku', () => HttpResponse.json(product({ version: 4 }))),
     );
     const container = mount();
-    await findByRole(container, 'button', { name: 'Edit Standing desk' });
+    await findByRole(container, 'button', { name: 'Editar Standing desk' });
     await expectAccessible(container);
 
     const form = await openDesk(container);
     await vi.waitFor(() => {
-      expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Standing desk');
+      expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Standing desk');
     });
     await expectAccessible(form);
-    fill(form, 'Name', '');
+    fill(form, 'Nome', '');
     save(form);
     await expectAccessible(form);
-    fill(form, 'Name', 'Desk');
+    fill(form, 'Nome', 'Desk');
     save(form);
-    await findByRole(container, 'status', { name: 'Save result' });
+    await findByRole(container, 'status', { name: 'Resultado do salvamento' });
     await vi.waitFor(() => {
-      expect(getByRole(container, 'status', { name: 'Save result' }).textContent).toContain(
-        'Saved',
-      );
+      expect(
+        getByRole(container, 'status', { name: 'Resultado do salvamento' }).textContent,
+      ).toContain('salvo');
     });
     await expectAccessible(container);
   });

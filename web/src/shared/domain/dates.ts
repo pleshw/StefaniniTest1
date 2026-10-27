@@ -2,8 +2,8 @@ import type { Locale } from './money';
 
 const formatters = new Map<Locale, Intl.DateTimeFormat>();
 
-/** A moment from the API (ISO 8601) in the viewer's time zone, such as "Oct 26, 2026, 12:00 PM". */
-export function formatDateTime(iso: string, locale: Locale = 'en-US'): string {
+/** A moment from the API (ISO 8601) in the viewer's time zone, such as "26 de out. de 2026 12:00". */
+export function formatDateTime(iso: string, locale: Locale = 'pt-BR'): string {
   const moment = new Date(iso);
 
   if (Number.isNaN(moment.getTime())) {

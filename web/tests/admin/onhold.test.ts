@@ -37,7 +37,7 @@ function useQueue(answer: object): void {
   server.use(http.get('*/bff/admin/orders', () => HttpResponse.json(answer)));
 }
 
-describe('OnHold queue', () => {
+describe('Fila em espera', () => {
   it('loads when it is mounted and lists the oldest order first, as the BFF returns them', async () => {
     useQueue({
       onHold: [
@@ -58,10 +58,10 @@ describe('OnHold queue', () => {
     });
     expect(items[0]?.textContent).toContain('ORD-OLD');
     expect(items[0]?.textContent).toContain('Ana Souza');
-    expect(items[0]?.textContent).toContain('R$5,000.00');
-    expect(items[0]?.textContent).toContain('Oct 25, 2026');
+    expect(items[0]?.textContent).toContain('R$\u00a05.000,00');
+    expect(items[0]?.textContent).toContain('25 de out. de 2026');
     expect(items[1]?.textContent).toContain('ORD-NEW');
-    expect(getByRole(container, 'status').textContent).toBe('2 orders waiting');
+    expect(getByRole(container, 'status').textContent).toBe('2 pedidos aguardando');
   });
 
   it('opens the inspector on an order', async () => {
@@ -73,7 +73,7 @@ describe('OnHold queue', () => {
     });
     const { container, onInspect } = mount();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Inspect ORD-OLD' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Inspecionar ORD-OLD' }));
 
     expect(onInspect).toHaveBeenCalledExactlyOnceWith('id-ORD-OLD');
   });
@@ -83,7 +83,7 @@ describe('OnHold queue', () => {
 
     const { container } = mount();
 
-    await findByText(container, 'No orders are on hold.');
+    await findByText(container, 'Nenhum pedido em espera.');
     expect(queryByRole(container, 'list')).toBeNull();
   });
 
@@ -97,7 +97,7 @@ describe('OnHold queue', () => {
     const { container, queue } = mount();
 
     const alert = await findByRole(container, 'alert');
-    expect(alert.textContent).toContain('The OnHold queue could not be loaded.');
+    expect(alert.textContent).toContain('Não foi possível carregar a fila em espera.');
 
     useQueue({
       onHold: [summary('ORD-1', 10, '2026-10-26T09:00:00Z')],
@@ -105,13 +105,13 @@ describe('OnHold queue', () => {
       partial: true,
       unavailable: [],
     });
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
-    expect(await findByRole(container, 'button', { name: 'Inspect ORD-1' })).toBeTruthy();
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
+    expect(await findByRole(container, 'button', { name: 'Inspecionar ORD-1' })).toBeTruthy();
     expect(queryByRole(container, 'alert')).toBeNull();
 
     useQueue({ onHold: [], orders: null, partial: false, unavailable: [] });
     queue.refresh();
-    await findByText(container, 'No orders are on hold.');
+    await findByText(container, 'Nenhum pedido em espera.');
   });
 
   it('shows the error when the request fails', async () => {
@@ -134,12 +134,12 @@ describe('OnHold queue', () => {
       unavailable: [],
     });
     const { container, queue } = mount();
-    await findByRole(container, 'button', { name: 'Inspect ORD-1' });
+    await findByRole(container, 'button', { name: 'Inspecionar ORD-1' });
     server.use(http.get('*/bff/admin/orders', () => new Promise<never>(() => undefined)));
 
     queue.refresh();
 
-    expect(getByRole(container, 'button', { name: 'Inspect ORD-1' })).toBeTruthy();
+    expect(getByRole(container, 'button', { name: 'Inspecionar ORD-1' })).toBeTruthy();
   });
 });
 
@@ -152,13 +152,13 @@ describe('OnHold queue accessibility', () => {
       unavailable: [],
     });
     const full = mount();
-    await findByRole(full.container, 'button', { name: 'Inspect ORD-1' });
+    await findByRole(full.container, 'button', { name: 'Inspecionar ORD-1' });
     await expectAccessible(full.container);
     full.container.remove();
 
     useQueue({ onHold: [], orders: null, partial: false, unavailable: [] });
     const empty = mount();
-    await findByText(empty.container, 'No orders are on hold.');
+    await findByText(empty.container, 'Nenhum pedido em espera.');
     await expectAccessible(empty.container);
     empty.container.remove();
 

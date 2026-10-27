@@ -396,6 +396,8 @@ As condições reutilizam as classes Specification do motor de descontos. As aç
 
 Duas páginas, `shop.html` e `admin.html`, construídas com Vite a partir de HTML e TypeScript puros e estilizadas com Bootstrap 5.3 e Bootstrap Icons via npm. Ambas rodam em `http://localhost:8080` atrás do nginx e chamam apenas `/bff/*`. A página de admin é uma entrada separada, então seu código nunca é entregue aos usuários do shop.
 
+A interface está em português do Brasil (`lang="pt-BR"`), em texto simples, sem biblioteca de i18n; valores e datas usam `pt-BR` por padrão. As mensagens de erro que vêm das APIs (ProblemDetails) aparecem como chegam; o front-end só escreve em pt-BR as mensagens que ele mesmo gera.
+
 ### Página Shop (fluxos de cliente)
 
 | Tela / estado | O que faz | Chamada ao BFF |

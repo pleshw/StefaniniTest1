@@ -3,6 +3,20 @@ import type { ConfirmationRule, DiscountRule } from '../api/rules';
 export const discountTypes = ['Percentage', 'FixedAmount', 'BuyXGetY', 'Tiered'] as const;
 export type DiscountType = (typeof discountTypes)[number];
 
+const discountTypeLabels: Readonly<Record<DiscountType, string>> = {
+  Percentage: 'Percentual',
+  FixedAmount: 'Valor fixo',
+  BuyXGetY: 'Compre X, leve Y',
+  Tiered: 'Por faixas',
+};
+
+/** The name shown for a discount type; a type Orders adds later shows under its own name. */
+export function discountTypeLabel(type: string): string {
+  return (discountTypes as readonly string[]).includes(type)
+    ? discountTypeLabels[type as DiscountType]
+    : type;
+}
+
 export type AppliesTo = 'order' | 'line';
 export type Channel = 'shop' | 'admin';
 
@@ -58,15 +72,15 @@ export const discountConditionKinds: readonly ConditionKind[] = [
 ];
 
 export const conditionLabels: Readonly<Record<ConditionKind, string>> = {
-  MinSubtotal: 'Min subtotal',
-  SkuIn: 'SKU in',
-  CategoryIn: 'Category in',
-  MinQuantity: 'Min quantity',
-  ClientSegment: 'Client segment',
-  DateWindow: 'Date window',
-  TotalAbove: 'Total above',
-  FirstOrderOfClient: 'First order of client',
-  ChannelIs: 'Channel is',
+  MinSubtotal: 'Subtotal mínimo',
+  SkuIn: 'SKU em',
+  CategoryIn: 'Categoria em',
+  MinQuantity: 'Quantidade mínima',
+  ClientSegment: 'Segmento do cliente',
+  DateWindow: 'Janela de datas',
+  TotalAbove: 'Total acima de',
+  FirstOrderOfClient: 'Primeiro pedido do cliente',
+  ChannelIs: 'Canal é',
 };
 
 export interface DiscountDefinition {
@@ -91,7 +105,7 @@ export interface ConfirmationDefinition {
   isActive: boolean;
 }
 
-const percentMessage = 'Percent must be greater than 0 and at most 100.';
+const percentMessage = 'O percentual deve ser maior que 0 e no máximo 100.';
 const currencyCode = /^[A-Za-z]{3}$/;
 
 /** Splits "a, b\nc" into trimmed, non-empty, distinct values. */
@@ -116,22 +130,22 @@ export function validateDiscount(definition: DiscountDefinition): string[] {
   const errors: string[] = [];
 
   if (definition.name.trim() === '') {
-    errors.push('Name is required.');
+    errors.push('O nome é obrigatório.');
   }
   errors.push(...parameterErrors(definition));
   if (!Number.isInteger(definition.priority)) {
-    errors.push('Priority must be a whole number.');
+    errors.push('A prioridade deve ser um número inteiro.');
   }
   if (
     definition.validFrom !== undefined &&
     definition.validTo !== undefined &&
     new Date(definition.validTo) <= new Date(definition.validFrom)
   ) {
-    errors.push('Valid to must be later than valid from.');
+    errors.push('O fim da validade deve ser posterior ao início.');
   }
   errors.push(
     ...definition.conditions.flatMap((condition) =>
-      conditionErrors(condition, discountConditionKinds, 'discount'),
+      conditionErrors(condition, discountConditionKinds, 'desconto'),
     ),
   );
 
@@ -142,17 +156,17 @@ export function validateConfirmation(definition: ConfirmationDefinition): string
   const errors: string[] = [];
 
   if (definition.name.trim() === '') {
-    errors.push('Name is required.');
+    errors.push('O nome é obrigatório.');
   }
   if (!Number.isInteger(definition.priority)) {
-    errors.push('Priority must be a whole number.');
+    errors.push('A prioridade deve ser um número inteiro.');
   }
   if (definition.conditions.length === 0) {
-    errors.push('Add at least one condition.');
+    errors.push('Adicione pelo menos uma condição.');
   }
   errors.push(
     ...definition.conditions.flatMap((condition) =>
-      conditionErrors(condition, confirmationConditionKinds, 'confirmation'),
+      conditionErrors(condition, confirmationConditionKinds, 'confirmação'),
     ),
   );
 
@@ -173,18 +187,18 @@ function parameterErrors(definition: DiscountDefinition): string[] {
       const errors: string[] = [];
 
       if (amounts.length === 0) {
-        return ['Add at least one amount.'];
+        return ['Adicione pelo menos um valor.'];
       }
       if (!amounts.every((item) => isCode(item.currency))) {
-        errors.push('Every currency must be a three-letter code.');
+        errors.push('Toda moeda deve ser um código de três letras.');
       }
       if (!amounts.every((item) => item.amount > 0)) {
-        errors.push('Every amount must be greater than 0.');
+        errors.push('Todo valor deve ser maior que 0.');
       }
       if (
         new Set(amounts.map((item) => item.currency.trim().toUpperCase())).size !== amounts.length
       ) {
-        errors.push('Each currency can appear only once.');
+        errors.push('Cada moeda pode aparecer só uma vez.');
       }
 
       return errors;
@@ -193,8 +207,8 @@ function parameterErrors(definition: DiscountDefinition): string[] {
       const { buy, get } = parameters as BuyXGetYParameters;
 
       return [
-        ...(isWhole(buy, 1) ? [] : ['Buy must be a whole number of at least 1.']),
-        ...(isWhole(get, 1) ? [] : ['Get must be a whole number of at least 1.']),
+        ...(isWhole(buy, 1) ? [] : ['Compre deve ser um número inteiro de pelo menos 1.']),
+        ...(isWhole(get, 1) ? [] : ['Leve deve ser um número inteiro de pelo menos 1.']),
       ];
     }
     case 'Tiered': {
@@ -202,19 +216,19 @@ function parameterErrors(definition: DiscountDefinition): string[] {
       const errors: string[] = [];
 
       if (!isCode(currency)) {
-        errors.push('Currency must be a three-letter code.');
+        errors.push('A moeda deve ser um código de três letras.');
       }
       if (tiers.length === 0) {
-        errors.push('Add at least one band.');
+        errors.push('Adicione pelo menos uma faixa.');
       }
       if (!tiers.every((tier) => tier.minSubtotal >= 0)) {
-        errors.push('Min subtotal must not be negative.');
+        errors.push('O subtotal mínimo não pode ser negativo.');
       }
       if (!tiers.every((tier) => validPercent(tier.percent))) {
         errors.push(percentMessage);
       }
       if (new Set(tiers.map((tier) => tier.minSubtotal)).size !== tiers.length) {
-        errors.push('Every band needs its own min subtotal.');
+        errors.push('Cada faixa precisa de um subtotal mínimo próprio.');
       }
 
       return errors;
@@ -230,37 +244,37 @@ function conditionErrors(
   const label = conditionLabels[condition.kind];
 
   if (!allowed.includes(condition.kind)) {
-    return [`${label} is not a condition of ${rules} rules.`];
+    return [`${label} não é uma condição de regras de ${rules}.`];
   }
 
   switch (condition.kind) {
     case 'MinSubtotal':
     case 'TotalAbove':
       return [
-        ...(condition.amount >= 0 ? [] : [`${label}: the amount must not be negative.`]),
+        ...(condition.amount >= 0 ? [] : [`${label}: o valor não pode ser negativo.`]),
         ...(isCode(condition.currency)
           ? []
-          : [`${label}: the currency must be a three-letter code.`]),
+          : [`${label}: a moeda deve ser um código de três letras.`]),
       ];
     case 'SkuIn':
-      return condition.skus.length > 0 ? [] : [`${label}: list at least one SKU.`];
+      return condition.skus.length > 0 ? [] : [`${label}: informe pelo menos um SKU.`];
     case 'CategoryIn':
-      return condition.categories.length > 0 ? [] : [`${label}: list at least one category.`];
+      return condition.categories.length > 0 ? [] : [`${label}: informe pelo menos uma categoria.`];
     case 'ClientSegment':
-      return condition.segments.length > 0 ? [] : [`${label}: list at least one segment.`];
+      return condition.segments.length > 0 ? [] : [`${label}: informe pelo menos um segmento.`];
     case 'MinQuantity':
       return isWhole(condition.quantity, 1)
         ? []
-        : [`${label}: the quantity must be a whole number of at least 1.`];
+        : [`${label}: a quantidade deve ser um número inteiro de pelo menos 1.`];
     case 'DateWindow':
       if (condition.from === undefined && condition.to === undefined) {
-        return [`${label}: give a start, an end or both.`];
+        return [`${label}: informe um início, um fim ou ambos.`];
       }
 
       return condition.from !== undefined &&
         condition.to !== undefined &&
         new Date(condition.from) >= new Date(condition.to)
-        ? [`${label}: the start must be earlier than the end.`]
+        ? [`${label}: o início deve ser anterior ao fim.`]
         : [];
     case 'FirstOrderOfClient':
     case 'ChannelIs':

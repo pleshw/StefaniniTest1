@@ -4,17 +4,17 @@ import { askReason, confirmAction } from '../../../src/shared/ui/dialog';
 import { expectAccessible } from '../../helpers';
 
 const hold = {
-  title: 'Put order ORD-1 on hold',
-  message: 'The order waits until an admin confirms or blocks it.',
-  label: 'Reason',
-  confirmLabel: 'Put on hold',
+  title: 'Colocar o pedido ORD-1 em espera',
+  message: 'O pedido aguarda até que um administrador o confirme ou bloqueie.',
+  label: 'Motivo',
+  confirmLabel: 'Colocar em espera',
   required: true,
   maxLength: 500,
 };
 
 function opener(): HTMLButtonElement {
   const button = document.createElement('button');
-  button.textContent = 'Hold';
+  button.textContent = 'Espera';
   document.body.append(button);
   button.focus();
 
@@ -28,12 +28,12 @@ describe('askReason', () => {
     opener();
     const answer = askReason(hold);
 
-    fireEvent.input(getByLabelText(dialog(), 'Reason'), {
-      target: { value: '  Customer asked  ' },
+    fireEvent.input(getByLabelText(dialog(), 'Motivo'), {
+      target: { value: '  Cliente pediu  ' },
     });
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
 
-    expect(await answer).toBe('Customer asked');
+    expect(await answer).toBe('Cliente pediu');
     expect(document.querySelector('dialog')).toBeNull();
   });
 
@@ -45,17 +45,17 @@ describe('askReason', () => {
       settled = true;
     });
 
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
     await Promise.resolve();
 
-    const field = getByLabelText(dialog(), 'Reason');
-    expect(getByRole(dialog(), 'alert').textContent).toBe('Reason is required.');
+    const field = getByLabelText(dialog(), 'Motivo');
+    expect(getByRole(dialog(), 'alert').textContent).toBe('Motivo é obrigatório.');
     expect(field.getAttribute('aria-invalid')).toBe('true');
     expect(document.activeElement).toBe(field);
     expect(settled).toBe(false);
 
     fireEvent.input(field, { target: { value: 'ok' } });
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
     expect(await answer).toBe('ok');
   });
 
@@ -63,11 +63,11 @@ describe('askReason', () => {
     opener();
     const answer = askReason(hold);
 
-    fireEvent.input(getByLabelText(dialog(), 'Reason'), { target: { value: '   ' } });
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
-    expect(getByRole(dialog(), 'alert').textContent).toBe('Reason is required.');
+    fireEvent.input(getByLabelText(dialog(), 'Motivo'), { target: { value: '   ' } });
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
+    expect(getByRole(dialog(), 'alert').textContent).toBe('Motivo é obrigatório.');
 
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     expect(await answer).toBeNull();
   });
 
@@ -75,8 +75,8 @@ describe('askReason', () => {
     opener();
     const answer = askReason({ ...hold, required: false });
 
-    expect(getByLabelText(dialog(), 'Reason (optional)')).toBeTruthy();
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
+    expect(getByLabelText(dialog(), 'Motivo (opcional)')).toBeTruthy();
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
 
     expect(await answer).toBe('');
   });
@@ -84,7 +84,7 @@ describe('askReason', () => {
   it('resolves to null on Cancel and on Escape, and gives the focus back', async () => {
     const button = opener();
     const cancelled = askReason(hold);
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     expect(await cancelled).toBeNull();
     expect(document.activeElement).toBe(button);
 
@@ -98,15 +98,15 @@ describe('askReason', () => {
     opener();
     const answer = askReason({
       title: hold.title,
-      label: 'Reason',
-      confirmLabel: 'Go',
+      label: 'Motivo',
+      confirmLabel: 'Ir',
       required: true,
       maxLength: 20,
     });
 
-    expect(getByLabelText(dialog(), 'Reason').getAttribute('maxlength')).toBe('20');
+    expect(getByLabelText(dialog(), 'Motivo').getAttribute('maxlength')).toBe('20');
     expect(dialog().querySelectorAll('p')).toHaveLength(0);
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     await answer;
   });
 
@@ -115,19 +115,19 @@ describe('askReason', () => {
     const answer = askReason(hold);
 
     await expectAccessible(dialog());
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Put on hold' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
     await expectAccessible(dialog());
 
-    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancelar' }));
     await answer;
   });
 });
 
 describe('confirmAction', () => {
   const options = {
-    title: 'Replay this message?',
-    message: 'It goes back through the exchange.',
-    confirmLabel: 'Replay',
+    title: 'Reprocessar esta mensagem?',
+    message: 'Ela volta para a exchange.',
+    confirmLabel: 'Reprocessar',
   };
 
   it('resolves to true on confirm, false on Cancel and false on Escape, with the focus given back', async () => {
@@ -135,13 +135,13 @@ describe('confirmAction', () => {
 
     const yes = confirmAction(options);
     expect(getByRole(document.body, 'dialog', { name: options.title })).toBeTruthy();
-    expect(document.activeElement).toBe(getByRole(document.body, 'button', { name: 'Cancel' }));
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Replay' }));
+    expect(document.activeElement).toBe(getByRole(document.body, 'button', { name: 'Cancelar' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Reprocessar' }));
     expect(await yes).toBe(true);
     expect(document.activeElement).toBe(button);
 
     const no = confirmAction(options);
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancelar' }));
     expect(await no).toBe(false);
 
     const escaped = confirmAction(options);
@@ -158,7 +158,7 @@ describe('confirmAction', () => {
     expect(dialog.getAttribute('aria-describedby')).toBeTruthy();
     await expectAccessible(dialog);
 
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancelar' }));
     await answer;
   });
 });

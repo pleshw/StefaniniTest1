@@ -37,14 +37,18 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
   });
   const status = h('p', {
     className: 'text-body-secondary',
-    attrs: { role: 'status', 'aria-label': 'Search result' },
+    attrs: { role: 'status', 'aria-label': 'Resultado da busca' },
   });
   const alertBox = h('div', {
     className: 'alert alert-danger d-flex align-items-center gap-3',
     attrs: { role: 'alert' },
   });
   const list = h('ul', { className: 'list-group mb-2' });
-  const more = actionButton('Load more', 'btn btn-outline-primary btn-sm', () => void load(true));
+  const more = actionButton(
+    'Carregar mais',
+    'btn btn-outline-primary btn-sm',
+    () => void load(true),
+  );
   const editor = h('div');
   const form = h(
     'form',
@@ -54,7 +58,7 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
       { className: 'col-12 col-md' },
       h('label', {
         className: 'form-label',
-        text: 'Search products',
+        text: 'Buscar produtos',
         attrs: { for: 'editor-search' },
       }),
       search,
@@ -62,7 +66,7 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
     h(
       'div',
       { className: 'col-12 col-md-auto' },
-      actionButton('Search', 'btn btn-primary', () => undefined, 'submit'),
+      actionButton('Buscar', 'btn btn-primary', () => undefined, 'submit'),
     ),
   );
 
@@ -70,7 +74,7 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
     h(
       'section',
       { attrs: { 'aria-labelledby': 'catalog-editor-heading' } },
-      h('h2', { className: 'h4', text: 'Catalog', attrs: { id: 'catalog-editor-heading' } }),
+      h('h2', { className: 'h4', text: 'Catálogo', attrs: { id: 'catalog-editor-heading' } }),
       form,
       status,
       alertBox,
@@ -85,12 +89,12 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
     list.hidden = products.length === 0;
     more.hidden = next === null || loading;
     status.textContent = loading
-      ? 'Searching…'
+      ? 'Buscando…'
       : failure !== undefined
         ? ''
         : products.length === 0
-          ? 'No products found.'
-          : `${String(products.length)} ${products.length === 1 ? 'product' : 'products'}`;
+          ? 'Nenhum produto encontrado.'
+          : `${String(products.length)} ${products.length === 1 ? 'produto' : 'produtos'}`;
     alertBox.hidden = failure === undefined;
     alertBox.replaceChildren(
       ...(failure === undefined
@@ -98,7 +102,7 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
         : [
             h('span', { text: failure }),
             actionButton(
-              'Try again',
+              'Tentar novamente',
               'btn btn-sm btn-outline-danger ms-auto',
               () => void load(false),
             ),
@@ -108,11 +112,11 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
 
   function item(product: ShopProduct): HTMLElement {
     const edit = actionButton(
-      'Edit',
+      'Editar',
       'btn btn-outline-primary btn-sm',
       () => void open(product.sku),
     );
-    edit.setAttribute('aria-label', `Edit ${product.name}`);
+    edit.setAttribute('aria-label', `Editar ${product.name}`);
 
     return h(
       'li',
@@ -151,14 +155,14 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
       if (mine !== generation) {
         return;
       }
-      failure = errorMessage(error, 'The products could not be loaded.');
+      failure = errorMessage(error, 'Não foi possível carregar os produtos.');
     }
     loading = false;
     render();
   }
 
   async function open(sku: string): Promise<void> {
-    editor.replaceChildren(h('p', { text: 'Loading product…', attrs: { role: 'status' } }));
+    editor.replaceChildren(h('p', { text: 'Carregando produto…', attrs: { role: 'status' } }));
 
     try {
       const product = await getProduct(options.http, sku);
@@ -172,7 +176,7 @@ export function mountCatalogEditor(container: HTMLElement, options: CatalogEdito
       editor.replaceChildren(
         h('div', {
           className: 'alert alert-danger',
-          text: readFailure(error, 'The product could not be loaded.'),
+          text: readFailure(error, 'Não foi possível carregar o produto.'),
           attrs: { role: 'alert' },
         }),
       );
@@ -195,7 +199,7 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
   const heading = h('h3', { className: 'h5' });
   const result = h('p', {
     className: 'fw-semibold',
-    attrs: { role: 'status', 'aria-label': 'Save result' },
+    attrs: { role: 'status', 'aria-label': 'Resultado do salvamento' },
   });
   const name = textInput('');
   const category = textInput('');
@@ -205,7 +209,7 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
 
   function show(shown: ProductDetail): void {
     product = shown;
-    heading.textContent = `${shown.name} (${shown.sku}), version ${String(shown.version)}`;
+    heading.textContent = `${shown.name} (${shown.sku}), versão ${String(shown.version)}`;
     name.value = shown.name;
     category.value = shown.category;
     for (const [currency, input] of prices) {
@@ -220,17 +224,17 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
     const typed: ProductPrice[] = [];
 
     if (name.value.trim() === '') {
-      problems.push('Name is required.');
+      problems.push('O nome é obrigatório.');
     }
     if (category.value.trim() === '') {
-      problems.push('Category is required.');
+      problems.push('A categoria é obrigatória.');
     }
     for (const [currency, input] of prices) {
       if (input.value.trim() === '') {
         continue;
       }
       if (!(input.valueAsNumber >= 0)) {
-        problems.push(`The price in ${currency} must not be negative.`);
+        problems.push(`O preço em ${currency} não pode ser negativo.`);
       } else {
         typed.push({ currency, amount: input.valueAsNumber });
       }
@@ -258,12 +262,12 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
       const shown = stored.prices
         .map((price) => formatMoney(price.amount, price.currency))
         .join(', ');
-      result.textContent = `Saved ${stored.name} (${stored.sku}) as version ${String(stored.version)}: ${shown === '' ? 'no prices' : shown}.`;
+      result.textContent = `${stored.name} (${stored.sku}) salvo como versão ${String(stored.version)}: ${shown === '' ? 'sem preços' : shown}.`;
     } catch (error) {
       if (error instanceof PreconditionFailedError) {
         showStale();
       } else {
-        summary.show([errorMessage(error, 'The product could not be saved.')], 'Not saved:');
+        summary.show([errorMessage(error, 'Não foi possível salvar o produto.')], 'Não salvo:');
       }
     }
     saving = false;
@@ -271,11 +275,11 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
 
   function showStale(): void {
     summary.show(
-      ['This product was changed by someone else. Reload it to see its current state.'],
-      'Not saved:',
+      ['Este produto foi alterado por outra pessoa. Recarregue-o para ver o estado atual.'],
+      'Não salvo:',
     );
     const reload = actionButton(
-      'Reload',
+      'Recarregar',
       'btn btn-sm btn-outline-danger',
       () => void reloadProduct(),
     );
@@ -288,21 +292,27 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
       summary.clear();
       result.textContent = '';
     } catch (error) {
-      summary.show([readFailure(error, 'The product could not be reloaded.')], 'Not reloaded:');
+      summary.show(
+        [readFailure(error, 'Não foi possível recarregar o produto.')],
+        'Não recarregado:',
+      );
     }
   }
 
   show(loaded);
   const form = h(
     'form',
-    { className: 'border rounded p-3', attrs: { 'aria-label': 'Product editor', novalidate: '' } },
+    {
+      className: 'border rounded p-3',
+      attrs: { 'aria-label': 'Editor de produto', novalidate: '' },
+    },
     heading,
     summary.element,
     h(
       'div',
       { className: 'row' },
-      h('div', { className: 'col-md-6' }, labelled('Name', name)),
-      h('div', { className: 'col-md-6' }, labelled('Category', category)),
+      h('div', { className: 'col-md-6' }, labelled('Nome', name)),
+      h('div', { className: 'col-md-6' }, labelled('Categoria', category)),
     ),
     h(
       'div',
@@ -311,7 +321,7 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
         h(
           'div',
           { className: 'col-md-3' },
-          labelled(`Price in ${currency}`, input, 'Leave empty for no price in this currency.'),
+          labelled(`Preço em ${currency}`, input, 'Deixe vazio para não ter preço nesta moeda.'),
         ),
       ),
     ),
@@ -319,8 +329,8 @@ function buildForm(http: HttpClient, loaded: ProductDetail, close: () => void): 
     h(
       'div',
       { className: 'd-flex gap-2' },
-      actionButton('Save product', 'btn btn-primary', () => void save(), 'submit'),
-      actionButton('Close', 'btn btn-outline-secondary', close),
+      actionButton('Salvar produto', 'btn btn-primary', () => void save(), 'submit'),
+      actionButton('Fechar', 'btn btn-outline-secondary', close),
     ),
   );
   form.addEventListener('submit', (event) => {

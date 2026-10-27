@@ -66,10 +66,12 @@ describe('catalog view', () => {
     expect(items).toHaveLength(2);
     expect(getByRole(container, 'heading', { level: 3, name: 'Standing desk' })).toBeTruthy();
     expect(items[0]?.textContent).toContain('Office');
-    expect(items[0]?.textContent).toContain('R$1,999.90');
+    expect(items[0]?.textContent).toContain('R$\u00a01.999,90');
     expect(items[0]?.textContent).toContain('Adjustable height.');
-    expect(getByRole(container, 'button', { name: 'Add Standing desk to cart' })).toBeTruthy();
-    expect(getByRole(container, 'status').textContent).toBe('2 products');
+    expect(
+      getByRole(container, 'button', { name: 'Adicionar Standing desk ao carrinho' }),
+    ).toBeTruthy();
+    expect(getByRole(container, 'status').textContent).toBe('2 produtos');
   });
 
   it('asks for the products in the page currency and the first page size', async () => {
@@ -95,7 +97,9 @@ describe('catalog view', () => {
     const onAdd = vi.fn();
     const { container } = mount({ onAdd });
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Add Coffee mug to cart' }));
+    fireEvent.click(
+      await findByRole(container, 'button', { name: 'Adicionar Coffee mug ao carrinho' }),
+    );
 
     expect(onAdd).toHaveBeenCalledExactlyOnceWith(mug);
   });
@@ -105,9 +109,11 @@ describe('catalog view', () => {
 
     const { container } = mount();
 
-    const button = await findByRole(container, 'button', { name: 'Add Old lamp to cart' });
+    const button = await findByRole(container, 'button', {
+      name: 'Adicionar Old lamp ao carrinho',
+    });
     expect(button.hasAttribute('disabled')).toBe(true);
-    expect(container.textContent).toContain('Price unavailable');
+    expect(container.textContent).toContain('Preço indisponível');
   });
 
   it('says so when nothing matches', async () => {
@@ -115,9 +121,9 @@ describe('catalog view', () => {
 
     const { container } = mount();
 
-    await findByText(container, 'No products found.');
+    await findByText(container, 'Nenhum produto encontrado.');
     expect(queryByRole(container, 'list')).toBeNull();
-    expect(queryByRole(container, 'button', { name: 'Load more' })).toBeNull();
+    expect(queryByRole(container, 'button', { name: 'Carregar mais' })).toBeNull();
   });
 
   it('shows the error with a way to try again, and the retry loads the products', async () => {
@@ -135,7 +141,7 @@ describe('catalog view', () => {
     expect(alert.textContent).toContain('Catalog is unavailable');
 
     fail = false;
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
 
     expect(await findByRole(container, 'heading', { name: 'Standing desk' })).toBeTruthy();
     expect(queryByRole(container, 'alert')).toBeNull();
@@ -147,7 +153,7 @@ describe('catalog view', () => {
     const { container } = mount();
 
     expect((await findByRole(container, 'alert')).textContent).toContain(
-      'The server could not be reached.',
+      'Não foi possível acessar o servidor.',
     );
   });
 
@@ -162,15 +168,15 @@ describe('catalog view', () => {
     );
     const { container } = mount();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Load more' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Carregar mais' }));
 
     await vi.waitFor(() => {
-      expect(getByRole(container, 'status').textContent).toBe('2 products');
+      expect(getByRole(container, 'status').textContent).toBe('2 produtos');
     });
     expect(afters).toEqual([null, 'cursor-1']);
     expect(getByRole(container, 'heading', { name: 'Standing desk' })).toBeTruthy();
     expect(getByRole(container, 'heading', { name: 'Coffee mug' })).toBeTruthy();
-    expect(queryByRole(container, 'button', { name: 'Load more' })).toBeNull();
+    expect(queryByRole(container, 'button', { name: 'Carregar mais' })).toBeNull();
   });
 
   it('keeps the products when loading more fails and offers the retry', async () => {
@@ -188,12 +194,12 @@ describe('catalog view', () => {
     );
     const { container } = mount();
 
-    fireEvent.click(await findByRole(container, 'button', { name: 'Load more' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Carregar mais' }));
     const alert = await findByRole(container, 'alert');
 
     expect(getByRole(container, 'heading', { name: 'Standing desk' })).toBeTruthy();
     fail = false;
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
     expect(await findByRole(container, 'heading', { name: 'Coffee mug' })).toBeTruthy();
   });
 
@@ -211,7 +217,7 @@ describe('catalog view', () => {
     const { container } = mount();
     await findByRole(container, 'heading', { name: 'Standing desk' });
 
-    const search = getByRole(container, 'searchbox', { name: 'Search products' });
+    const search = getByRole(container, 'searchbox', { name: 'Buscar produtos' });
     fireEvent.input(search, { target: { value: 'mug' } });
     fireEvent.submit(getByRole(container, 'search'));
 
@@ -235,23 +241,23 @@ describe('catalog view', () => {
     const { container } = mount();
     await findAllByRole(container, 'listitem');
 
-    const select = getByRole<HTMLSelectElement>(container, 'combobox', { name: 'Category' });
+    const select = getByRole<HTMLSelectElement>(container, 'combobox', { name: 'Categoria' });
     expect([...select.options].map((option) => option.text)).toEqual([
-      'All categories',
+      'Todas as categorias',
       'Kitchen',
       'Office',
     ]);
 
     fireEvent.change(select, { target: { value: 'Kitchen' } });
     await vi.waitFor(() => {
-      expect(getByRole(container, 'status').textContent).toBe('1 product');
+      expect(getByRole(container, 'status').textContent).toBe('1 produto');
     });
     // The categories already seen stay in the list, so the filter can be changed back.
     expect(select.options).toHaveLength(3);
 
     fireEvent.change(select, { target: { value: '' } });
     await vi.waitFor(() => {
-      expect(getByRole(container, 'status').textContent).toBe('3 products');
+      expect(getByRole(container, 'status').textContent).toBe('3 produtos');
     });
     expect(categories).toEqual([null, 'Kitchen', null]);
   });
@@ -269,7 +275,7 @@ describe('catalog view', () => {
     );
     const { container } = mount();
     await findByRole(container, 'heading', { name: 'Coffee mug' });
-    const search = getByRole(container, 'searchbox', { name: 'Search products' });
+    const search = getByRole(container, 'searchbox', { name: 'Buscar produtos' });
     const form = getByRole(container, 'search');
 
     fireEvent.input(search, { target: { value: 'slow' } });
@@ -287,7 +293,7 @@ describe('catalog view', () => {
 
     const { container } = mount();
 
-    expect(getByRole(container, 'status').textContent).toBe('Loading products…');
+    expect(getByRole(container, 'status').textContent).toBe('Carregando produtos…');
   });
 });
 
@@ -304,7 +310,7 @@ describe('catalog view accessibility', () => {
     server.use(http.get('*/bff/shop/products', () => HttpResponse.json(page([]))));
     const empty = mount();
     await vi.waitFor(() => {
-      expect(empty.container.textContent).toContain('No products found.');
+      expect(empty.container.textContent).toContain('Nenhum produto encontrado.');
     });
     await expectAccessible(empty.container);
     empty.container.remove();

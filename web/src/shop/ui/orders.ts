@@ -35,7 +35,7 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
 
   const heading = h('h2', {
     className: 'h4',
-    text: 'My orders',
+    text: 'Meus pedidos',
     attrs: { id: 'orders-heading', tabindex: '-1' },
   });
   const status = h('p', { className: 'text-body-secondary', attrs: { role: 'status' } });
@@ -47,14 +47,14 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
   const table = h(
     'table',
     { className: 'table align-middle' },
-    h('caption', { className: 'visually-hidden', text: 'My orders' }),
+    h('caption', { className: 'visually-hidden', text: 'Meus pedidos' }),
     h(
       'thead',
       {},
       h(
         'tr',
         {},
-        ...['Order', 'Placed', 'Status', 'Items', 'Total'].map((name) =>
+        ...['Pedido', 'Realizado em', 'Status', 'Itens', 'Total'].map((name) =>
           h('th', { text: name, attrs: { scope: 'col' } }),
         ),
       ),
@@ -63,7 +63,7 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
   );
   const more = h('button', {
     className: 'btn btn-outline-primary',
-    text: 'Load more',
+    text: 'Carregar mais',
     attrs: { type: 'button' },
   });
   const listPanel = h('div', {}, status, alertBox, table, more);
@@ -86,12 +86,12 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
     table.hidden = orders.length === 0;
     more.hidden = next === null || loading;
     status.textContent = loading
-      ? 'Loading orders…'
+      ? 'Carregando pedidos…'
       : failure !== undefined
         ? ''
         : orders.length === 0
-          ? 'You have not placed any orders yet.'
-          : `${String(orders.length)} ${orders.length === 1 ? 'order' : 'orders'}`;
+          ? 'Você ainda não fez nenhum pedido.'
+          : `${String(orders.length)} ${orders.length === 1 ? 'pedido' : 'pedidos'}`;
     alertBox.hidden = failure === undefined;
     alertBox.replaceChildren(
       ...(failure === undefined
@@ -145,7 +145,7 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
       if (signal.aborted) {
         return;
       }
-      failure = errorMessage(error, 'Your orders could not be loaded.');
+      failure = errorMessage(error, 'Não foi possível carregar seus pedidos.');
     }
     loading = false;
     render();
@@ -161,10 +161,10 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
     });
     back.append(
       h('i', { className: 'bi bi-arrow-left me-1', attrs: { 'aria-hidden': 'true' } }),
-      'Back to my orders',
+      'Voltar para meus pedidos',
     );
     back.addEventListener('click', closeDetail);
-    const state = h('p', { text: 'Loading order…', attrs: { role: 'status' } });
+    const state = h('p', { text: 'Carregando o pedido…', attrs: { role: 'status' } });
     detailPanel.replaceChildren(back, state);
     back.focus();
 
@@ -183,7 +183,7 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
         h(
           'div',
           { className: 'alert alert-danger', attrs: { role: 'alert' } },
-          errorMessage(error, 'The order could not be loaded.'),
+          errorMessage(error, 'Não foi possível carregar o pedido.'),
         ),
       );
     }
@@ -214,7 +214,7 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
 function retryButton(onClick: () => void): HTMLButtonElement {
   const button = h('button', {
     className: 'btn btn-sm btn-outline-danger ms-auto',
-    text: 'Try again',
+    text: 'Tentar novamente',
     attrs: { type: 'button' },
   });
   button.addEventListener('click', onClick);

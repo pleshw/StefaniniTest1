@@ -17,10 +17,10 @@ export function renderShell(
   title: string,
   links: readonly NavLink[],
 ): PageShell {
-  const skip = element('a', 'visually-hidden-focusable', 'Skip to content');
+  const skip = element('a', 'visually-hidden-focusable', 'Pular para o conteúdo');
   skip.href = '#content';
 
-  const brand = element('span', 'navbar-brand', 'Orders & Catalog');
+  const brand = element('span', 'navbar-brand', 'Pedidos e Catálogo');
   const list = element('ul', 'navbar-nav');
   for (const link of links) {
     const item = element('li', 'nav-item');
@@ -34,7 +34,7 @@ export function renderShell(
   }
 
   const nav = element('nav', 'container d-flex align-items-center gap-3');
-  nav.setAttribute('aria-label', 'Pages');
+  nav.setAttribute('aria-label', 'Páginas');
   nav.append(brand, list);
   const header = element('header', 'navbar navbar-expand bg-body-tertiary border-bottom');
   header.append(nav);

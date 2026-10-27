@@ -48,19 +48,19 @@ function useRules(rules: DiscountRule[]): void {
 }
 
 async function openNew(container: HTMLElement): Promise<HTMLElement> {
-  fireEvent.click(await findByRole(container, 'button', { name: 'New rule' }));
+  fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
 
-  return getByRole(container, 'form', { name: 'Rule editor' });
+  return getByRole(container, 'form', { name: 'Editor de regra' });
 }
 
 const type = (form: HTMLElement, value: string): void => {
-  fireEvent.change(getByLabelText(form, 'Type'), { target: { value } });
+  fireEvent.change(getByLabelText(form, 'Tipo'), { target: { value } });
 };
 const fill = (form: HTMLElement, label: string, value: string): void => {
   fireEvent.input(getByLabelText(form, label), { target: { value } });
 };
 const save = (form: HTMLElement): void => {
-  fireEvent.click(getByRole(form, 'button', { name: 'Save rule' }));
+  fireEvent.click(getByRole(form, 'button', { name: 'Salvar regra' }));
 };
 
 describe('discount rules list', () => {
@@ -75,15 +75,15 @@ describe('discount rules list', () => {
     const rows = await findAllByRole(container, 'row');
     expect(rows).toHaveLength(3);
     expect(rows[1]?.textContent).toContain('Ten off');
-    expect(rows[1]?.textContent).toContain('Percentage');
+    expect(rows[1]?.textContent).toContain('Percentual');
     expect(rows[1]?.textContent).toContain('5');
-    expect(rows[1]?.textContent).toContain('Oct 1, 2026');
-    expect(rows[1]?.textContent).toContain('Active');
+    expect(rows[1]?.textContent).toContain('1 de out. de 2026');
+    expect(rows[1]?.textContent).toContain('Ativa');
     expect(rows[1]?.textContent).toContain('2');
-    expect(rows[2]?.textContent).toContain('Inactive');
-    expect(rows[2]?.textContent).toContain('Dec 1, 2026');
+    expect(rows[2]?.textContent).toContain('Inativa');
+    expect(rows[2]?.textContent).toContain('1 de dez. de 2026');
     expect(
-      within(rows[2] as HTMLElement).queryByRole('button', { name: 'Deactivate Old' }),
+      within(rows[2] as HTMLElement).queryByRole('button', { name: 'Desativar Old' }),
     ).toBeNull();
   });
 
@@ -96,9 +96,9 @@ describe('discount rules list', () => {
       }),
     );
     const container = mount();
-    await findByText(container, 'There are no discount rules.');
+    await findByText(container, 'Não há regras de desconto.');
 
-    fireEvent.click(getByLabelText(container, 'Active only'));
+    fireEvent.click(getByLabelText(container, 'Somente ativas'));
 
     await vi.waitFor(() => {
       expect(asked).toEqual([null, 'true']);
@@ -108,7 +108,7 @@ describe('discount rules list', () => {
   it('says there are none, and shows an error with a way to try again', async () => {
     useRules([]);
     const empty = mount();
-    await findByText(empty, 'There are no discount rules.');
+    await findByText(empty, 'Não há regras de desconto.');
     empty.remove();
 
     let fail = true;
@@ -123,8 +123,8 @@ describe('discount rules list', () => {
     const alert = await findByRole(failed, 'alert');
     expect(alert.textContent).toContain('Orders is unavailable');
     fail = false;
-    fireEvent.click(getByRole(alert, 'button', { name: 'Try again' }));
-    expect(await findByRole(failed, 'button', { name: 'Edit Ten off' })).toBeTruthy();
+    fireEvent.click(getByRole(alert, 'button', { name: 'Tentar novamente' }));
+    expect(await findByRole(failed, 'button', { name: 'Editar Ten off' })).toBeTruthy();
   });
 });
 
@@ -141,14 +141,14 @@ describe('discount rule editor', () => {
     const container = mount();
     const form = await openNew(container);
 
-    fill(form, 'Name', '  Ten off ');
-    fill(form, 'Percent', '10');
-    fill(form, 'Priority', '5');
-    fireEvent.click(getByLabelText(form, 'Once per client'));
+    fill(form, 'Nome', '  Ten off ');
+    fill(form, 'Percentual', '10');
+    fill(form, 'Prioridade', '5');
+    fireEvent.click(getByLabelText(form, 'Uma vez por cliente'));
     useRules([rule({ version: 1 })]);
     save(form);
 
-    await findByText(container, 'Saved "Ten off" as version 1.');
+    await findByText(container, 'Regra "Ten off" salva como versão 1.');
     expect(body).toEqual({
       name: 'Ten off',
       type: 'Percentage',
@@ -159,21 +159,27 @@ describe('discount rule editor', () => {
       oncePerClient: true,
       isActive: true,
     });
-    expect(queryByRole(container, 'form', { name: 'Rule editor' })).toBeNull();
-    expect(await findByRole(container, 'button', { name: 'Edit Ten off' })).toBeTruthy();
+    expect(queryByRole(container, 'form', { name: 'Editor de regra' })).toBeNull();
+    expect(await findByRole(container, 'button', { name: 'Editar Ten off' })).toBeTruthy();
   });
 
   it.each([
-    ['FixedAmount', ['Every amount must be greater than 0.']],
+    ['FixedAmount', ['Todo valor deve ser maior que 0.']],
     [
       'BuyXGetY',
-      ['Buy must be a whole number of at least 1.', 'Get must be a whole number of at least 1.'],
+      [
+        'Compre deve ser um número inteiro de pelo menos 1.',
+        'Leve deve ser um número inteiro de pelo menos 1.',
+      ],
     ],
     [
       'Tiered',
-      ['Currency must be a three-letter code.', 'Percent must be greater than 0 and at most 100.'],
+      [
+        'A moeda deve ser um código de três letras.',
+        'O percentual deve ser maior que 0 e no máximo 100.',
+      ],
     ],
-    ['Percentage', ['Percent must be greater than 0 and at most 100.']],
+    ['Percentage', ['O percentual deve ser maior que 0 e no máximo 100.']],
   ])('does not send a %s rule that is not valid, and lists what to fix', async (kind, messages) => {
     useRules([]);
     let calls = 0;
@@ -185,15 +191,15 @@ describe('discount rule editor', () => {
     );
     const container = mount();
     const form = await openNew(container);
-    fill(form, 'Name', 'Rule');
-    fill(form, 'Percent', '0');
+    fill(form, 'Nome', 'Rule');
+    fill(form, 'Percentual', '0');
     type(form, kind);
     if (kind === 'Tiered') {
-      fill(form, 'Currency', '');
+      fill(form, 'Moeda', '');
     }
     if (kind === 'BuyXGetY') {
-      fill(form, 'Buy', '0');
-      fill(form, 'Get', '');
+      fill(form, 'Compre', '0');
+      fill(form, 'Leve', '');
     }
 
     save(form);
@@ -209,21 +215,21 @@ describe('discount rule editor', () => {
     const container = mount();
     const form = await openNew(container);
 
-    expect(getByLabelText(form, 'Percent')).toBeTruthy();
-    expect(getByLabelText(form, 'Applies to')).toBeTruthy();
+    expect(getByLabelText(form, 'Percentual')).toBeTruthy();
+    expect(getByLabelText(form, 'Aplica-se a')).toBeTruthy();
 
     type(form, 'BuyXGetY');
-    expect(getByLabelText(form, 'Buy')).toBeTruthy();
-    expect(getByLabelText(form, 'Only these SKUs (optional)')).toBeTruthy();
-    expect(within(form).queryByLabelText('Percent')).toBeNull();
+    expect(getByLabelText(form, 'Compre')).toBeTruthy();
+    expect(getByLabelText(form, 'Somente estes SKUs (opcional)')).toBeTruthy();
+    expect(within(form).queryByLabelText('Percentual')).toBeNull();
 
     type(form, 'FixedAmount');
-    expect(getAllByLabelText(form, 'Amount')).toHaveLength(1);
-    fireEvent.click(getByRole(form, 'button', { name: 'Add amount' }));
-    expect(getAllByLabelText(form, 'Amount')).toHaveLength(2);
-    fireEvent.click(getAllByLabelText(form, 'Amount')[1] as HTMLElement);
-    fireEvent.click(getByRole(form, 'button', { name: 'Remove amount 2' }));
-    expect(getAllByLabelText(form, 'Amount')).toHaveLength(1);
+    expect(getAllByLabelText(form, 'Valor')).toHaveLength(1);
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar valor' }));
+    expect(getAllByLabelText(form, 'Valor')).toHaveLength(2);
+    fireEvent.click(getAllByLabelText(form, 'Valor')[1] as HTMLElement);
+    fireEvent.click(getByRole(form, 'button', { name: 'Remover valor 2' }));
+    expect(getAllByLabelText(form, 'Valor')).toHaveLength(1);
   });
 
   it('sends a fixed-amount rule, a buy-x-get-y rule and a tiered rule as Orders expects them', async () => {
@@ -238,42 +244,42 @@ describe('discount rule editor', () => {
     const container = mount();
 
     let form = await openNew(container);
-    fill(form, 'Name', 'Fixed');
+    fill(form, 'Nome', 'Fixed');
     type(form, 'FixedAmount');
-    fill(form, 'Currency', 'brl');
-    fill(form, 'Amount', '15.5');
-    fireEvent.click(getByRole(form, 'button', { name: 'Add amount' }));
-    fireEvent.input(getAllByLabelText(form, 'Currency')[1] as HTMLElement, {
+    fill(form, 'Moeda', 'brl');
+    fill(form, 'Valor', '15.5');
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar valor' }));
+    fireEvent.input(getAllByLabelText(form, 'Moeda')[1] as HTMLElement, {
       target: { value: 'USD' },
     });
-    fireEvent.input(getAllByLabelText(form, 'Amount')[1] as HTMLElement, {
+    fireEvent.input(getAllByLabelText(form, 'Valor')[1] as HTMLElement, {
       target: { value: '3' },
     });
     save(form);
-    await findByText(container, 'Saved "Ten off" as version 2.');
+    await findByText(container, 'Regra "Ten off" salva como versão 2.');
 
     form = await openNew(container);
-    fill(form, 'Name', 'Bogo');
+    fill(form, 'Nome', 'Bogo');
     type(form, 'BuyXGetY');
-    fill(form, 'Buy', '2');
-    fill(form, 'Get', '1');
-    fill(form, 'Only these SKUs (optional)', 'A-1, B-2');
+    fill(form, 'Compre', '2');
+    fill(form, 'Leve', '1');
+    fill(form, 'Somente estes SKUs (opcional)', 'A-1, B-2');
     save(form);
     await vi.waitFor(() => {
       expect(bodies).toHaveLength(2);
     });
 
     form = await openNew(container);
-    fill(form, 'Name', 'Tiers');
+    fill(form, 'Nome', 'Tiers');
     type(form, 'Tiered');
-    fill(form, 'Currency', 'brl');
-    fill(form, 'Min subtotal', '0');
-    fill(form, 'Percent', '5');
-    fireEvent.click(getByRole(form, 'button', { name: 'Add band' }));
-    fireEvent.input(getAllByLabelText(form, 'Min subtotal')[1] as HTMLElement, {
+    fill(form, 'Moeda', 'brl');
+    fill(form, 'Subtotal mínimo', '0');
+    fill(form, 'Percentual', '5');
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar faixa' }));
+    fireEvent.input(getAllByLabelText(form, 'Subtotal mínimo')[1] as HTMLElement, {
       target: { value: '500' },
     });
-    fireEvent.input(getAllByLabelText(form, 'Percent')[1] as HTMLElement, {
+    fireEvent.input(getAllByLabelText(form, 'Percentual')[1] as HTMLElement, {
       target: { value: '10' },
     });
     save(form);
@@ -310,46 +316,46 @@ describe('discount rule editor', () => {
     );
     const container = mount();
     const form = await openNew(container);
-    fill(form, 'Name', 'Cond');
-    fill(form, 'Percent', '5');
+    fill(form, 'Nome', 'Cond');
+    fill(form, 'Percentual', '5');
 
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'MinSubtotal' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fill(form, 'Min subtotal: amount', '250');
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fill(form, 'Subtotal mínimo: valor', '250');
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'CategoryIn' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fill(form, 'Categories', 'Office, Kitchen');
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), { target: { value: 'ChannelIs' } });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fireEvent.change(getByLabelText(form, 'Channel is'), { target: { value: 'admin' } });
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fill(form, 'Categorias', 'Office, Kitchen');
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), { target: { value: 'ChannelIs' } });
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fireEvent.change(getByLabelText(form, 'Canal é'), { target: { value: 'admin' } });
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'FirstOrderOfClient' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'DateWindow' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fill(form, 'Date window: from', '2026-10-01T08:00');
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), { target: { value: 'SkuIn' } });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fill(form, 'Janela de datas: de', '2026-10-01T08:00');
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), { target: { value: 'SkuIn' } });
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
     fill(form, 'SKUs', 'A-1');
-    fireEvent.click(getByRole(form, 'button', { name: 'Remove condition SKU in' }));
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.click(getByRole(form, 'button', { name: 'Remover condição SKU em' }));
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'MinQuantity' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fill(form, 'Min quantity: units', '3');
-    fill(form, 'Min quantity: only these SKUs (optional)', 'A-1');
-    fireEvent.change(getByLabelText(form, 'Kind of condition'), {
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fill(form, 'Quantidade mínima: unidades', '3');
+    fill(form, 'Quantidade mínima: somente estes SKUs (opcional)', 'A-1');
+    fireEvent.change(getByLabelText(form, 'Tipo de condição'), {
       target: { value: 'ClientSegment' },
     });
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
-    fill(form, 'Segments', 'vip');
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
+    fill(form, 'Segmentos', 'vip');
     save(form);
 
     await vi.waitFor(() => {
@@ -370,14 +376,14 @@ describe('discount rule editor', () => {
     useRules([]);
     const container = mount();
     const form = await openNew(container);
-    fill(form, 'Name', 'Cond');
-    fill(form, 'Percent', '5');
-    fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
+    fill(form, 'Nome', 'Cond');
+    fill(form, 'Percentual', '5');
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
 
     save(form);
 
     expect(getByRole(form, 'alert').textContent).toContain(
-      'Min subtotal: the amount must not be negative.',
+      'Subtotal mínimo: o valor não pode ser negativo.',
     );
   });
 
@@ -393,21 +399,21 @@ describe('discount rule editor', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Edit Ten off' }));
-    const form = getByRole(container, 'form', { name: 'Rule editor' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Editar Ten off' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra' });
 
-    expect(getByLabelText<HTMLInputElement>(form, 'Name').value).toBe('Ten off');
-    expect(getByLabelText<HTMLInputElement>(form, 'Percent').value).toBe('10');
-    expect(getByLabelText<HTMLInputElement>(form, 'Priority').value).toBe('5');
-    expect(getByLabelText<HTMLInputElement>(form, 'Once per client').checked).toBe(true);
-    expect(getByLabelText<HTMLInputElement>(form, 'Min subtotal: amount').value).toBe('100');
-    expect(within(form).getByRole('heading', { name: 'Edit Ten off (version 2)' })).toBeTruthy();
+    expect(getByLabelText<HTMLInputElement>(form, 'Nome').value).toBe('Ten off');
+    expect(getByLabelText<HTMLInputElement>(form, 'Percentual').value).toBe('10');
+    expect(getByLabelText<HTMLInputElement>(form, 'Prioridade').value).toBe('5');
+    expect(getByLabelText<HTMLInputElement>(form, 'Uma vez por cliente').checked).toBe(true);
+    expect(getByLabelText<HTMLInputElement>(form, 'Subtotal mínimo: valor').value).toBe('100');
+    expect(within(form).getByRole('heading', { name: 'Editar Ten off (versão 2)' })).toBeTruthy();
 
-    fill(form, 'Name', 'Twelve off');
-    fill(form, 'Percent', '12');
+    fill(form, 'Nome', 'Twelve off');
+    fill(form, 'Percentual', '12');
     save(form);
 
-    await findByText(container, 'Saved "Twelve off" as version 3.');
+    await findByText(container, 'Regra "Twelve off" salva como versão 3.');
     expect(request?.headers.get('if-match')).toBe('"2"');
     expect(request?.headers.get('x-csrf')).toBe('1');
     expect(body).toMatchObject({
@@ -427,16 +433,16 @@ describe('discount rule editor', () => {
       ),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Edit Ten off' }));
-    const form = getByRole(container, 'form', { name: 'Rule editor' });
+    fireEvent.click(await findByRole(container, 'button', { name: 'Editar Ten off' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra' });
 
     save(form);
 
     const alert = await findByRole(form, 'alert');
     expect(alert.textContent).toContain(
-      'This rule was changed by someone else. Reload the list and open it again.',
+      'Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.',
     );
-    expect(getByRole(form, 'button', { name: 'Save rule' })).toBeTruthy();
+    expect(getByRole(form, 'button', { name: 'Salvar regra' })).toBeTruthy();
   });
 
   it("shows Orders' own messages when it refuses a rule", async () => {
@@ -454,8 +460,8 @@ describe('discount rule editor', () => {
     );
     const container = mount();
     const form = await openNew(container);
-    fill(form, 'Name', 'Rule');
-    fill(form, 'Percent', '5');
+    fill(form, 'Nome', 'Rule');
+    fill(form, 'Percentual', '5');
 
     save(form);
 
@@ -469,9 +475,9 @@ describe('discount rule editor', () => {
     const container = mount();
     const form = await openNew(container);
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Cancelar' }));
 
-    expect(queryByRole(container, 'form', { name: 'Rule editor' })).toBeNull();
+    expect(queryByRole(container, 'form', { name: 'Editor de regra' })).toBeNull();
   });
 });
 
@@ -489,12 +495,12 @@ describe('preview', () => {
     useRules(existing === undefined ? [] : [existing]);
     const container = mount();
     if (existing === undefined) {
-      fireEvent.click(await findByRole(container, 'button', { name: 'New rule' }));
+      fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
     } else {
-      fireEvent.click(await findByRole(container, 'button', { name: `Edit ${existing.name}` }));
+      fireEvent.click(await findByRole(container, 'button', { name: `Editar ${existing.name}` }));
     }
 
-    return { container, form: getByRole(container, 'form', { name: 'Rule editor' }) };
+    return { container, form: getByRole(container, 'form', { name: 'Editor de regra' }) };
   }
 
   it('prices a sample cart with the rule being edited, and names the rules applied', async () => {
@@ -509,17 +515,17 @@ describe('preview', () => {
       }),
     );
     const { form } = await openPreview(rule());
-    fill(form, 'Percent', '10');
-    fill(form, 'Preview SKU', 'DESK-1');
-    fill(form, 'Preview quantity', '2');
+    fill(form, 'Percentual', '10');
+    fill(form, 'SKU da simulação', 'DESK-1');
+    fill(form, 'Quantidade da simulação', '2');
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
 
-    const result = await findByRole(form, 'region', { name: 'Preview result' });
+    const result = await findByRole(form, 'region', { name: 'Resultado da simulação' });
     expect(result.textContent).toContain('Subtotal');
-    expect(result.textContent).toContain('R$200.00');
-    expect(result.textContent).toContain('R$180.00');
-    expect(result.textContent).toContain('Ten off (version 3): -R$20.00');
+    expect(result.textContent).toContain('R$ 200,00');
+    expect(result.textContent).toContain('R$ 180,00');
+    expect(result.textContent).toContain('Ten off (versão 3): -R$ 20,00');
     expect(body).toMatchObject({
       currency: 'BRL',
       items: [{ sku: 'DESK-1', quantity: 2 }],
@@ -544,15 +550,15 @@ describe('preview', () => {
       }),
     );
     const { form } = await openPreview();
-    fill(form, 'Name', 'Draft');
-    fill(form, 'Percent', '10');
-    fill(form, 'Preview SKU', 'DESK-1');
+    fill(form, 'Nome', 'Draft');
+    fill(form, 'Percentual', '10');
+    fill(form, 'SKU da simulação', 'DESK-1');
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
 
-    expect((await findByRole(form, 'region', { name: 'Preview result' })).textContent).toContain(
-      'No rule applies to this cart.',
-    );
+    expect(
+      (await findByRole(form, 'region', { name: 'Resultado da simulação' })).textContent,
+    ).toContain('Nenhuma regra se aplica a este carrinho.');
     expect(body).not.toHaveProperty('ruleId');
   });
 
@@ -566,15 +572,15 @@ describe('preview', () => {
       ),
     );
     const { form } = await openPreview();
-    fill(form, 'Name', 'Draft');
-    fill(form, 'Percent', '10');
-    fill(form, 'Preview SKU', 'DESK-1');
+    fill(form, 'Nome', 'Draft');
+    fill(form, 'Percentual', '10');
+    fill(form, 'SKU da simulação', 'DESK-1');
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
 
-    expect((await findByRole(form, 'region', { name: 'Preview result' })).textContent).toContain(
-      'other-ru (version 1): -R$5.00',
-    );
+    expect(
+      (await findByRole(form, 'region', { name: 'Resultado da simulação' })).textContent,
+    ).toContain('other-ru (versão 1): -R$ 5,00');
   });
 
   it('asks for a SKU first, adds and removes items, and does not preview an invalid rule', async () => {
@@ -587,20 +593,20 @@ describe('preview', () => {
     );
     const { form } = await openPreview();
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
-    expect(getByRole(form, 'alert').textContent).toContain('Name is required.');
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
+    expect(getByRole(form, 'alert').textContent).toContain('O nome é obrigatório.');
 
-    fill(form, 'Name', 'Draft');
-    fill(form, 'Percent', '10');
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
+    fill(form, 'Nome', 'Draft');
+    fill(form, 'Percentual', '10');
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
     expect(getByRole(form, 'alert').textContent).toContain(
-      'Add at least one SKU with a quantity of 1 or more to the sample cart.',
+      'Adicione ao carrinho de exemplo pelo menos um SKU com quantidade 1 ou mais.',
     );
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Add sample item' }));
-    expect(getAllByLabelText(form, 'Preview SKU')).toHaveLength(2);
-    fireEvent.click(getByRole(form, 'button', { name: 'Remove sample item 2' }));
-    expect(getAllByLabelText(form, 'Preview SKU')).toHaveLength(1);
+    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar item de exemplo' }));
+    expect(getAllByLabelText(form, 'SKU da simulação')).toHaveLength(2);
+    fireEvent.click(getByRole(form, 'button', { name: 'Remover item de exemplo 2' }));
+    expect(getAllByLabelText(form, 'SKU da simulação')).toHaveLength(1);
     expect(calls).toBe(0);
   });
 
@@ -614,11 +620,11 @@ describe('preview', () => {
       ),
     );
     const { form } = await openPreview();
-    fill(form, 'Name', 'Draft');
-    fill(form, 'Percent', '10');
-    fill(form, 'Preview SKU', 'NOPE');
+    fill(form, 'Nome', 'Draft');
+    fill(form, 'Percentual', '10');
+    fill(form, 'SKU da simulação', 'NOPE');
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
 
     expect((await findByRole(form, 'alert')).textContent).toContain('SKU NOPE does not exist.');
   });
@@ -635,14 +641,14 @@ describe('deactivating a rule', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Deactivate Ten off' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Desativar Ten off' }));
     useRules([rule({ isActive: false, version: 3 })]);
 
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Deactivate' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Desativar' }));
 
-    await findByText(container, 'Deactivated "Ten off" (version 3).');
+    await findByText(container, 'Regra "Ten off" desativada (versão 3).');
     expect(request?.headers.get('if-match')).toBe('"2"');
-    expect(await findByText(container, 'Inactive')).toBeTruthy();
+    expect(await findByText(container, 'Inativa')).toBeTruthy();
   });
 
   it('does nothing when the question is cancelled, and reports a failure', async () => {
@@ -655,16 +661,16 @@ describe('deactivating a rule', () => {
       }),
     );
     const container = mount();
-    fireEvent.click(await findByRole(container, 'button', { name: 'Deactivate Ten off' }));
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
+    fireEvent.click(await findByRole(container, 'button', { name: 'Desativar Ten off' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancelar' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(calls).toBe(0);
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Deactivate Ten off' }));
-    fireEvent.click(getByRole(document.body, 'button', { name: 'Deactivate' }));
+    fireEvent.click(getByRole(container, 'button', { name: 'Desativar Ten off' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Desativar' }));
 
     expect((await findByRole(container, 'alert')).textContent).toContain(
-      'This rule was changed by someone else.',
+      'Esta regra foi alterada por outra pessoa.',
     );
   });
 });
@@ -688,26 +694,26 @@ describe('discount rules accessibility', () => {
       ),
     );
     const container = mount();
-    await findByRole(container, 'button', { name: 'Edit Ten off' });
+    await findByRole(container, 'button', { name: 'Editar Ten off' });
     await expectAccessible(container);
 
-    fireEvent.click(getByRole(container, 'button', { name: 'Edit Ten off' }));
-    const form = getByRole(container, 'form', { name: 'Rule editor' });
+    fireEvent.click(getByRole(container, 'button', { name: 'Editar Ten off' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra' });
     for (const kind of ['FixedAmount', 'BuyXGetY', 'Tiered', 'Percentage']) {
       type(form, kind);
       await expectAccessible(form);
     }
-    fill(form, 'Percent', '10');
-    fill(form, 'Preview SKU', 'A');
-    fireEvent.click(getByRole(form, 'button', { name: 'Preview rule' }));
-    await findByRole(form, 'region', { name: 'Preview result' });
+    fill(form, 'Percentual', '10');
+    fill(form, 'SKU da simulação', 'A');
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
+    await findByRole(form, 'region', { name: 'Resultado da simulação' });
     await expectAccessible(form);
     for (const kind of ['SkuIn', 'MinQuantity', 'DateWindow', 'ChannelIs', 'FirstOrderOfClient']) {
-      fireEvent.change(getByLabelText(form, 'Kind of condition'), { target: { value: kind } });
-      fireEvent.click(getByRole(form, 'button', { name: 'Add condition' }));
+      fireEvent.change(getByLabelText(form, 'Tipo de condição'), { target: { value: kind } });
+      fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
     }
     await expectAccessible(form);
-    fill(form, 'Percent', '0');
+    fill(form, 'Percentual', '0');
     save(form);
     await expectAccessible(form);
   });

@@ -396,6 +396,8 @@ Conditions reuse the Specification classes from the discount engine. Admin actio
 
 Two pages, `shop.html` and `admin.html`, built with Vite from plain HTML and TypeScript, styled with Bootstrap 5.3 and Bootstrap Icons from npm. Both run at `http://localhost:8080` behind nginx and call only `/bff/*`. The admin page is a separate entry, so its code is never shipped to shop users.
 
+The interface is in Brazilian Portuguese (`lang="pt-BR"`), as plain text with no i18n library; amounts and dates use `pt-BR` by default. Error messages that come from the APIs (ProblemDetails) are shown as they arrive; the front end writes in pt-BR only the messages it generates itself.
+
 ### Shop page (customer-like flows)
 
 | View / state | What it does | BFF call |

@@ -3,12 +3,12 @@ import { isOrderStatus, orderStatuses, statusView } from '../../../src/shared/do
 
 describe('statusView', () => {
   it.each([
-    ['Pending', 'Pending', 'text-bg-secondary', 'bi-hourglass-split'],
-    ['OnHold', 'On hold', 'text-bg-warning', 'bi-pause-circle'],
-    ['Confirmed', 'Confirmed', 'text-bg-success', 'bi-check-circle'],
-    ['Blocked', 'Blocked', 'text-bg-danger', 'bi-slash-circle'],
-    ['Cancelled', 'Cancelled', 'text-bg-dark', 'bi-x-circle'],
-    ['Failed', 'Failed', 'text-bg-danger', 'bi-exclamation-triangle'],
+    ['Pending', 'Pendente', 'text-bg-secondary', 'bi-hourglass-split'],
+    ['OnHold', 'Em espera', 'text-bg-warning', 'bi-pause-circle'],
+    ['Confirmed', 'Confirmado', 'text-bg-success', 'bi-check-circle'],
+    ['Blocked', 'Bloqueado', 'text-bg-danger', 'bi-slash-circle'],
+    ['Cancelled', 'Cancelado', 'text-bg-dark', 'bi-x-circle'],
+    ['Failed', 'Falhou', 'text-bg-danger', 'bi-exclamation-triangle'],
   ])('describes %s', (status, label, badgeClass, icon) => {
     expect(statusView(status)).toEqual({ label, badgeClass, icon });
   });
