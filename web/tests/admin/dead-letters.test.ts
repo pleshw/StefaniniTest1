@@ -65,7 +65,9 @@ describe('dead letters', () => {
     expect(rows[1]?.textContent).toContain('6');
     expect(rows[2]?.textContent).toContain('msg-2');
     expect(rows[2]?.textContent).toContain('Desconhecido');
-    expect(getByRole(container, 'status').textContent).toBe('2 mensagens na fila de mensagens mortas');
+    expect(getByRole(container, 'status').textContent).toBe(
+      '2 mensagens na fila de mensagens mortas',
+    );
   });
 
   it('shows the payload and headers as plain text on request', async () => {
@@ -148,7 +150,10 @@ describe('replaying a dead letter', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Reprocessar' }));
 
-    await findByText(container, 'msg/1 #a reprocessada como new-1 pela exchange orders.events (order.placed).');
+    await findByText(
+      container,
+      'msg/1 #a reprocessada como new-1 pela exchange orders.events (order.placed).',
+    );
     expect(new URL(request?.url ?? '').pathname).toBe(
       '/bff/admin/dead-letters/msg%2F1%20%23a/replay',
     );

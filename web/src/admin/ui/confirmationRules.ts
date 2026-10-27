@@ -61,7 +61,7 @@ export function mountConfirmationRules(
   const table = h(
     'table',
     { className: 'table align-middle' },
-    h('caption', { className: 'visually-hidden', text: 'Confirmation rules' }),
+    h('caption', { className: 'visually-hidden', text: 'Regras de confirmação' }),
     h(
       'thead',
       {},

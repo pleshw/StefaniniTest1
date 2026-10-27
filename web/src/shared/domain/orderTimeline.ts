@@ -6,7 +6,11 @@ import type { TimelineEntry } from './timeline';
  * timeline is the placement and, once the order has moved on, the current status.
  */
 export function timelineOf(order: Pick<Order, 'status' | 'createdAt'>): readonly TimelineEntry[] {
-  const placed: TimelineEntry = { status: 'Pending', label: 'Pedido realizado', at: order.createdAt };
+  const placed: TimelineEntry = {
+    status: 'Pending',
+    label: 'Pedido realizado',
+    at: order.createdAt,
+  };
 
   return order.status === 'Pending'
     ? [placed]

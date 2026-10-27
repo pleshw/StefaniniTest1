@@ -41,9 +41,9 @@ describe('Admin page', () => {
     expect(getByRole(root, 'heading', { level: 2, name: 'Eventos ao vivo' })).toBeTruthy();
     expect(getByRole(root, 'heading', { level: 2, name: 'Fila em espera' })).toBeTruthy();
     expect(getByRole(root, 'heading', { level: 2, name: 'Inspetor de pedidos' })).toBeTruthy();
-    expect(getByRole(root, 'button', { name: 'Eventos ao vivo' }).getAttribute('aria-current')).toBe(
-      'true',
-    );
+    expect(
+      getByRole(root, 'button', { name: 'Eventos ao vivo' }).getAttribute('aria-current'),
+    ).toBe('true');
     await findByRole(root, 'button', { name: 'Inspecionar ORD-2026-STUB00000003' });
   });
 
@@ -69,7 +69,9 @@ describe('Admin page', () => {
     await vi.waitFor(() => {
       expect(queueCalls).toBe(2);
     });
-    fireEvent.click(await findByRole(root, 'button', { name: `Inspecionar ${orderId.slice(0, 8)}` }));
+    fireEvent.click(
+      await findByRole(root, 'button', { name: `Inspecionar ${orderId.slice(0, 8)}` }),
+    );
 
     expect(await findByRole(root, 'heading', { level: 3, name: /^Pedido ORD-/ })).toBeTruthy();
   });
@@ -136,7 +138,9 @@ describe('Admin page', () => {
 
     fireEvent.click(getByRole(root, 'button', { name: 'Criar pedido' }));
 
-    expect(await findByRole(root, 'heading', { name: 'Criar pedido para um cliente' })).toBeTruthy();
+    expect(
+      await findByRole(root, 'heading', { name: 'Criar pedido para um cliente' }),
+    ).toBeTruthy();
     expect(queryByRole(root, 'heading', { name: 'Eventos ao vivo' })).toBeNull();
     await vi.waitFor(() => {
       expect(clientCalls).toBe(1);

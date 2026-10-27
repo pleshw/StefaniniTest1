@@ -331,7 +331,9 @@ describe('connection', () => {
 
     source().emit('backfill-unavailable', '{}', '');
 
-    expect(getByRole(container, 'alert').textContent).toContain('Alguns eventos podem estar faltando');
+    expect(getByRole(container, 'alert').textContent).toContain(
+      'Alguns eventos podem estar faltando',
+    );
   });
 
   it('says so when the browser has no EventSource', () => {

@@ -126,7 +126,9 @@ describe('order inspector', () => {
     expect(history.textContent).toContain('Total above limit');
     const events = getByRole(container, 'table', { name: 'Eventos' });
     expect(events.textContent).toContain('OrderStatusChanged.v1');
-    expect(events.textContent).toContain('Pendente → Em espera por system:worker: Total above limit');
+    expect(events.textContent).toContain(
+      'Pendente → Em espera por system:worker: Total above limit',
+    );
   });
 
   it('says which parts could not be read, and still shows the order', async () => {
@@ -221,7 +223,7 @@ describe('order actions', () => {
     fireEvent.input(getByLabelText(dialog(), 'Motivo'), { target: { value: 'Check the address' } });
     fireEvent.click(getByRole(dialog(), 'button', { name: 'Colocar em espera' }));
 
-    await findByText(container, 'Order ORD-1 is now OnHold.');
+    await findByText(container, 'O pedido ORD-1 agora está Em espera.');
     expect(body).toEqual({ reason: 'Check the address' });
   });
 

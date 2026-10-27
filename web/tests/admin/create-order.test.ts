@@ -87,7 +87,9 @@ function mount() {
 }
 
 async function addDesk(container: HTMLElement): Promise<void> {
-  fireEvent.click(await findByRole(container, 'button', { name: 'Adicionar Standing desk ao carrinho' }));
+  fireEvent.click(
+    await findByRole(container, 'button', { name: 'Adicionar Standing desk ao carrinho' }),
+  );
   await findByRole(container, 'button', { name: 'Remover Standing desk' });
 }
 
@@ -176,8 +178,12 @@ describe('create order for a client', () => {
     fireEvent.change(select, { target: { value: 'other' } });
     await addDesk(container);
 
-    fireEvent.input(getByLabelText(container, 'ID do cliente'), { target: { value: 'not-a-guid' } });
-    fireEvent.input(getByLabelText(container, 'Nome do cliente'), { target: { value: 'Carla Dias' } });
+    fireEvent.input(getByLabelText(container, 'ID do cliente'), {
+      target: { value: 'not-a-guid' },
+    });
+    fireEvent.input(getByLabelText(container, 'Nome do cliente'), {
+      target: { value: 'Carla Dias' },
+    });
     fireEvent.click(placeOrder(container));
     expect((await findByRole(container, 'alert', { name: 'Erro no pedido' })).textContent).toBe(
       'Informe um ID de cliente válido (um GUID).',
@@ -190,7 +196,9 @@ describe('create order for a client', () => {
     fireEvent.click(placeOrder(container));
     await findByText(container, 'Informe o nome do cliente.');
 
-    fireEvent.input(getByLabelText(container, 'Nome do cliente'), { target: { value: 'Carla Dias' } });
+    fireEvent.input(getByLabelText(container, 'Nome do cliente'), {
+      target: { value: 'Carla Dias' },
+    });
     fireEvent.click(placeOrder(container));
     await findByText(container, 'O pedido ORD-2026-ADMIN foi feito.');
     expect(body).toMatchObject({
