@@ -4,7 +4,7 @@
 
 A RESTful order platform built with .NET 10: an **Orders API** (PostgreSQL, CQRS, RabbitMQ), a **Catalog service** (MongoDB), a **BFF** that is the browser's only entry point, and two front-end pages (Shop and Admin) written in plain HTML, TypeScript and Bootstrap.
 
-> **Status:** implementation of steps C01–C56 delivered; step **C57** (the Stryker.NET baseline) is pending and the **v1.0.0** tag has not been created yet. The work proceeded step by step through the [Execution guide](docs/en-us/02-execution-guide.md); what is left before the release is in [Quality](docs/en-us/quality.md). The commands in [Getting started](#getting-started) run with Docker Compose; none of the real compose was run by the AI sessions that had no Docker (see the [evidence](docs/en-us/05-ai-development.md#implementation-sessions)).
+> **Status:** steps C01–C56 and C58 (release documentation) delivered; step **C57** (the Stryker.NET baseline) was not done and the **v1.0.0** tag has not been created yet. The work proceeded step by step through the [Execution guide](docs/en-us/02-execution-guide.md); what is left before the release (mutation testing, .NET coverage gates, measured load targets) is in [Quality](docs/en-us/quality.md). The commands in [Getting started](#getting-started) run with Docker Compose; none of the real compose was run by the AI sessions that had no Docker (see the [evidence](docs/en-us/05-ai-development.md#implementation-sessions)).
 
 ## Challenge deliverables
 
@@ -29,12 +29,12 @@ A RESTful order platform built with .NET 10: an **Orders API** (PostgreSQL, CQRS
 ### Configure
 
 ```bash
-git clone <repository-url>
-cd StefaniniTestProject
+git clone https://github.com/pleshw/StefaniniTest1.git
+cd StefaniniTest1
 cp .env.example .env
 ```
 
-`.env` holds local-only values: database passwords, the key the BFF signs the tokens it sends to the services with (`SERVICE_TOKEN_SIGNING_KEY`), the RabbitMQ user, and the passwords of the BFF's development sign-in users `shopper` and `admin` (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`). Defaults work as they are for local development; never commit `.env`.
+`.env` holds local-only values: the PostgreSQL user and password (the local MongoDB has no authentication), the key the BFF signs the tokens it sends to the services with (`SERVICE_TOKEN_SIGNING_KEY`), the RabbitMQ user, and the passwords of the BFF's development sign-in users `shopper` and `admin` (`BFF_SHOPPER_PASSWORD`, `BFF_ADMIN_PASSWORD`), plus two optional values: `LOAD_DURATION` (load test duration) and `ASPIRE_DASHBOARD_PORT` (Aspire Dashboard port). Defaults work as they are for local development; never commit `.env`.
 
 ### Run
 
@@ -50,13 +50,13 @@ docker compose up -d --build --wait
 
 The sign-in is a **placeholder**: a form served by the BFF itself with two fixed users whose passwords come from `.env`, turned on only by the development compose (`Bff__DevLogin__Enabled`). It opens the same cookie session (HttpOnly, Secure, SameSite=Strict) an identity provider would. A natural improvement is to replace the form with an identity provider such as Keycloak, with the realm (clients, roles and users) versioned in realm files and the BFF using OpenID Connect (code flow + PKCE) and token exchange for the calls to the services.
 
-Only nginx publishes a host port; every other service is reached through it. Optional profiles:
+In the default profile, only nginx publishes a host port; every other service is reached through it. Optional profiles:
 
 ```bash
 docker compose --profile observability up -d --wait
 ```
 
-Adds the OpenTelemetry Collector and the Aspire Dashboard for traces, metrics and logs.
+Adds the OpenTelemetry Collector and the Aspire Dashboard (http://localhost:18888, published on `127.0.0.1` only) for traces, metrics and logs. Current limitation: the services only export telemetry when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and `docker-compose.yml` does not set it yet; until it does, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317` on the `orders-api`, `orders-worker`, `orders-bff` and `catalog-api` services (for example in a local `docker-compose.override.yml`).
 
 ```bash
 docker compose down -v
@@ -69,11 +69,11 @@ In compose the Catalog seeds 50 products (BRL and USD) at startup (`Catalog__See
 ### Test
 
 ```bash
-dotnet test orders/Orders.slnx
+dotnet test --solution orders/Orders.slnx
 ```
 
 ```bash
-dotnet test catalog/Catalog.slnx
+dotnet test --solution catalog/Catalog.slnx
 ```
 
 ```bash
@@ -84,7 +84,7 @@ cd web && npm ci && npm test
 bash scripts/smoke.sh http://localhost:8080
 ```
 
-Integration tests use Testcontainers, so Docker must be running. Filter by category with `--filter Category=Unit`, `Integration`, `Architecture` or `Resilience`.
+Integration tests use Testcontainers, so Docker must be running. The runner is Microsoft.Testing.Platform (see `global.json`), so filter by category with `--filter-trait "Category=Unit"` (or `Integration`, `Architecture`, `Resilience`; repeating the option adds categories) and add `--ignore-exit-code 8` so projects without tests in that category do not fail the run.
 
 The smoke test (`scripts/smoke.sh`) goes through the BFF only: it signs in as `shopper` and as `admin` through the development sign-in, places an order, checks that it reaches the admin's event stream and ends up `Confirmed` or `OnHold`, and repeats the same `Idempotency-Key` to get the same order number. With the development stack up it is enough to run it; with `--up` it starts the stack first (`docker compose up -d --build --wait`). It depends on the development sign-in, which only `docker-compose.yml` turns on, so it does not run against staging or production yet.
 
@@ -148,12 +148,12 @@ flowchart TB
 
 ## Tech stack
 
-- **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, MongoDB C# driver, Wolverine (CQRS handlers, outbox/inbox, RabbitMQ), YARP in the BFF
+- **Back end:** .NET 10 LTS, ASP.NET Core Minimal APIs, EF Core + Npgsql, MongoDB C# driver, Wolverine (CQRS handlers, outbox/inbox, RabbitMQ), YARP in the BFF, FluentValidation, Mapperly, NSwag clients generated from OpenAPI, Microsoft.Extensions.Http.Resilience, Scalar
 - **Data and messaging:** PostgreSQL 17, MongoDB 8 (replica set), RabbitMQ 4 (quorum queues, retries, DLQ)
-- **Front end:** TypeScript (strict), Vite, Vitest, Bootstrap 5.3 and Bootstrap Icons
-- **Quality:** xUnit v3, NSubstitute, Shouldly, Testcontainers, NetArchTest, axe-core, k6 (load); mutation testing (Stryker.NET) is pending
+- **Front end:** TypeScript (strict), Vite, Vitest, Testing Library, MSW, Bootstrap 5.3 and Bootstrap Icons; pt-BR UI
+- **Quality:** xUnit v3 (Microsoft.Testing.Platform), NSubstitute, Shouldly, Testcontainers, WireMock.Net, NetArchTest, axe-core, k6 (load); mutation testing (Stryker.NET) was not done
 - **Operations:** Docker Compose, OpenTelemetry, GitHub Actions with a deploy gate before every deploy
 
 ## Contributing
 
-Every change is one step of the execution guide: one branch, one commit, one pull request, merged only when the `ci / gate` check is green and the [Code review guide](docs/en-us/03-code-review-guide.md) criteria are met. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Documentation changes are made in `docs/pt-br/` first and mirrored in `docs/en-us/`. PRs produced with AI link their session and add a row to the [evidence table](docs/en-us/05-ai-development.md#implementation-sessions).
+Every change is one step of the execution guide: one branch, one commit, one pull request, merged only when the `gate` (displayed as `ci / gate`) and `CodeQL` checks are green and the [Code review guide](docs/en-us/03-code-review-guide.md) criteria are met. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Documentation changes are made in `docs/pt-br/` first and mirrored in `docs/en-us/`. PRs produced with AI link their session and add a row to the [evidence table](docs/en-us/05-ai-development.md#implementation-sessions).

@@ -24,8 +24,8 @@ Um PR está apto para merge quando todos os itens são atendidos; o template de 
 - [ ] **Escopo:** um único propósito, vinculado à sua issue ou etapa do guia de execução; menos de 400 linhas alteradas, sem contar arquivos gerados e lock files (acima disso, é preciso uma justificativa na descrição).
 - [ ] **Título e commits:** título no padrão Conventional Commits (`feat(orders): ...`); a mensagem do squash explica o porquê.
 - [ ] **Descrição:** o que mudou, por quê, como verificar (comandos ou capturas de tela para UI), riscos e notas de rollback para migrações ou configuração.
-- [ ] **Testes:** comportamento novo coberto, um teste por novo caminho de código, correções de bug começam com um teste falhando; gates de cobertura verdes.
-- [ ] **Pipeline:** `ci / gate` e `CodeQL` verdes no último commit; nada de reexecutar até ficar verde quando há testes flaky (testes flaky ganham uma issue e uma correção).
+- [ ] **Testes:** comportamento novo coberto, um teste por novo caminho de código, correções de bug começam com um teste falhando; gates de cobertura verdes (hoje só o do front-end, 80%, é cobrado; os do .NET dependem de um pacote de cobertura, veja [Qualidade](quality.md)).
+- [ ] **Pipeline:** `gate` (exibido como `ci / gate`) e `CodeQL` verdes no último commit; nada de reexecutar até ficar verde quando há testes flaky (testes flaky ganham uma issue e uma correção).
 - [ ] **Contratos:** mudanças de API são retrocompatíveis ou versionadas; snapshots dos contratos OpenAPI e de eventos atualizados; migrações são apenas de expansão (expand-only).
 - [ ] **Segurança:** entrada validada na borda, autorização em todo endpoint novo, nenhum segredo, nenhum dado pessoal em logs.
 - [ ] **Observabilidade:** novos fluxos emitem traces; erros registrados uma única vez, com contexto; novas métricas documentadas.
@@ -85,6 +85,7 @@ Use o checklist de cada stack que o PR altera, além dos critérios de aceite.
 - [ ] DOM construído com `textContent` ou templates, nunca `innerHTML` com dados
 - [ ] Todo controle tem rótulo, o foco é visível, a navegação por teclado funciona, `aria-live` para atualizações assíncronas
 - [ ] Utilitários do Bootstrap em vez de CSS customizado; sem estilos inline
+- [ ] Nenhum script inline nem script, estilo ou fonte de outra origem: a `Content-Security-Policy` do nginx (`deploy/nginx/nginx.conf`) os bloqueia
 
 **SQL e MongoDB**
 
@@ -108,10 +109,10 @@ Faça o build uma vez, promova os mesmos bytes e nunca edite um pipeline ou arte
 | --- | --- | --- | --- | --- | --- |
 | Imagens de contêiner | Job `images` do `cd.yml` na `main` | `sha-<commit>`, depois `vX.Y.Z` na release | GHCR | Releases para sempre; `sha-*` por 90 dias | Deploy por digest; nunca reconstruídas para uma release; devem incluir atestado de proveniência e SBOM |
 | Bundle de migração / imagem do migrator | `cd.yml` | Mesma tag de commit dos serviços | GHCR | Igual às imagens | Executa antes dos serviços; apenas de expansão |
-| Relatórios de testes e cobertura | `ci.yml` | Id da execução | Artefatos do Actions | 14 dias | Lidos na revisão; nunca commitados |
+| Relatórios de testes e cobertura | `ci.yml` | Id da execução | Artefatos do Actions | 14 dias | Lidos na revisão; nunca commitados. O .NET ainda não gera relatório de cobertura e o do front-end não é publicado como artefato |
 | Documentos OpenAPI | Build | Arquivo no repositório | Git (`*/openapi/*.json`) | Histórico do Git | Gerados e commitados; divergência faz o CI falhar |
-| Relatórios de mutação e de carga | `mutation.yml`, perfil de carga | Id da execução / data | Artefatos do Actions, resumos em `docs/perf/` | 30 dias | Tendências revisadas mensalmente |
-| Notas de release | Tag | `vX.Y.Z` | GitHub Releases | Para sempre | Geradas a partir dos Conventional Commits, editadas pelo Tech Lead |
+| Relatórios de mutação e de carga | `mutation.yml` (não criado, C57), perfil de carga | Id da execução / data | Artefatos do Actions; `docs/perf/` guarda hoje só os planos `EXPLAIN` | 30 dias | Tendências revisadas mensalmente |
+| Notas de release | Tag | `vX.Y.Z` | GitHub Releases | Para sempre | Geradas a partir dos Conventional Commits, editadas pelo Tech Lead; ainda não há release nem automação de notas |
 
 Regras de pipeline:
 
@@ -121,4 +122,4 @@ Regras de pipeline:
 - Segredos ficam apenas em GitHub Environments; workflows recebem apenas as `permissions` mínimas de que precisam; forks nunca recebem segredos.
 - Política de testes flaky: quarentena por meio de uma issue em até 24 h, correção em até uma semana; testes em quarentena continuam sendo executados e reportando resultados.
 - PRs do Dependabot são revisados como qualquer PR; atualizações de imagem base passam por staging antes de uma release.
-- Rollback = refazer o deploy dos digests da release anterior com `scripts/deploy.sh --rollback`; rollback de banco de dados nunca é necessário porque as migrações são retrocompatíveis.
+- Rollback = refazer o deploy dos digests da release anterior com `scripts/deploy.sh <staging|production> --rollback`; rollback de banco de dados nunca é necessário porque as migrações são retrocompatíveis.

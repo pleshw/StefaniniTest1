@@ -1,6 +1,6 @@
 # Qualidade
 
-Este documento reúne a evidência dos critérios de aceite e o estado do teste de mutação. Os links apontam só para testes que existem no repositório; a execução oficial é a do CI (`ci / gate`), e uma linha com "não evidenciado" diz o que falta, sem escondê-lo.
+Este documento reúne a evidência dos critérios de aceite e o estado do teste de mutação. Os links apontam só para testes que existem no repositório; a execução oficial é a do CI (check `gate`, exibido como `ci / gate`), e uma linha com "não evidenciado" diz o que falta, sem escondê-lo.
 
 ## Evidências dos critérios de aceite
 
