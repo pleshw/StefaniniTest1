@@ -25,6 +25,73 @@ const products = [
   },
 ];
 
+const stubClient = { id: 'a1d3e5f7-2b4c-4d6e-8f01-3c5e7a9b0d22', name: 'shopper' };
+
+const stubOrders = [
+  { number: 'ORD-2026-STUB00000003', status: 'OnHold', quantity: 2, price: 149.0 },
+  { number: 'ORD-2026-STUB00000002', status: 'Confirmed', quantity: 1, price: 1999.9 },
+  { number: 'ORD-2026-STUB00000001', status: 'Pending', quantity: 4, price: 24.5 },
+].map(({ number, status, quantity, price }, index) => {
+  const total = price * quantity;
+
+  return {
+    id: `b6c1f0a2-0000-4000-8000-00000000000${String(index + 1)}`,
+    number,
+    client: stubClient,
+    status,
+    channel: 'Shop',
+    currency: 'BRL',
+    itemCount: quantity,
+    subtotal: total,
+    discountTotal: 0,
+    total,
+    createdAt: `2026-10-2${String(6 - index)}T12:00:00Z`,
+    rowVersion: 1,
+    items: [
+      {
+        sku: 'STUB-1',
+        productName: 'Stub product',
+        unitPrice: price,
+        catalogVersion: 1,
+        quantity,
+        lineDiscount: 0,
+        lineTotal: total,
+      },
+    ],
+  };
+});
+
+/** The list shows an order without its items. */
+function summaryOf(order: (typeof stubOrders)[number]) {
+  const {
+    id,
+    number,
+    client,
+    status,
+    channel,
+    currency,
+    itemCount,
+    subtotal,
+    discountTotal,
+    total,
+    createdAt,
+  } = order;
+
+  return {
+    id,
+    number,
+    client,
+    status,
+    channel,
+    currency,
+    itemCount,
+    subtotal,
+    discountTotal,
+    total,
+    createdAt,
+  };
+}
+
 /**
  * BFF stubs, so pages and tests can run without the back end. Each front-end step adds the routes it
  * uses; the shapes follow the BFF's answers.
@@ -107,4 +174,27 @@ export const handlers = [
       { status: 201 },
     ),
   ),
+
+  // The signed-in client's orders: the same three stub orders, newest first.
+  http.get('*/bff/shop/orders', ({ request }) => {
+    const query = new URL(request.url).searchParams;
+    const limit = Number(query.get('limit') ?? 10);
+    const start = Number(query.get('after') ?? 0);
+
+    return HttpResponse.json({
+      items: stubOrders.slice(start, start + limit).map(summaryOf),
+      next: start + limit < stubOrders.length ? String(start + limit) : null,
+    });
+  }),
+
+  http.get('*/bff/shop/orders/:id', ({ params }) => {
+    const order = stubOrders.find((candidate) => candidate.id === params['id']);
+
+    return order === undefined
+      ? HttpResponse.json(
+          { title: 'Not found', status: 404, detail: 'Order not found.' },
+          { status: 404 },
+        )
+      : HttpResponse.json(order);
+  }),
 ];

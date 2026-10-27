@@ -1,7 +1,7 @@
-import { ApiError, NetworkError } from '../../shared/api/errors';
 import type { HttpClient } from '../../shared/api/http';
 import { formatMoney } from '../../shared/domain/money';
 import { h } from '../../shared/ui/dom';
+import { errorMessage } from '../../shared/ui/errors';
 import { listProducts, type ShopProduct } from '../api/catalog';
 
 export interface CatalogOptions {
@@ -211,7 +211,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
       if (signal.aborted) {
         return;
       }
-      failure = describe(error);
+      failure = errorMessage(error, 'The products could not be loaded.');
     }
 
     loading = false;
@@ -226,12 +226,4 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
   more.addEventListener('click', () => void load(true));
 
   void load(false);
-}
-
-function describe(error: unknown): string {
-  if (error instanceof ApiError || error instanceof NetworkError) {
-    return error.message;
-  }
-
-  return 'The products could not be loaded.';
 }
