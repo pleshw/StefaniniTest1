@@ -19,7 +19,7 @@ If the list does not open, Orders or RabbitMQ is down (the screen shows the serv
 Discount and confirmation rules are data edited in the Admin ("Regras de desconto" and "Regras de confirmação" sections).
 
 - **Every save creates a new version** of the rule; the version open on the screen is the one sent in `If-Match`. If someone else saved first, the screen warns ("Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.", that is, someone else changed this rule) and reloads the list.
-- **Discounts:** use "Simular regra" (preview) before activating; it shows the quote with the rule, without saving. An order already created is not recalculated, and a repeat of the same `Idempotency-Key` returns the stored answer.
+- **Discounts:** before activating, use "Simular esta regra" in the editor (or the "Simulação" item under "Regras de desconto" in the Admin menu); it shows the quote of a sample cart with the rule and whether it applied, without saving. An order already created is not recalculated, and a repeat of the same `Idempotency-Key` returns the stored answer.
 - **Confirmation rules:** the API uses the new rule at once; the Worker, after `Orders__Confirmation__CacheDuration` (5 s by default). Orders already held stay held until an admin acts.
 - **To undo:** save the previous values again (that creates another version) or deactivate the rule ("Desativar"). There is no delete.
 - After activating a confirmation rule that holds orders, watch `orders.on_hold` and the "Em espera" (OnHold) queue: someone has to work it (see the 4 h alert).

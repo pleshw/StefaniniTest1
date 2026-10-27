@@ -175,6 +175,45 @@ public sealed class SessionTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task LoginForm_HasNoInlineStyleOrScript_SoTheContentSecurityPolicyAllowsIt()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var page = await browser.GetStringAsync("/bff/login", Token);
+
+        page.ShouldNotContain("<style");
+        page.ShouldNotContain("style=");
+        page.ShouldNotContain("<script>");
+        page.ShouldMatch("""<link rel="stylesheet" href="/bff/login/login\.css\?v=[0-9a-f]{12}">""");
+        page.ShouldMatch("""<script src="/bff/login/login\.js\?v=[0-9a-f]{12}" defer></script>""");
+    }
+
+    [Theory]
+    [InlineData("login.css", "text/css")]
+    [InlineData("login.js", "text/javascript")]
+    [Trait("Category", "Unit")]
+    public async Task LoginAssets_AreServedWithTheirType(string file, string mediaType)
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await browser.GetAsync($"/bff/login/{file}", Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe(mediaType);
+        (await response.Content.ReadAsStringAsync(Token)).ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginAssets_UnknownFile_IsNotFound()
+    {
+        var browser = _factory.CreateBrowser();
+
+        (await browser.GetAsync("/bff/login/other.js", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task Login_WithoutTheAntiforgeryToken_Returns400()
     {
         var browser = _factory.CreateBrowser();
@@ -196,6 +235,7 @@ public sealed class SessionTests : IAsyncDisposable
 
         (await browser.GetAsync("/bff/login", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await browser.GetAsync("/bff/login/background.webp", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await browser.GetAsync("/bff/login/login.css", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]

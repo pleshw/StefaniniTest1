@@ -29,8 +29,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The sign-in page's background, served by the BFF itself so the page needs nothing from the web build. -->
+    <!-- The sign-in page's background, styles and script, served by the BFF itself so the page needs nothing from the web build. -->
     <EmbeddedResource Include="Security/login-background.webp" LogicalName="login-background.webp" />
+    <EmbeddedResource Include="Security/login.css" LogicalName="login.css" />
+    <EmbeddedResource Include="Security/login.js" LogicalName="login.js" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,19 +1,32 @@
+using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 
 namespace Orders.Bff.Security;
 
 /// <summary>
-/// The development sign-in form: plain HTML with its own styles and a few lines of script (show the password, a busy
+/// The development sign-in form: plain HTML with its own stylesheet and a few lines of script (show the password, a busy
 /// button), labelled fields and the antiforgery token as a hidden field. The form works without the script.
 /// </summary>
 internal static class LoginPage
 {
-    public const string BackgroundPath = "/bff/login/background.webp";
+    /// <summary>Where the page's own files are served: <c>/bff/login/{file}</c>.</summary>
+    public const string AssetsPath = "/bff/login";
 
-    private const string _backgroundResource = "login-background.webp";
+    /// <summary>
+    /// The page's files, embedded in the assembly: the Content-Security-Policy nginx sends lets the page load styles and
+    /// scripts only from this site, never inline. The CSS reaches the background picture (price tags spelling "SALE")
+    /// by a relative URL.
+    /// </summary>
+    public static IReadOnlyDictionary<string, LoginAsset> Assets { get; } = new Dictionary<string, LoginAsset>
+    {
+        ["background.webp"] = LoginAsset.Read("login-background.webp", "image/webp"),
+        ["login.css"] = LoginAsset.Read("login.css", "text/css; charset=utf-8"),
+        ["login.js"] = LoginAsset.Read("login.js", "text/javascript; charset=utf-8"),
+    };
 
-    /// <summary>The page's background picture (price tags spelling "SALE"), embedded in the assembly.</summary>
-    public static byte[] Background { get; } = ReadBackground();
+    // The content's hash in the URL, so a browser that keeps the files for a day still gets new ones after a deploy.
+    private static readonly string _stylesPath = $"{AssetsPath}/login.css?v={Assets["login.css"].Version}";
+    private static readonly string _scriptPath = $"{AssetsPath}/login.js?v={Assets["login.js"].Version}";
 
     public static string Render(string tokenField, string token, string? returnUrl, bool failed, string? userName = null)
     {
@@ -39,157 +52,7 @@ internal static class LoginPage
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <meta name="color-scheme" content="light">
               <title>Entrar · Pedidos e Catálogo</title>
-              <style>
-                :root {
-                  --ink: #1f2328;
-                  --muted: #4b5563;
-                  --line: #6b7280;
-                  --accent: #0d66d0;
-                  --accent-hover: #0a56b0;
-                  --accent-active: #084a99;
-                  --danger: #b42318;
-                  --shade-top: rgba(17, 24, 39, 0.4);
-                  --shade-bottom: rgba(17, 24, 39, 0.72);
-                }
-                * { box-sizing: border-box; }
-                [hidden] { display: none !important; }
-                body {
-                  margin: 0;
-                  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                  font-size: 1rem;
-                  line-height: 1.5;
-                  color: var(--ink);
-                  /*
-                   * The picture is dimmed, lightly at the top where the tags hang and more at the bottom where the white
-                   * text sits, so the white card stands out and the text keeps at least 4.5:1.
-                   */
-                  background:
-                    linear-gradient(var(--shade-top), var(--shade-bottom)),
-                    url("{{BackgroundPath}}") left 3vw top / auto min(76vh, 48rem) no-repeat,
-                    #fff;
-                }
-                .page {
-                  display: grid;
-                  grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
-                  align-items: center;
-                  gap: 2rem;
-                  min-height: 100vh;
-                  padding: 2rem clamp(1rem, 7vw, 7rem);
-                }
-                .brand { align-self: end; color: #fff; }
-                .brand-mark {
-                  display: inline-grid;
-                  place-items: center;
-                  width: 3.25rem;
-                  height: 3.25rem;
-                  color: #fff;
-                  background: var(--accent);
-                  border-radius: 0.75rem;
-                }
-                .brand-mark .icon { width: 1.75rem; height: 1.75rem; }
-                .brand-name { margin: 0.75rem 0 0.25rem; font-size: 2.25rem; font-weight: 700; line-height: 1.15; }
-                .brand-tagline { max-width: 24rem; margin: 0; font-size: 1.2rem; }
-                .card {
-                  width: 100%;
-                  padding: 2.75rem 3rem 2rem;
-                  background: #fff;
-                  border-radius: 0.5rem;
-                  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.35);
-                }
-                h1 { margin: 0 0 0.5rem; font-size: 2rem; font-weight: 700; line-height: 1.2; }
-                .lead { margin: 0; color: var(--muted); }
-                code { padding: 0.05rem 0.3rem; font-size: 0.9em; color: var(--ink); background: #f1f3f5; border-radius: 0.25rem; }
-                .icon { width: 1.1rem; height: 1.1rem; flex: none; fill: currentColor; }
-                .error {
-                  display: flex;
-                  gap: 0.6rem;
-                  align-items: flex-start;
-                  margin-top: 1.5rem;
-                  padding: 0.75rem 1rem;
-                  color: #7a271a;
-                  background: #fef3f2;
-                  border-left: 4px solid var(--danger);
-                  border-radius: 0.25rem;
-                }
-                .error .icon { margin-top: 0.2rem; color: var(--danger); }
-                .field { margin-top: 1.75rem; }
-                .field label { display: block; margin-bottom: 0.15rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-                .field:focus-within label { color: var(--accent); }
-                .control { position: relative; }
-                .field input {
-                  width: 100%;
-                  padding: 0.45rem 0;
-                  font: inherit;
-                  font-size: 1.05rem;
-                  color: var(--ink);
-                  background: transparent;
-                  border: 0;
-                  border-bottom: 2px solid var(--line);
-                  border-radius: 0;
-                  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-                }
-                .field input:hover { border-bottom-color: var(--ink); }
-                .field input:focus { outline: none; border-bottom-color: var(--accent); box-shadow: 0 2px 0 0 var(--accent); }
-                .field input[aria-invalid="true"] { border-bottom-color: var(--danger); }
-                .field input[aria-invalid="true"]:focus { box-shadow: 0 2px 0 0 var(--danger); }
-                .control input { padding-right: 3rem; }
-                .reveal {
-                  position: absolute;
-                  right: 0;
-                  bottom: 0.15rem;
-                  display: inline-grid;
-                  place-items: center;
-                  width: 2.5rem;
-                  height: 2.5rem;
-                  color: var(--muted);
-                  background: transparent;
-                  border: 0;
-                  border-radius: 50%;
-                  cursor: pointer;
-                }
-                .reveal:hover { color: var(--ink); background: #f1f3f5; }
-                .reveal:focus-visible { outline: 3px solid var(--accent); outline-offset: 0; }
-                .reveal[aria-pressed="true"] { color: var(--accent); }
-                .actions { display: flex; justify-content: flex-end; margin-top: 2rem; }
-                .button {
-                  display: inline-flex;
-                  align-items: center;
-                  justify-content: center;
-                  gap: 0.5rem;
-                  min-height: 2.75rem;
-                  padding: 0.5rem 1.5rem;
-                  font: inherit;
-                  font-weight: 700;
-                  text-decoration: none;
-                  border: 2px solid transparent;
-                  border-radius: 999px;
-                  cursor: pointer;
-                  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
-                }
-                .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-                .button:active { transform: translateY(1px); }
-                .primary { color: #fff; background: var(--accent); }
-                .primary:hover { background: var(--accent-hover); }
-                .primary:active { background: var(--accent-active); }
-                .primary:disabled { cursor: progress; opacity: 0.75; transform: none; }
-                .secondary { width: 100%; color: var(--ink); background: #fff; border-color: #8b919a; }
-                .secondary:hover { background: #f3f4f6; border-color: var(--ink); }
-                .divider { display: flex; align-items: center; gap: 1rem; margin: 2rem 0 1.25rem; color: var(--muted); }
-                .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid #d0d4da; }
-                .note { margin: 1.75rem 0 0; font-size: 0.85rem; color: var(--muted); }
-                @media (max-width: 54rem) {
-                  :root { --shade-top: rgba(17, 24, 39, 0.55); --shade-bottom: rgba(17, 24, 39, 0.75); }
-                  body { background-position: 0 0, center top, 0 0; background-size: auto, auto 18rem, auto; }
-                  .page { grid-template-columns: minmax(0, 1fr); align-content: start; gap: 1.5rem; padding: 1.5rem 1rem; }
-                  .brand { align-self: start; padding-top: 13rem; text-align: center; }
-                  .brand-name { font-size: 1.75rem; }
-                  .brand-tagline { margin: 0 auto; font-size: 1.05rem; }
-                  .card { padding: 2rem 1.5rem 1.5rem; }
-                }
-                @media (prefers-reduced-motion: reduce) {
-                  * { transition: none !important; }
-                }
-              </style>
+              <link rel="stylesheet" href="{{_stylesPath}}">
             </head>
             <body>
               <div class="page">
@@ -234,44 +97,25 @@ internal static class LoginPage
                   <p class="note">Login provisório, só para desenvolvimento; a versão final usará um provedor de identidade.</p>
                 </main>
               </div>
-              <script>
-                (() => {
-                  const password = document.getElementById('password');
-                  const reveal = document.getElementById('reveal');
-                  const submit = document.querySelector('#login-form [type="submit"]');
-                  const submitText = document.getElementById('submit-text');
-                  reveal.hidden = false;
-                  reveal.addEventListener('click', () => {
-                    const shown = password.type === 'password';
-                    password.type = shown ? 'text' : 'password';
-                    reveal.setAttribute('aria-pressed', String(shown));
-                    reveal.querySelector('.eye').toggleAttribute('hidden', shown);
-                    reveal.querySelector('.eye-slash').toggleAttribute('hidden', !shown);
-                    password.focus();
-                  });
-                  document.getElementById('login-form').addEventListener('submit', () => {
-                    submit.disabled = true;
-                    submitText.textContent = 'Entrando…';
-                  });
-                  // Back from the next page, the browser may restore this one as it was left: busy.
-                  window.addEventListener('pageshow', () => {
-                    submit.disabled = false;
-                    submitText.textContent = 'Entrar';
-                  });
-                })();
-              </script>
+              <script src="{{_scriptPath}}" defer></script>
             </body>
             </html>
             """;
     }
+}
 
-    private static byte[] ReadBackground()
+/// <summary>One file of the sign-in page, with the short hash of its content that versions its URL.</summary>
+internal sealed record LoginAsset(byte[] Content, string ContentType)
+{
+    public string Version { get; } = Convert.ToHexStringLower(SHA256.HashData(Content))[..12];
+
+    public static LoginAsset Read(string resource, string contentType)
     {
-        using var stream = typeof(LoginPage).Assembly.GetManifestResourceStream(_backgroundResource)
-            ?? throw new InvalidOperationException($"The {_backgroundResource} resource is missing from the assembly.");
+        using var stream = typeof(LoginAsset).Assembly.GetManifestResourceStream(resource)
+            ?? throw new InvalidOperationException($"The {resource} resource is missing from the assembly.");
         using var copy = new MemoryStream();
         stream.CopyTo(copy);
 
-        return copy.ToArray();
+        return new LoginAsset(copy.ToArray(), contentType);
     }
 }

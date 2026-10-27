@@ -54,7 +54,7 @@ internal static class BffAuthentication
         return services;
     }
 
-    /// <summary><c>/bff/user</c>, <c>/bff/logout</c> and, when the development sign-in is on, <c>/bff/login</c> and its background.</summary>
+    /// <summary><c>/bff/user</c>, <c>/bff/logout</c> and, when the development sign-in is on, <c>/bff/login</c> and its files.</summary>
     public static IEndpointRouteBuilder MapBffSession(this IEndpointRouteBuilder endpoints, DevLoginOptions devLogin)
     {
         var session = endpoints.MapGroup("/bff").WithTags("Session");
@@ -78,11 +78,16 @@ internal static class BffAuthentication
         {
             session.MapGet("/login", (HttpContext context, IAntiforgery antiforgery, string? returnUrl) => LoginForm(context, antiforgery, returnUrl, failed: false))
                 .ExcludeFromDescription();
-            session.MapGet(LoginPage.BackgroundPath["/bff".Length..], (HttpContext context) =>
+            session.MapGet("/login/{file}", (HttpContext context, string file) =>
                 {
+                    if (!LoginPage.Assets.TryGetValue(file, out var asset))
+                    {
+                        return Results.NotFound();
+                    }
+
                     context.Response.Headers.CacheControl = "public, max-age=86400";
 
-                    return TypedResults.File(LoginPage.Background, "image/webp");
+                    return Results.File(asset.Content, asset.ContentType);
                 })
                 .ExcludeFromDescription();
             // The token is checked in the handler, so a missing one is a 400 ProblemDetails rather than an exception.
