@@ -1605,6 +1605,12 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "cursor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

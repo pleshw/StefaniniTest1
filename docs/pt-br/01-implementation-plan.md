@@ -79,6 +79,7 @@ Regras que mantêm o BFF enxuto: nenhuma lógica de domínio, nenhum banco de da
 | Biblioteca de CQRS + mensageria | Wolverine (MIT) | Handlers, outbox/inbox no Postgres, transporte RabbitMQ. Alternativa: Mediator com source generator + RabbitMQ.Client 7 |
 | Resiliência | Microsoft.Extensions.Http.Resilience | Timeout, retry e circuit breaker nas chamadas ao Catalog |
 | Gateway no BFF | YARP | Rotas de passagem |
+| Feed ao vivo no BFF | RabbitMQ.Client 7 | Fila exclusiva do BFF em `orders.events`; mesma versão que o transporte do Wolverine usa |
 | Autenticação entre serviços | Microsoft.AspNetCore.Authentication.JwtBearer | JWT de 5 min assinado pelo BFF para cada serviço (HMAC-SHA256, chave do `.env`); provisório até o token exchange de um provedor de identidade |
 | Documentação da API | Microsoft.AspNetCore.OpenApi + Scalar | OpenAPI 3.1 |
 | Validação | FluentValidation 12 (Apache-2.0) | A única forma de validar entradas, em todas as camadas; veja [Regras de design](02-execution-guide.md#regras-de-design-para-todas-as-etapas) |

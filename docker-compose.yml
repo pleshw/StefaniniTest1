@@ -138,7 +138,11 @@ services:
       Bff__DevLogin__AdminPassword: ${BFF_ADMIN_PASSWORD:?set BFF_ADMIN_PASSWORD in .env}
       # The BFF signs a short-lived JWT per call with this key; orders-api and catalog-api validate it.
       ServiceTokens__SigningKey: ${SERVICE_TOKEN_SIGNING_KEY:?set SERVICE_TOKEN_SIGNING_KEY in .env}
+      # Live Admin feed: the BFF's own exclusive queue on orders.events.
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       orders-api:
         condition: service_healthy
       catalog-api:

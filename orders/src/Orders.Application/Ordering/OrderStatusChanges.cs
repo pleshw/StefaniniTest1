@@ -16,8 +16,9 @@ public interface IOrderEventLog
 public sealed record OrderEventLogEntry(Guid OrderId, string Type, string Payload, DateTimeOffset OccurredAt);
 
 /// <summary>
-/// Records the events an order raised while it changed status: one <c>order_event_log</c> row and one outbox message
-/// (<c>OrderStatusChanged.v1</c>) each. Call it inside <see cref="IOrderTransaction"/>, after the order was saved.
+/// Records the events an order raised (placed, or a status change): one <c>order_event_log</c> row and one outbox
+/// message (<c>OrderPlaced.v1</c>, <c>OrderStatusChanged.v1</c>) each. Call it inside <see cref="IOrderTransaction"/>,
+/// after the order was saved.
 /// </summary>
 public sealed class OrderStatusChangeRecorder(IOrderEventLog log, IOrderEventPublisher events)
 {

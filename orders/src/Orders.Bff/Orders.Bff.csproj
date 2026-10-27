@@ -11,10 +11,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../../shared/ServiceDefaults/ServiceDefaults.csproj" />
+    <ProjectReference Include="../Orders.Contracts/Orders.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Yarp.ReverseProxy" />
+    <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Riok.Mapperly" ExcludeAssets="runtime" PrivateAssets="all" />
     <PackageReference Include="NSwag.ApiDescription.Client" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" PrivateAssets="all" />

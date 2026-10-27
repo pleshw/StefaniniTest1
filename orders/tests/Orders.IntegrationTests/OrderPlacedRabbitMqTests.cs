@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
@@ -74,6 +75,23 @@ public sealed class OrderPlacedRabbitMqTests : IClassFixture<PostgresFixture>, I
         message.Header("traceparent").ShouldNotBeNull().ShouldMatch("^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$");
         message.Header("occurred-at").ShouldNotBeNull();
         message.MessageId.ShouldNotBeNullOrEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task PostOrder_LogsOrderPlacedWithThePublishedPayloadInTheEventLog()
+    {
+        var client = _factory.CreateClient();
+
+        var (_, body) = await Post(client, Guid.NewGuid().ToString());
+
+        var orderId = JsonDocument.Parse(body).RootElement.GetProperty("id").GetGuid();
+        var published = (await _rabbit.WaitForMessagesAsync(_queue, 1, TimeSpan.FromSeconds(30), Token)).ShouldHaveSingleItem();
+        await using var context = _postgres.NewContext();
+        var entry = await context.OrderEventLog.SingleAsync(log => log.OrderId == orderId, Token);
+        entry.Type.ShouldBe("OrderPlaced.v1");
+        JsonDocument.Parse(entry.Payload).RootElement.GetProperty("orderId").GetGuid().ShouldBe(orderId);
+        JsonDocument.Parse(entry.Payload).RootElement.GetProperty("total").GetDecimal().ShouldBe(published.Json.GetProperty("total").GetDecimal());
     }
 
     [Fact]

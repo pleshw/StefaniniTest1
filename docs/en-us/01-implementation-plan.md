@@ -79,6 +79,7 @@ Rules that keep the BFF thin: no domain logic, no database, no price or discount
 | CQRS + messaging library | Wolverine (MIT) | Handlers, Postgres outbox/inbox, RabbitMQ transport. Fallback: source-generated Mediator + RabbitMQ.Client 7 |
 | Resilience | Microsoft.Extensions.Http.Resilience | Timeout, retry, circuit breaker on Catalog calls |
 | Gateway in BFF | YARP | Pass-through routes |
+| Live feed in the BFF | RabbitMQ.Client 7 | The BFF's exclusive queue on `orders.events`; same version the Wolverine transport uses |
 | Service-to-service authentication | Microsoft.AspNetCore.Authentication.JwtBearer | 5-minute JWT the BFF signs for each service (HMAC-SHA256, key from `.env`); placeholder until an identity provider's token exchange |
 | API docs | Microsoft.AspNetCore.OpenApi + Scalar | OpenAPI 3.1 |
 | Validation | FluentValidation 12 (Apache-2.0) | The only way to validate input, in every layer; see [Design rules](02-execution-guide.md#design-rules-for-every-step) |

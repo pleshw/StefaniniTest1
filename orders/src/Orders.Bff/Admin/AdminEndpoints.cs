@@ -1,6 +1,7 @@
 using Orders.Bff.Clients;
 using Orders.Bff.Clients.Orders;
 using Orders.Bff.Composition;
+using Orders.Bff.Events;
 using Orders.Bff.Security;
 
 namespace Orders.Bff.Admin;
@@ -30,6 +31,14 @@ internal static class AdminEndpoints
             .WithSummary("Creates an order for a client; Idempotency-Key is forwarded unchanged and Orders' answer returned as it is.");
         admin.MapGet("/events", ListEvents)
             .WithSummary("The order event log, oldest first (backfill for the live stream).");
+        admin.MapGet("/events/stream", (HttpContext context, LiveEventStream stream, CancellationToken cancellationToken) =>
+            {
+                // nginx buffers proxied responses unless told not to; events must reach the page as they happen.
+                context.Response.Headers["X-Accel-Buffering"] = "no";
+
+                return TypedResults.ServerSentEvents(stream.ReadAsync(context.Request.Headers["Last-Event-ID"].ToString(), cancellationToken));
+            })
+            .WithSummary("Server-Sent Events of the event log, live; with Last-Event-ID the missed entries come first. Heartbeat every 15 s.");
 
         return endpoints;
     }

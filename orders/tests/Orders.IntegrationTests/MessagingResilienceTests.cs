@@ -197,7 +197,7 @@ public sealed class MessagingResilienceTests : IClassFixture<PostgresFixture>, I
         }
     }
 
-    /// <summary>One transition per order: two history rows, one event log row, row version 1 and one OrderStatusChanged.v1 each.</summary>
+    /// <summary>One transition per order: two history rows, the placed and the changed event log rows, row version 1 and one OrderStatusChanged.v1 each.</summary>
     private async Task AssertProcessedOnce(List<Guid> ids, string? actor)
     {
         var changed = await _rabbit.WaitForMessagesAsync(_changedSpy, ids.Count, _timeout, Token);
@@ -211,7 +211,8 @@ public sealed class MessagingResilienceTests : IClassFixture<PostgresFixture>, I
             var order = await context.Orders.Include(record => record.History).SingleAsync(record => record.Id == id, Token);
             order.History.Count.ShouldBe(2);
             order.RowVersion.ShouldBe(1);
-            (await context.OrderEventLog.CountAsync(entry => entry.OrderId == id, Token)).ShouldBe(1);
+            (await context.OrderEventLog.Where(entry => entry.OrderId == id).OrderBy(entry => entry.Id).Select(entry => entry.Type).ToListAsync(Token))
+                .ShouldBe(["OrderPlaced.v1", "OrderStatusChanged.v1"]);
 
             if (actor is not null)
             {

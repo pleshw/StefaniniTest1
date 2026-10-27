@@ -18,6 +18,12 @@
           "NSwag.MSBuild": "14.7.1"
         }
       },
+      "RabbitMQ.Client": {
+        "type": "Direct",
+        "requested": "[7.2.2, )",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA=="
+      },
       "Riok.Mapperly": {
         "type": "Direct",
         "requested": "[4.3.1, )",
@@ -207,6 +213,9 @@
         "type": "Transitive",
         "resolved": "8.0.0",
         "contentHash": "ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA=="
+      },
+      "orders.contracts": {
+        "type": "Project"
       },
       "servicedefaults": {
         "type": "Project",

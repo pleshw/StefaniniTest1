@@ -89,6 +89,25 @@ public sealed class RabbitMqFixture : IAsyncLifetime
         }
     }
 
+    /// <summary>Waits until some queue is bound to <paramref name="exchange"/> with <paramref name="routingKey"/> (a consumer declaring its own queue).</summary>
+    public async Task WaitForBindingAsync(string exchange, string routingKey, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (true)
+        {
+            var bindings = await _management.GetFromJsonAsync<JsonElement>($"/api/exchanges/{_defaultVhost}/{exchange}/bindings/source", cancellationToken);
+
+            if (bindings.EnumerateArray().Any(binding => binding.GetProperty("routing_key").GetString() == routingKey))
+            {
+                return;
+            }
+
+            DateTime.UtcNow.ShouldBeLessThan(deadline, $"nothing bound to {exchange} with {routingKey}");
+            await Task.Delay(100, cancellationToken);
+        }
+    }
+
     /// <summary>Publishes a copy of <paramref name="message"/> to an exchange: same payload, message id, type and headers.</summary>
     public Task RepublishAsync(string exchange, QueuedMessage message, CancellationToken cancellationToken) =>
         PublishAsync(exchange, message.RoutingKey, message.Properties, message.Payload, cancellationToken);

@@ -44,6 +44,23 @@ public sealed class AdminEventEndpointTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task Get_EachEventCarriesTheCursorThatContinuesRightAfterIt()
+    {
+        for (var minute = 1; minute <= 4; minute++)
+        {
+            await Log(_orderA, "OrderStatusChanged.v1", minute);
+        }
+
+        var second = (await Get(_path)).GetProperty("items")[1];
+
+        var rest = await Get($"{_path}?after={second.GetProperty("cursor").GetString()}");
+
+        rest.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("occurredAt").GetDateTimeOffset())
+            .ShouldBe([_start.AddMinutes(3), _start.AddMinutes(4)]);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task Get_LimitAndAfter_PageThroughEveryEventOnceInOrder()
     {
         for (var minute = 1; minute <= 5; minute++)
@@ -143,7 +160,7 @@ public sealed class AdminEventEndpointTests : IAsyncDisposable
         hold.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
         (await _client.SendAsync(hold, Token)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var page = await Get($"{_path}?orderId={order}");
+        var page = await Get($"{_path}?orderId={order}&type=OrderStatusChanged.v1");
 
         var item = page.GetProperty("items").EnumerateArray().ShouldHaveSingleItem();
         item.GetProperty("type").GetString().ShouldBe("OrderStatusChanged.v1");

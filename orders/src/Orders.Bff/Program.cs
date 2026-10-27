@@ -1,6 +1,7 @@
 using Orders.Bff;
 using Orders.Bff.Admin;
 using Orders.Bff.Clients;
+using Orders.Bff.Events;
 using Orders.Bff.Routing;
 using Orders.Bff.Security;
 using Orders.Bff.Shop;
@@ -22,6 +23,7 @@ builder.Services.Configure<ServiceTokenOptions>(builder.Configuration.GetSection
 builder.Services.Configure<DevLoginOptions>(builder.Configuration.GetSection(DevLoginOptions.SectionName));
 builder.Services.AddBffAuthentication();
 builder.Services.AddBffClients(options);
+builder.Services.AddLiveEvents(builder.Configuration);
 builder.Services.AddBffProxy(options);
 
 var app = builder.Build();

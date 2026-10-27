@@ -1693,14 +1693,6 @@
           "protobuf-net": "3.2.52"
         }
       },
-      "RabbitMQ.Client": {
-        "type": "Transitive",
-        "resolved": "7.2.2",
-        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA==",
-        "dependencies": {
-          "System.Threading.RateLimiting": "8.0.0"
-        }
-      },
       "RamlToOpenApiConverter.SourceOnly": {
         "type": "Transitive",
         "resolved": "0.50.0",
@@ -1828,6 +1820,11 @@
           "Microsoft.IdentityModel.JsonWebTokens": "8.19.2",
           "Microsoft.IdentityModel.Tokens": "8.19.2"
         }
+      },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA=="
       },
       "System.Linq.Dynamic.Core": {
         "type": "Transitive",
@@ -2133,6 +2130,15 @@
           "Orders.Domain": "[1.0.0, )"
         }
       },
+      "orders.bff": {
+        "type": "Project",
+        "dependencies": {
+          "Orders.Contracts": "[1.0.0, )",
+          "RabbitMQ.Client": "[7.2.2, )",
+          "ServiceDefaults": "[1.0.0, )",
+          "Yarp.ReverseProxy": "[2.3.0, )"
+        }
+      },
       "orders.contracts": {
         "type": "Project"
       },
@@ -2306,6 +2312,15 @@
           "OpenTelemetry.Api": "[1.20.0, 2.0.0)"
         }
       },
+      "RabbitMQ.Client": {
+        "type": "CentralTransitive",
+        "requested": "[7.2.2, )",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA==",
+        "dependencies": {
+          "System.Threading.RateLimiting": "8.0.0"
+        }
+      },
       "Scalar.AspNetCore": {
         "type": "CentralTransitive",
         "requested": "[2.18.2, )",
@@ -2341,6 +2356,15 @@
         "dependencies": {
           "JasperFx.RuntimeCompiler": "5.0.0",
           "WolverineFx": "6.54.0"
+        }
+      },
+      "Yarp.ReverseProxy": {
+        "type": "CentralTransitive",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "gxtkN3a+9biu9V9Zd5NaTO6VZWXAnS2mhQ0R/VXmSPoTuiQNZsakKikrKpDtKxrL5nUYzbRsHtl40WNq+ZBKKg==",
+        "dependencies": {
+          "System.IO.Hashing": "8.0.0"
         }
       }
     }

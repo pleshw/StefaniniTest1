@@ -66,7 +66,7 @@ public sealed class AdminOrderActionsPostgresTests : IClassFixture<PostgresFixtu
         order.RowVersion.ShouldBe(1);
         var change = order.History.OrderBy(history => history.Seq).Last();
         (change.FromStatus, change.ToStatus, change.Reason, change.Actor).ShouldBe((OrderStatus.Pending, OrderStatus.OnHold, "Call the customer", "admin-1"));
-        var log = await context.OrderEventLog.SingleAsync(entry => entry.OrderId == id, Token);
+        var log = await context.OrderEventLog.SingleAsync(entry => entry.OrderId == id && entry.Type != "OrderPlaced.v1", Token);
         log.Type.ShouldBe("OrderStatusChanged.v1");
         var published = await _rabbit.WaitForMessagesAsync(_spyQueue, 1, TimeSpan.FromSeconds(30), Token);
         published.Count.ShouldBe(1);
@@ -88,7 +88,7 @@ public sealed class AdminOrderActionsPostgresTests : IClassFixture<PostgresFixtu
         responses.Select(response => response.StatusCode).Order().ShouldBe([HttpStatusCode.OK, HttpStatusCode.PreconditionFailed]);
         await using var context = _postgres.NewContext();
         (await context.Orders.Where(record => record.Id == id).Select(record => record.RowVersion).SingleAsync(Token)).ShouldBe(1);
-        (await context.OrderEventLog.CountAsync(entry => entry.OrderId == id, Token)).ShouldBe(1);
+        (await context.OrderEventLog.CountAsync(entry => entry.OrderId == id && entry.Type == "OrderStatusChanged.v1", Token)).ShouldBe(1);
         (await _rabbit.WaitForMessagesAsync(_spyQueue, 1, TimeSpan.FromSeconds(30), Token)).Count.ShouldBe(1);
     }
 
@@ -104,7 +104,7 @@ public sealed class AdminOrderActionsPostgresTests : IClassFixture<PostgresFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await response.Content.ReadFromJsonAsync<JsonElement>(Token)).GetProperty("type").GetString().ShouldBe("invalid-transition");
         await using var context = _postgres.NewContext();
-        (await context.OrderEventLog.CountAsync(entry => entry.OrderId == id, Token)).ShouldBe(0);
+        (await context.OrderEventLog.CountAsync(entry => entry.OrderId == id && entry.Type == "OrderStatusChanged.v1", Token)).ShouldBe(0);
         (await context.Orders.Where(record => record.Id == id).Select(record => record.Status).SingleAsync(Token)).ShouldBe(OrderStatus.Pending);
     }
 

@@ -70,6 +70,8 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         builder.UseSetting("Bff:Catalog:BaseAddress", CatalogAddress);
         builder.UseSetting("Bff:MaxRequestBodySize", "1024");
         builder.UseSetting("ServiceTokens:SigningKey", SigningKey);
+        builder.UseSetting("Bff:Events:Enabled", "false");
+        builder.UseSetting("Bff:Events:HeartbeatInterval", "00:00:00.300");
         builder.UseSetting("Bff:DevLogin:Enabled", DevLoginEnabled ? "true" : "false");
         builder.UseSetting("Bff:DevLogin:ShopperPassword", ShopperPassword);
         builder.UseSetting("Bff:DevLogin:AdminPassword", AdminPassword);

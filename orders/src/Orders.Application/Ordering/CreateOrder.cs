@@ -55,7 +55,7 @@ public static class OrderNumbers
         $"ORD-{now.Year}-{orderId.ToString("N")[.._idCharacters].ToUpperInvariant()}";
 }
 
-/// <summary>The create-order flow: replay check, one price call, one transaction with the idempotency row, order and outbox event.</summary>
+/// <summary>The create-order flow: replay check, one price call, one transaction with the idempotency row, order, event log row and outbox event.</summary>
 public sealed class CreateOrderHandler(
     IdempotencyService idempotency,
     IIdempotencyStore idempotencyStore,
@@ -63,7 +63,7 @@ public sealed class CreateOrderHandler(
     IOrderRepository orders,
     IOrderDiscountStore discounts,
     IOrderTransaction transaction,
-    IOrderEventPublisher events,
+    OrderStatusChangeRecorder recorder,
     IValidator<CreateOrderCommand> validator)
 {
     private const int _createdStatus = 201;
@@ -123,12 +123,7 @@ public sealed class CreateOrderHandler(
                     await orders.AddAsync(order, token);
                     await discounts.AddAsync(order, draft.Discounts, token);
 
-                    foreach (var domainEvent in order.DomainEvents)
-                    {
-                        await events.PublishAsync(domainEvent, token);
-                    }
-
-                    order.ClearDomainEvents();
+                    await recorder.RecordAsync(order, token);
 
                     var body = JsonSerializer.Serialize(order.ToDto(), _json);
                     await idempotencyStore.CompleteAsync(command.ClientId, key, _createdStatus, body, token);

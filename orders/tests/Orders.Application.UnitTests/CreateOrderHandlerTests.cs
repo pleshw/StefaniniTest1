@@ -22,6 +22,7 @@ public sealed class CreateOrderHandlerTests
     private readonly ICatalogPriceProvider _catalog = Substitute.For<ICatalogPriceProvider>();
     private readonly IOrderRepository _orders = Substitute.For<IOrderRepository>();
     private readonly IOrderEventPublisher _events = Substitute.For<IOrderEventPublisher>();
+    private readonly IOrderEventLog _log = Substitute.For<IOrderEventLog>();
     private readonly IOrderTransaction _transaction = Substitute.For<IOrderTransaction>();
     private readonly IActiveDiscountRules _rules = Substitute.For<IActiveDiscountRules>();
     private readonly IOrderQueries _queries = Substitute.For<IOrderQueries>();
@@ -45,7 +46,7 @@ public sealed class CreateOrderHandlerTests
             _orders,
             _discounts,
             _transaction,
-            _events,
+            new OrderStatusChangeRecorder(_log, _events),
             new CreateOrderCommandValidator());
     }
 
@@ -83,6 +84,7 @@ public sealed class CreateOrderHandlerTests
 
         await _transaction.Received(1).ExecuteAsync(Arg.Any<Func<CancellationToken, Task<Result<CreateOrderOutcome>>>>(), Token);
         await _events.Received(1).PublishAsync(Arg.Is<IDomainEvent>(domainEvent => domainEvent is OrderPlaced), Token);
+        await _log.Received(1).AppendAsync(Arg.Is<IDomainEvent>(domainEvent => domainEvent is OrderPlaced), Token);
         await _store.Received(1).TryReserveAsync(_client, Guid.Parse(_key), _hash, result.Value.OrderId, Token);
         await _store.Received(1).CompleteAsync(_client, Guid.Parse(_key), 201, result.Value.Body, Token);
     }
