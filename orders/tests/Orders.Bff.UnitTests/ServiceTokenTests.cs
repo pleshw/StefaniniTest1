@@ -22,6 +22,7 @@ public sealed class ServiceTokenTests : IAsyncDisposable
     [InlineData("/bff/admin/dead-letters", ServiceTokens.OrdersAudience)]
     [InlineData("/bff/admin/discount-rules", ServiceTokens.OrdersAudience)]
     [InlineData("/bff/admin/products/KB-1/deactivate", ServiceTokens.CatalogAudience)]
+    [InlineData("/bff/admin/products/KB-1", ServiceTokens.CatalogAudience)]
     [Trait("Category", "Unit")]
     public async Task ForwardedRequest_SignedIn_CarriesATokenForThatServiceWithTheUserAndRoles(string path, string audience)
     {

@@ -167,6 +167,7 @@ Todas as APIs são versionadas em `/api/v1`, retornam ProblemDetails em caso de 
 | GET | `/bff/admin/orders/{id}` | Composto: pedido + histórico + eventos relacionados |
 | \* | `/bff/admin/discount-rules/**`, `/bff/admin/dead-letters/**` | Rotas de admin do Orders (YARP) |
 | \* | `/bff/admin/products/**` | Rotas de admin do Catalog (YARP) |
+| GET | `/bff/admin/products/{sku}` | Catalog `GET /products/{sku}`: lê o produto com a versão (`ETag`) que o editor envia como `If-Match` (YARP, política Admin) |
 | POST | /bff/admin/orders | Orders POST /admin/orders, encaminha o Idempotency-Key |
 | \* | /bff/admin/orders/{id}/(confirm\|hold\|block), /bff/admin/confirmation-rules/\*\* | Rotas de admin do Orders (YARP) |
 

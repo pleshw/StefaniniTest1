@@ -25,6 +25,9 @@ internal static class BffRoutes
         CatchAll("orders-confirmation-rules", OrdersCluster, "confirmation-rules"),
         CatchAll("orders-dead-letters", OrdersCluster, "dead-letters"),
         Route("orders-actions", OrdersCluster, "/bff/admin/orders/{id:guid}/{action:regex(" + _actionPattern + ")}", "/api/v1/admin/orders/{id}/{action}"),
+        // The catalog editor reads a product with its version (the ETag it sends back as If-Match). Catalog has no admin read,
+        // so this is its public read, and it goes first because the writes' route below matches the same path.
+        Route("catalog-product-read", CatalogCluster, "/bff/admin/products/{sku}", "/api/v1/products/{sku}", order: -1, methods: ["GET"]),
         // Catalog has no admin route on the bare collection, so a SKU is required.
         Route("catalog-products", CatalogCluster, "/bff/admin/products/{sku}/{**rest}", "/api/v1/admin/products/{sku}/{**rest}"),
     ];
@@ -86,13 +89,14 @@ internal static class BffRoutes
     private static RouteConfig CatchAll(string id, string cluster, string segment) =>
         Route(id, cluster, $"/bff/admin/{segment}/{{**rest}}", $"/api/v1/admin/{segment}/{{**rest}}");
 
-    private static RouteConfig Route(string id, string cluster, string path, string downstreamPath) =>
+    private static RouteConfig Route(string id, string cluster, string path, string downstreamPath, int? order = null, string[]? methods = null) =>
         new RouteConfig
         {
             RouteId = id,
             ClusterId = cluster,
+            Order = order,
             AuthorizationPolicy = BffAuthentication.AdminPolicy,
-            Match = new RouteMatch { Path = path },
+            Match = new RouteMatch { Path = path, Methods = methods },
         }.WithTransformPathRouteValues(downstreamPath);
 
     private static ClusterConfig Cluster(string id, string address) => new()
