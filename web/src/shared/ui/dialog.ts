@@ -96,3 +96,58 @@ export function askReason(options: ReasonDialog): Promise<string | null> {
     field.focus();
   });
 }
+
+export interface ConfirmDialog {
+  readonly title: string;
+  readonly message: string;
+  readonly confirmLabel: string;
+}
+
+/** Asks for a yes in a modal dialog; resolves to false on Cancel and on Escape. */
+export function confirmAction(options: ConfirmDialog): Promise<boolean> {
+  const id = `confirm-dialog-${String(++dialogCount)}`;
+  const opener = document.activeElement;
+  const confirm = h('button', {
+    className: 'btn btn-primary',
+    text: options.confirmLabel,
+    attrs: { type: 'button' },
+  });
+  const cancel = h('button', {
+    className: 'btn btn-outline-secondary',
+    text: 'Cancel',
+    attrs: { type: 'button' },
+  });
+  const dialog = h(
+    'dialog',
+    {
+      className: 'rounded border p-3',
+      attrs: { 'aria-labelledby': `${id}-title`, 'aria-describedby': `${id}-message` },
+    },
+    h('h2', { className: 'h5', text: options.title, attrs: { id: `${id}-title` } }),
+    h('p', { text: options.message, attrs: { id: `${id}-message` } }),
+    h('div', { className: 'd-flex justify-content-end gap-2 mt-3' }, cancel, confirm),
+  );
+
+  return new Promise((resolve) => {
+    let answer = false;
+
+    confirm.addEventListener('click', () => {
+      answer = true;
+      dialog.close();
+    });
+    cancel.addEventListener('click', () => {
+      dialog.close();
+    });
+    dialog.addEventListener('close', () => {
+      dialog.remove();
+      if (opener instanceof HTMLElement) {
+        opener.focus();
+      }
+      resolve(answer);
+    });
+
+    document.body.append(dialog);
+    dialog.showModal();
+    cancel.focus();
+  });
+}

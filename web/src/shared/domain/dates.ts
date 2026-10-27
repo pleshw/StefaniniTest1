@@ -18,3 +18,21 @@ export function formatDateTime(iso: string, locale: Locale = 'en-US'): string {
 
   return formatter.format(moment);
 }
+
+const pad = (value: number): string => String(value).padStart(2, '0');
+
+/** An ISO 8601 moment as the value of a datetime-local input (the viewer's time zone); empty if it is not a date. */
+export function toLocalInput(iso: string | undefined): string {
+  const moment = iso === undefined ? new Date(Number.NaN) : new Date(iso);
+
+  return Number.isNaN(moment.getTime())
+    ? ''
+    : `${String(moment.getFullYear())}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}T${pad(moment.getHours())}:${pad(moment.getMinutes())}`;
+}
+
+/** The value of a datetime-local input as an ISO 8601 moment in UTC; undefined if it is empty or not a date. */
+export function fromLocalInput(value: string): string | undefined {
+  const moment = new Date(value);
+
+  return value === '' || Number.isNaN(moment.getTime()) ? undefined : moment.toISOString();
+}

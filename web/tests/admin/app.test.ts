@@ -146,4 +146,34 @@ describe('Admin page', () => {
     expect(clientCalls).toBe(1);
     await expectAccessible(root);
   });
+
+  it.each([
+    ['Discount rules', 'Discount rules', '*/bff/admin/discount-rules'],
+    ['Confirmation rules', 'Confirmation rules', '*/bff/admin/confirmation-rules'],
+    ['Dead letters', 'Dead letters', '*/bff/admin/dead-letters'],
+  ])('opens "%s" only when asked and asks for its data once', async (label, heading, route) => {
+    let calls = 0;
+    server.use(
+      http.get(route, () => {
+        calls++;
+        return HttpResponse.json([]);
+      }),
+    );
+    const { root } = mountPage();
+    expect(calls).toBe(0);
+    expect(queryByRole(root, 'heading', { level: 2, name: heading })).toBeNull();
+
+    fireEvent.click(getByRole(root, 'button', { name: label }));
+
+    expect(await findByRole(root, 'heading', { level: 2, name: heading })).toBeTruthy();
+    expect(getByRole(root, 'button', { name: label }).getAttribute('aria-current')).toBe('true');
+    expect(queryByRole(root, 'heading', { name: 'Live events' })).toBeNull();
+    await vi.waitFor(() => {
+      expect(calls).toBe(1);
+    });
+    fireEvent.click(getByRole(root, 'button', { name: 'Live events' }));
+    fireEvent.click(getByRole(root, 'button', { name: label }));
+    expect(calls).toBe(1);
+    await expectAccessible(root);
+  });
 });

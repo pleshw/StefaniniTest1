@@ -1,6 +1,6 @@
 import { getByRole, getByLabelText, fireEvent } from '@testing-library/dom';
 import { describe, expect, it } from 'vitest';
-import { askReason } from '../../../src/shared/ui/dialog';
+import { askReason, confirmAction } from '../../../src/shared/ui/dialog';
 import { expectAccessible } from '../../helpers';
 
 const hold = {
@@ -119,6 +119,46 @@ describe('askReason', () => {
     await expectAccessible(dialog());
 
     fireEvent.click(getByRole(dialog(), 'button', { name: 'Cancel' }));
+    await answer;
+  });
+});
+
+describe('confirmAction', () => {
+  const options = {
+    title: 'Replay this message?',
+    message: 'It goes back through the exchange.',
+    confirmLabel: 'Replay',
+  };
+
+  it('resolves to true on confirm, false on Cancel and false on Escape, with the focus given back', async () => {
+    const button = opener();
+
+    const yes = confirmAction(options);
+    expect(getByRole(document.body, 'dialog', { name: options.title })).toBeTruthy();
+    expect(document.activeElement).toBe(getByRole(document.body, 'button', { name: 'Cancel' }));
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Replay' }));
+    expect(await yes).toBe(true);
+    expect(document.activeElement).toBe(button);
+
+    const no = confirmAction(options);
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
+    expect(await no).toBe(false);
+
+    const escaped = confirmAction(options);
+    document.querySelector('dialog')?.close();
+    expect(await escaped).toBe(false);
+    expect(document.querySelector('dialog')).toBeNull();
+  });
+
+  it('describes itself to screen readers and has no violations', async () => {
+    opener();
+    const answer = confirmAction(options);
+
+    const dialog = getByRole(document.body, 'dialog', { name: options.title });
+    expect(dialog.getAttribute('aria-describedby')).toBeTruthy();
+    await expectAccessible(dialog);
+
+    fireEvent.click(getByRole(document.body, 'button', { name: 'Cancel' }));
     await answer;
   });
 });

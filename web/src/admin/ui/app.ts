@@ -5,7 +5,10 @@ import { h } from '../../shared/ui/dom';
 import { renderShell } from '../../shared/ui/layout';
 import { pageLinks } from '../../shared/ui/pages';
 import { createCart } from '../../shop/domain/cart';
+import { mountConfirmationRules } from './confirmationRules';
 import { mountCreateOrder } from './createOrder';
+import { mountDeadLetters } from './deadLetters';
+import { mountDiscountRules } from './discountRules';
 import { mountInspector } from './inspector';
 import { mountLiveEvents } from './liveEvents';
 import { mountOnHold } from './onHold';
@@ -16,11 +19,12 @@ export interface AdminDependencies {
   readonly createSource?: (url: string) => EventSourceLike;
 }
 
-type Section = 'live' | 'create';
+type Section = 'live' | 'create' | 'discounts' | 'confirmation' | 'deadLetters';
 
 /**
  * The Admin page. Live events with the OnHold queue and the order inspector sit together, because an admin goes from
- * an event or a waiting order to the order and acts on it. Rules, dead letters and the catalog arrive next.
+ * an event or a waiting order to the order and acts on it. Every other section is mounted the first time it is opened,
+ * so a page that never leaves the live view never asks for rules or dead letters. The catalog editor arrives next.
  */
 export function mountAdmin(
   root: HTMLElement,
@@ -35,9 +39,6 @@ export function mountAdmin(
   const inspectorBox = h('div');
   side.append(queue, inspectorBox);
   const monitoring = h('div', { className: 'row g-4' }, live, side);
-  const creating = h('div');
-  let createMounted = false;
-
   const inspector = mountInspector(inspectorBox, {
     http,
     onChanged: () => {
@@ -57,42 +58,80 @@ export function mountAdmin(
     ...(dependencies.createSource === undefined ? {} : { createSource: dependencies.createSource }),
   });
 
-  const buttons: Readonly<Record<Section, HTMLButtonElement>> = {
-    live: sectionButton('Live events'),
-    create: sectionButton('Create order'),
+  /** The sections other than the live view: where each one lives, how it is built and the button that opens it. */
+  const lazy: Readonly<
+    Record<
+      Exclude<Section, 'live'>,
+      { label: string; box: HTMLElement; mount: (box: HTMLElement) => void }
+    >
+  > = {
+    create: {
+      label: 'Create order',
+      box: h('div'),
+      mount: (box) => {
+        mountCreateOrder(box, {
+          http,
+          cart: createCart({ storageKey: 'orders.admin.cart' }),
+          keys: createIdempotencyKeys(),
+        });
+      },
+    },
+    discounts: {
+      label: 'Discount rules',
+      box: h('div'),
+      mount: (box) => {
+        mountDiscountRules(box, { http });
+      },
+    },
+    confirmation: {
+      label: 'Confirmation rules',
+      box: h('div'),
+      mount: (box) => {
+        mountConfirmationRules(box, { http });
+      },
+    },
+    deadLetters: {
+      label: 'Dead letters',
+      box: h('div'),
+      mount: (box) => {
+        mountDeadLetters(box, { http });
+      },
+    },
   };
+  const mounted = new Set<Section>();
+  const buttons = new Map<Section, HTMLButtonElement>([['live', sectionButton('Live events')]]);
+  for (const [section, { label }] of Object.entries(lazy)) {
+    buttons.set(section as Section, sectionButton(label));
+  }
+
   const show = (section: Section): void => {
     monitoring.hidden = section !== 'live';
-    creating.hidden = section !== 'create';
-    for (const [name, button] of Object.entries(buttons)) {
+    for (const [name, { box, mount }] of Object.entries(lazy)) {
+      box.hidden = name !== section;
+      if (name === section && !mounted.has(section)) {
+        mounted.add(section);
+        mount(box);
+      }
+    }
+    for (const [name, button] of buttons) {
       button.classList.toggle('active', name === section);
       button.setAttribute('aria-current', String(name === section));
     }
-    if (section === 'create' && !createMounted) {
-      createMounted = true;
-      mountCreateOrder(creating, {
-        http,
-        cart: createCart({ storageKey: 'orders.admin.cart' }),
-        keys: createIdempotencyKeys(),
-      });
-    }
   };
-  buttons.live.addEventListener('click', () => {
-    show('live');
-  });
-  buttons.create.addEventListener('click', () => {
-    show('create');
-  });
+  for (const [section, button] of buttons) {
+    button.addEventListener('click', () => {
+      show(section);
+    });
+  }
 
   content.append(
     h(
       'div',
       { className: 'nav nav-pills mb-3', attrs: { role: 'group', 'aria-label': 'Admin sections' } },
-      buttons.live,
-      buttons.create,
+      ...buttons.values(),
     ),
     monitoring,
-    creating,
+    ...Object.values(lazy).map(({ box }) => box),
   );
   show('live');
 }

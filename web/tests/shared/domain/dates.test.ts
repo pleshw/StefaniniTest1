@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime } from '../../../src/shared/domain/dates';
+import { formatDateTime, fromLocalInput, toLocalInput } from '../../../src/shared/domain/dates';
 
 describe('formatDateTime', () => {
   it('writes the date and time the way the locale does', () => {
@@ -17,5 +17,21 @@ describe('formatDateTime', () => {
 
   it('gives back text that is not a date as it is', () => {
     expect(formatDateTime('yesterday')).toBe('yesterday');
+  });
+});
+
+describe('datetime-local conversion', () => {
+  it('goes from a local input value to UTC and back to the same input value', () => {
+    const iso = fromLocalInput('2026-10-26T09:30');
+
+    expect(iso).toBe(new Date(2026, 9, 26, 9, 30).toISOString());
+    expect(toLocalInput(iso)).toBe('2026-10-26T09:30');
+  });
+
+  it('answers nothing for an empty value or one that is not a date', () => {
+    expect(fromLocalInput('')).toBeUndefined();
+    expect(fromLocalInput('soon')).toBeUndefined();
+    expect(toLocalInput(undefined)).toBe('');
+    expect(toLocalInput('soon')).toBe('');
   });
 });

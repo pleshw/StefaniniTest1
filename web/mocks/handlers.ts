@@ -257,4 +257,57 @@ export const handlers = [
       { status: 201 },
     ),
   ),
+
+  // Admin rules and dead letters: Orders' admin API shapes, passed through by the BFF.
+  http.get('*/bff/admin/discount-rules', () =>
+    HttpResponse.json([
+      {
+        id: 'd1b2c3a4-0000-4000-8000-000000000001',
+        version: 1,
+        name: 'Ten percent over 500',
+        type: 'Percentage',
+        parameters: { percent: 10, appliesTo: 'order' },
+        conditions: [{ kind: 'MinSubtotal', amount: 500, currency: 'BRL' }],
+        priority: 10,
+        stackable: false,
+        oncePerClient: false,
+        validFrom: '2026-10-01T00:00:00Z',
+        validTo: null,
+        isActive: true,
+        createdBy: 'seed',
+        createdAt: '2026-10-01T00:00:00Z',
+      },
+    ]),
+  ),
+
+  http.get('*/bff/admin/confirmation-rules', () =>
+    HttpResponse.json([
+      {
+        id: 'e1b2c3a4-0000-4000-8000-000000000001',
+        version: 1,
+        name: 'Orders above 5000',
+        action: 'Hold',
+        conditions: [{ kind: 'TotalAbove', amount: 5000, currency: 'BRL' }],
+        priority: 10,
+        isActive: true,
+        createdBy: 'seed',
+        createdAt: '2026-10-01T00:00:00Z',
+      },
+    ]),
+  ),
+
+  http.get('*/bff/admin/dead-letters', () =>
+    HttpResponse.json([
+      {
+        messageId: 'dead-0001',
+        messageType: 'Orders.Contracts.OrderPlacedV1',
+        originalDestination: 'orders.worker.placed',
+        exceptionType: 'System.TimeoutException',
+        exceptionMessage: 'The database did not answer.',
+        attempts: 6,
+        payload: '{"orderId":"b6c1f0a2-0000-4000-8000-000000000001"}',
+        headers: { 'x-delivery-count': '6' },
+      },
+    ]),
+  ),
 ];
