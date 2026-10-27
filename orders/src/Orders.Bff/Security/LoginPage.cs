@@ -27,7 +27,7 @@ internal static class LoginPage
                 {{error}}
                 <form method="post" action="/bff/login">
                   <input name="{{encoder.Encode(tokenField)}}" type="hidden" value="{{encoder.Encode(token)}}">
-                  <input name="returnUrl" type="hidden" value="{{encoder.Encode(returnUrl ?? "/")}}">
+                  <input name="returnUrl" type="hidden" value="{{encoder.Encode(returnUrl ?? string.Empty)}}">
                   <p><label for="username">User name</label> <input id="username" name="username" autocomplete="username" required></p>
                   <p><label for="password">Password</label> <input id="password" name="password" type="password" autocomplete="current-password" required></p>
                   <p><button type="submit">Sign in</button></p>

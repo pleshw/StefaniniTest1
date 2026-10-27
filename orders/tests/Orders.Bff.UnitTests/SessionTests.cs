@@ -73,13 +73,40 @@ public sealed class SessionTests : IAsyncDisposable
     [InlineData("https://evil.example/")]
     [InlineData("//evil.example/")]
     [Trait("Category", "Unit")]
-    public async Task Login_ReturnUrlOffSite_RedirectsHome(string returnUrl)
+    public async Task Login_ReturnUrlOffSite_RedirectsToTheUsersPage(string returnUrl)
     {
         var browser = _factory.CreateBrowser();
 
         var response = await BffFactory.SignInAsync(browser, "shopper", BffFactory.ShopperPassword, returnUrl);
 
-        response.Headers.Location!.OriginalString.ShouldBe("/");
+        response.Headers.Location!.OriginalString.ShouldBe("/shop.html");
+    }
+
+    [Theory]
+    [InlineData("shopper", BffFactory.ShopperPassword, null, "/shop.html")]
+    [InlineData("shopper", BffFactory.ShopperPassword, "", "/shop.html")]
+    [InlineData("admin", BffFactory.AdminPassword, null, "/admin.html")]
+    [InlineData("admin", BffFactory.AdminPassword, "", "/admin.html")]
+    [Trait("Category", "Unit")]
+    public async Task Login_WithoutAReturnUrl_RedirectsToTheUsersPage(string user, string password, string? returnUrl, string page)
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await BffFactory.SignInAsync(browser, user, password, returnUrl);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location!.OriginalString.ShouldBe(page);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginForm_WithoutAReturnUrl_LeavesTheReturnUrlFieldEmpty()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var form = await browser.GetStringAsync("/bff/login", Token);
+
+        form.ShouldContain("""<input name="returnUrl" type="hidden" value="">""");
     }
 
     [Theory]

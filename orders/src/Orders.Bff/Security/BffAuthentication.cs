@@ -104,7 +104,8 @@ internal static class BffAuthentication
 
         await context.SignInAsync(CookieScheme, user.ToPrincipal());
 
-        return TypedResults.Redirect(IsLocal(form.ReturnUrl) ? form.ReturnUrl! : "/");
+        // Without a return URL (the sign-in page opened directly) the user goes to their own page, not the index.
+        return TypedResults.Redirect(IsLocal(form.ReturnUrl) ? form.ReturnUrl! : user.HomePage);
     }
 
     private static IResult LoginForm(HttpContext context, IAntiforgery antiforgery, string? returnUrl, bool failed)
