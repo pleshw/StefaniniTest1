@@ -2,6 +2,7 @@ using Orders.Bff;
 using Orders.Bff.Clients;
 using Orders.Bff.Routing;
 using Orders.Bff.Security;
+using Orders.Bff.Shop;
 using ServiceDefaults;
 
 if (HealthCheckCommand.IsRequested(args))
@@ -30,6 +31,7 @@ app.UseBffCsrfHeader();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapBffSession(devLogin);
+app.MapShopEndpoints();
 app.MapBffProxy();
 
 app.Run();

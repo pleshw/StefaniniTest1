@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Http.Resilience;
 using Yarp.ReverseProxy.Forwarder;
 
 namespace Orders.Bff.UnitTests.Support;
@@ -66,7 +67,24 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IForwarderHttpClientFactory>();
             services.AddSingleton<IForwarderHttpClientFactory>(new RecordingForwarderClientFactory(Downstream));
+
+            // The typed clients reach the same fake services; their retries wait 1 ms instead of seconds.
+            services.ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => new SharedHandler(Downstream)));
+            services.PostConfigureAll<HttpStandardResilienceOptions>(resilience =>
+            {
+                resilience.Retry.Delay = TimeSpan.FromMilliseconds(1);
+                resilience.Retry.UseJitter = false;
+            });
         });
+    }
+
+    /// <summary>Lets HttpClientFactory rotate and dispose its handlers without disposing the shared recorder.</summary>
+    private sealed class SharedHandler(RecordingHandler handler) : HttpMessageHandler
+    {
+        private readonly HttpMessageInvoker _invoker = new(handler, disposeHandler: false);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            _invoker.SendAsync(request, cancellationToken);
     }
 
     private sealed class RecordingForwarderClientFactory(RecordingHandler handler) : IForwarderHttpClientFactory
