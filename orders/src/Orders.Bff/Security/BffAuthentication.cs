@@ -54,7 +54,7 @@ internal static class BffAuthentication
         return services;
     }
 
-    /// <summary><c>/bff/user</c>, <c>/bff/logout</c> and, when the development sign-in is on, <c>/bff/login</c>.</summary>
+    /// <summary><c>/bff/user</c>, <c>/bff/logout</c> and, when the development sign-in is on, <c>/bff/login</c> and its background.</summary>
     public static IEndpointRouteBuilder MapBffSession(this IEndpointRouteBuilder endpoints, DevLoginOptions devLogin)
     {
         var session = endpoints.MapGroup("/bff").WithTags("Session");
@@ -78,6 +78,13 @@ internal static class BffAuthentication
         {
             session.MapGet("/login", (HttpContext context, IAntiforgery antiforgery, string? returnUrl) => LoginForm(context, antiforgery, returnUrl, failed: false))
                 .ExcludeFromDescription();
+            session.MapGet(LoginPage.BackgroundPath["/bff".Length..], (HttpContext context) =>
+                {
+                    context.Response.Headers.CacheControl = "public, max-age=86400";
+
+                    return TypedResults.File(LoginPage.Background, "image/webp");
+                })
+                .ExcludeFromDescription();
             // The token is checked in the handler, so a missing one is a 400 ProblemDetails rather than an exception.
             session.MapPost("/login", SignInAsync)
                 .DisableAntiforgery()
@@ -99,7 +106,7 @@ internal static class BffAuthentication
 
         if (DevLoginUsers.Verify(devLogin.Value, form.UserName, form.Password) is not { } user)
         {
-            return LoginForm(context, antiforgery, form.ReturnUrl, failed: true);
+            return LoginForm(context, antiforgery, form.ReturnUrl, failed: true, form.UserName);
         }
 
         await context.SignInAsync(CookieScheme, user.ToPrincipal());
@@ -108,12 +115,12 @@ internal static class BffAuthentication
         return TypedResults.Redirect(IsLocal(form.ReturnUrl) ? form.ReturnUrl! : user.HomePage);
     }
 
-    private static IResult LoginForm(HttpContext context, IAntiforgery antiforgery, string? returnUrl, bool failed)
+    private static IResult LoginForm(HttpContext context, IAntiforgery antiforgery, string? returnUrl, bool failed, string? userName = null)
     {
         var tokens = antiforgery.GetAndStoreTokens(context);
 
         return Results.Content(
-            LoginPage.Render(tokens.FormFieldName, tokens.RequestToken!, returnUrl, failed),
+            LoginPage.Render(tokens.FormFieldName, tokens.RequestToken!, returnUrl, failed, userName),
             "text/html; charset=utf-8",
             statusCode: failed ? StatusCodes.Status401Unauthorized : StatusCodes.Status200OK);
     }

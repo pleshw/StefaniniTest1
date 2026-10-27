@@ -128,6 +128,50 @@ public sealed class SessionTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
+    public async Task Login_WrongPassword_KeepsTheUserNameAndShowsTheErrorOnBothFields()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await BffFactory.SignInAsync(browser, "admin", "wrong");
+        var page = await response.Content.ReadAsStringAsync(Token);
+
+        page.ShouldContain("""<html lang="pt-BR">""");
+        page.ShouldContain("""<div id="login-error" class="error" role="alert">""");
+        page.ShouldContain("""id="username" name="username" value="admin" autocomplete="username" """);
+        page.ShouldContain("""type="password" autocomplete="current-password" required aria-invalid="true" aria-describedby="login-error" autofocus>""");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginForm_UserNameAfterAFailure_IsEncoded()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await BffFactory.SignInAsync(browser, "\"><script>", "wrong");
+        var page = await response.Content.ReadAsStringAsync(Token);
+
+        page.ShouldNotContain("\"><script>");
+        page.ShouldContain("value=\"&quot;&gt;&lt;script&gt;\"");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task LoginBackground_IsAWebpImageTheBrowserCaches()
+    {
+        var browser = _factory.CreateBrowser();
+
+        var response = await browser.GetAsync("/bff/login/background.webp", Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("image/webp");
+        response.Headers.CacheControl!.MaxAge.ShouldBe(TimeSpan.FromDays(1));
+        var image = await response.Content.ReadAsByteArrayAsync(Token);
+        image[..4].ShouldBe("RIFF"u8.ToArray());
+        image[8..12].ShouldBe("WEBP"u8.ToArray());
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public async Task Login_WithoutTheAntiforgeryToken_Returns400()
     {
         var browser = _factory.CreateBrowser();
@@ -148,6 +192,7 @@ public sealed class SessionTests : IAsyncDisposable
         var browser = factory.CreateBrowser();
 
         (await browser.GetAsync("/bff/login", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await browser.GetAsync("/bff/login/background.webp", Token)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
