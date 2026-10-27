@@ -12,13 +12,13 @@ Uma mensagem chega a `orders.dlq` depois de falhar três retentativas (5 s, 30 s
 4. Se o Orders recusar o replay, ou se não conseguir registrá-lo, a mensagem volta para a DLQ intacta; o erro aparece na tela.
 5. Confira que `rabbitmq.dlq.depth` voltou a 0 e que o pedido seguiu (Confirmed ou OnHold).
 
-Se a lista não abre, o Orders ou o RabbitMQ está fora do ar (a tela mostra "serviço indisponível"); veja o health do compose (`docker compose ps`) antes de insistir.
+Se a lista não abre, o Orders ou o RabbitMQ está fora do ar (a tela mostra a mensagem de erro do serviço, por exemplo "Messaging unavailable", com o botão "Tentar novamente"); veja o health do compose (`docker compose ps`) antes de insistir.
 
 ## Mudanças de regras
 
 As regras de desconto e de confirmação são dados editados no Admin (seções "Regras de desconto" e "Regras de confirmação").
 
-- **Cada gravação cria uma nova versão** da regra; a versão aberta na tela é a que vai no `If-Match`. Se outra pessoa gravou antes, a tela avisa ("alterado por outra pessoa") e recarrega a lista.
+- **Cada gravação cria uma nova versão** da regra; a versão aberta na tela é a que vai no `If-Match`. Se outra pessoa gravou antes, a tela avisa ("Esta regra foi alterada por outra pessoa. Recarregue a lista e abra-a novamente.") e recarrega a lista.
 - **Descontos:** use "Simular regra" antes de ativar; ela mostra a cotação com a regra, sem gravar. Um pedido já criado não é recalculado, e uma repetição da mesma `Idempotency-Key` devolve a resposta guardada.
 - **Regras de confirmação:** a API passa a usar a nova regra na hora; o Worker, depois de `Orders__Confirmation__CacheDuration` (5 s por padrão). Pedidos já retidos continuam retidos até um admin agir.
 - **Para desfazer:** grave de novo os valores anteriores (isso cria outra versão) ou desative a regra ("Desativar"). Não há exclusão.
@@ -28,8 +28,8 @@ As regras de desconto e de confirmação são dados editados no Admin (seções 
 
 As migrations do banco são compatíveis com a versão anterior (só adicionam; mudanças destrutivas exigem um ADR e duas releases), então reverter a versão não exige reverter o banco.
 
-- **Automática:** em staging e em produção o `deploy.yml` roda o smoke test depois do deploy e, se falhar, executa `scripts/deploy.sh <ambiente> --rollback`, que reaplica as imagens da release anterior (`releases/previous.env`).
-- **Manual:** `bash scripts/deploy.sh staging --rollback` (ou `production`), com a mesma chave SSH e o mesmo host do deploy. Só existe uma release anterior guardada; se não houver, o script avisa e não faz nada.
+- **Automática:** em staging e em produção o `deploy.yml` roda o smoke test depois do deploy e, se falhar, executa `scripts/deploy.sh <ambiente> --rollback`, que reaplica as imagens da release anterior (`releases/previous.env`). **Atenção:** o smoke test entra pelo login de desenvolvimento, que só o `docker-compose.yml` liga; em staging e em produção ele falha, então hoje todo deploy nesses ambientes terminaria em rollback até o smoke test ganhar outro jeito de autenticar.
+- **Manual:** `bash scripts/deploy.sh staging --rollback` (ou `production`), com a mesma chave SSH e o mesmo host do deploy. Só existe uma release anterior guardada; se não houver, o script avisa e sai com erro (código 1), sem mudar nada.
 - **Uma versão ruim chegou à produção:** reverta primeiro; depois corrija na `main` e libere uma tag nova. Uma tag `v*` nunca reconstrói imagens: ela promove as imagens que já passaram em staging.
 - **Se a causa for um índice criado por migration** (por exemplo `ix_orders_created`), o índice pode ser removido sem perda de dados (`DROP INDEX`), e o código anterior continua funcionando.
-- Depois de qualquer reversão, confira `/health/ready`, o smoke test e os alertas.
+- Depois de qualquer reversão, confira a saúde dos contêineres no host (`docker compose ps`; o `/health/ready` de cada serviço não passa pelo nginx), o smoke test e os alertas.

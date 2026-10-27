@@ -1,6 +1,6 @@
 # Quality
 
-This document gathers the evidence for the acceptance criteria and the state of mutation testing. The links point only to tests that exist in the repository; the official run is CI's (`ci / gate`), and a line that says "not evidenced" says what is missing, without hiding it.
+This document gathers the evidence for the acceptance criteria and the state of mutation testing. The links point only to tests that exist in the repository; the official run is CI's (the `gate` check, displayed as `ci / gate`), and a line that says "not evidenced" says what is missing, without hiding it.
 
 ## Acceptance criteria evidence
 

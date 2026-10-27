@@ -4,14 +4,14 @@ Oct 26, 2026 · Elyton Victor
 
 ## Summary
 
-A squad of 6 people (4.75 FTE) delivers the platform in 8 weeks for an estimated 128 person-days, which already includes a 10% contingency. Implementation is AI-assisted: Sonnet 5.5 writes each commit from the execution guide, and engineers review, test and merge. The runtime footprint is 10 containers, needing about 5 vCPU and 5.5 GB RAM on a developer machine, and is sized for 100 concurrent users and 50 orders per minute at peak.
+A squad of 6 people (4.75 FTE) delivers the platform in 8 weeks for an estimated 128 person-days, which already includes a 10% contingency. Implementation is AI-assisted: Claude Code (Sonnet 5.5 by default; some batches of steps ran on Opus 5.5) writes each commit from the execution guide, and engineers review, test and merge. The runtime footprint is 9 containers (8 long-running plus the run-once `orders-migrator`), needing about 4.5 vCPU and 4 GB RAM on a developer machine, and is sized for 100 concurrent users and 50 orders per minute at peak.
 
 | Figure | Value |
 | --- | --- |
 | Duration | 8 weeks (40 working days) |
 | Effort | 116 person-days + 12 contingency = 128 person-days |
 | Team | 6 people, 4.75 FTE average |
-| Containers | 10 locally (2 more under the observability profile) |
+| Containers | 9 locally, including the run-once `orders-migrator` (2 more under the `observability` profile and `k6` under the `load` profile) |
 | Peak load target | 100 concurrent users, 50 orders/min, 20 price lookups/s |
 | Latency targets (p95) | Create order < 300 ms, price batch < 50 ms, list orders < 200 ms |
 
@@ -27,7 +27,7 @@ The estimates hold only while these premises hold; any change to one is a re-est
 - Both shoppers and admins create orders. Admins create orders on behalf of a client and can confirm or block orders from the Admin page.
 - Multi-currency: each order carries one currency, and Catalog holds a price per SKU per currency. BRL is the default.
 - Order confirmation is automatic by rule in Orders.Worker; admins can override (confirm or block) from the UI.
-- Retention: idempotency keys 24 h, published outbox rows 30 days.
+- Retention: idempotency keys 24 h, event log rows (`order_event_log`) 30 days; Wolverine takes care of outbox rows once they are sent.
 - Out of scope: payment gateway, stock reservation, e-mail notifications, production cloud infrastructure (only a container-ready staging target is assumed).
 
 **Load and data**
@@ -39,14 +39,14 @@ The estimates hold only while these premises hold; any change to one is a re-est
 **Delivery**
 
 - 5 working days per week, 6 productive hours per day; 25% of capacity goes to ceremonies, reviews and support.
-- Implementation is AI-assisted: Sonnet 5.5 produces each commit from the execution guide; a human reviews every PR. Without AI assistance, multiply effort by about 1.6.
+- Implementation is AI-assisted: Claude Code (Sonnet 5.5 by default, Opus 5.5 in some batches; see the [evidence](05-ai-development.md#implementation-sessions)) produces each commit from the execution guide; a human reviews every PR. Without AI assistance, multiply effort by about 1.6.
 - One repository, trunk-based development, GitHub Actions as CI/CD, GitHub Environments for `staging` and `production` with required reviewers.
 - The team has Docker-capable machines with 16 GB RAM or more.
 - A Product Owner from the business is available for 4 hours a week for acceptance and for decisions on discount rules and confirmation rules.
 
 ## Architecture
 
-Nine runtime components, of which only nginx is exposed on the host. Synchronous calls carry requests and price checks; RabbitMQ carries side effects to the Worker and the Admin live feed.
+Eight runtime components (plus `orders-migrator`, which applies the migrations and exits), of which only nginx is exposed on the host in the default profile. Synchronous calls carry requests and price checks; RabbitMQ carries side effects to the Worker and the Admin live feed.
 
 ```mermaid
 flowchart TB
@@ -83,7 +83,7 @@ Orders.Worker applies the confirmation rule automatically. Orders the rule flags
 
 ## Runtime sizing
 
-Locally the stack needs about 5 vCPU and 5.5 GB RAM; a production-like staging doubles the stateless services and runs data stores in their highly available form. Limits below are compose `deploy.resources.limits` and the starting point for staging.
+Locally the stack needs about 4.5 vCPU and 4 GB RAM (5 vCPU and 4.5 GB with the `observability` profile); a production-like staging doubles the stateless services and runs data stores in their highly available form. Limits below are sizing targets and the starting point for staging; the compose does not apply them as `deploy.resources.limits` yet.
 
 | Component | Replicas local / staging | CPU limit | Memory limit | Storage | Throughput target |
 | --- | --- | --- | --- | --- | --- |
@@ -95,13 +95,12 @@ Locally the stack needs about 5 vCPU and 5.5 GB RAM; a production-like staging d
 | PostgreSQL 17 | 1 / 1 primary + 1 replica | 1.0 | 1 GB | 10 GB volume, +250 MB/month | 200 connections max, pool 20 per service |
 | MongoDB 8 | 1 (rs0) / 3-node replica set | 1.0 | 1 GB | 5 GB volume | 10,000 SKUs in working set |
 | RabbitMQ 4 | 1 / 3 nodes (quorum) | 0.5 | 512 MB | 2 GB volume | 50 msg/s sustained |
-| Keycloak (dev identity) | 1 / 1 | 0.5 | 768 MB | uses Postgres | - |
 | OTel Collector + Aspire Dashboard (profile) | 1 / 1 | 0.5 | 512 MB | in-memory | - |
 
 Capacity notes:
 
-- Data growth: Postgres grows about 250 MB a month at 50,000 orders; idempotency rows (24 h) stay under 5 MB and published outbox rows (30 days) under 100 MB thanks to the cleanup job.
-- Connection budget: 2 Orders API + 2 Worker + 1 migrator + Keycloak stay under 100 Postgres connections with pools of 20.
+- Data growth: Postgres grows about 250 MB a month at 50,000 orders; idempotency rows (24 h) stay under 5 MB and event log rows (30 days) under 100 MB thanks to the Worker's cleanup job.
+- Connection budget: 2 Orders API + 2 Worker + 1 migrator stay under 100 Postgres connections with pools of 20.
 - Scale-out path: Orders API, BFF, Worker and Catalog are stateless and scale horizontally; SSE connections pin to a BFF instance, and each instance has its own RabbitMQ feed queue.
 - Developer machine: 16 GB RAM minimum, Docker Desktop with WSL 2 set to at least 6 GB.
 
@@ -179,7 +178,7 @@ The 12 person-day contingency covers one medium risk; two or more materialising 
 | Multi-currency rules grow (conversion, rounding per currency) | Medium | +5 | Keep one currency per order, no conversion; price per SKU per currency in Catalog |
 | Confirmation rules become a rule engine of their own | Medium | +6 | Reuse the discount engine's specification model for confirmation conditions |
 | AI-generated commits need heavy rework | Medium | +8 | Small commits, strict definition of done, Tech Lead reviews Domain and messaging PRs |
-| Keycloak or auth integration friction | Low | +3 | Pre-built realm export committed in Phase 0 |
+| Keycloak or auth integration friction | Low | +3 | Pre-built realm export committed in Phase 0. At delivery, Keycloak was replaced by a placeholder BFF sign-in (C40), and the export was not created |
 | Front-end accessibility fixes late | Low | +3 | axe checks from the first view, not at the end |
 | Mid-level engineer unavailable for 2+ weeks | Low | +10 | Senior back-end picks up Catalog/BFF; front-end start slips to week 4 |
 
