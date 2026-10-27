@@ -14,6 +14,7 @@ import { timelineOf } from '../../shared/domain/orderTimeline';
 import type { TimelineEntry } from '../../shared/domain/timeline';
 import { askReason } from '../../shared/ui/dialog';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import { renderOrderDetail } from '../../shared/ui/orderDetail';
 
@@ -29,6 +30,14 @@ export interface Inspector {
 }
 
 const maxReasonLength = 500;
+
+/** Each action's colour and icon: confirming is the positive one, blocking and cancelling the destructive ones. */
+const actionLooks: Readonly<Record<OrderAction, { className: string; icon: string }>> = {
+  confirm: { className: 'btn-success', icon: 'bi-check-circle' },
+  hold: { className: 'btn-outline-secondary', icon: 'bi-pause-circle' },
+  block: { className: 'btn-outline-danger', icon: 'bi-slash-circle' },
+  cancel: { className: 'btn-outline-danger', icon: 'bi-x-circle' },
+};
 
 const actionTexts: Readonly<
   Record<OrderAction, { button: string; title: (number: string) => string; confirm: string }>
@@ -65,11 +74,14 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
   let busy = false;
   let generation = 0;
 
-  const heading = h('h2', {
-    className: 'h4',
-    text: 'Inspetor de pedidos',
-    attrs: { id: 'inspector-heading', tabindex: '-1' },
-  });
+  const heading = withIcon(
+    h('h2', {
+      className: 'h4',
+      text: 'Inspetor de pedidos',
+      attrs: { id: 'inspector-heading', tabindex: '-1' },
+    }),
+    'bi-search',
+  );
   const body = h('div');
   container.append(
     h('section', { attrs: { 'aria-labelledby': 'inspector-heading' } }, heading, body),
@@ -132,11 +144,15 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
       });
       alert.append(h('span', { text: actionError.message }));
       if (actionError.stale) {
-        const reload = h('button', {
-          className: 'btn btn-sm btn-outline-danger ms-auto',
-          text: 'Recarregar',
-          attrs: { type: 'button' },
-        });
+        const reload = withIcon(
+          h('button', {
+            className: 'btn btn-sm btn-outline-danger ms-auto',
+            text: 'Recarregar',
+            attrs: { type: 'button' },
+          }),
+          'bi-arrow-clockwise',
+          'me-1',
+        );
         reload.addEventListener('click', () => {
           actionError = undefined;
           if (orderId !== undefined) {
@@ -153,11 +169,15 @@ export function mountInspector(container: HTMLElement, options: InspectorOptions
 
   function actionButtons(status: string, number: string): HTMLElement {
     const buttons = actionsFor(status).map((action) => {
-      const button = h('button', {
-        className: 'btn btn-outline-primary btn-sm',
-        text: actionTexts[action].button,
-        attrs: { type: 'button' },
-      });
+      const button = withIcon(
+        h('button', {
+          className: `btn btn-sm ${actionLooks[action].className}`,
+          text: actionTexts[action].button,
+          attrs: { type: 'button' },
+        }),
+        actionLooks[action].icon,
+        'me-1',
+      );
       button.disabled = busy;
       button.addEventListener('click', () => void run(action, number));
 

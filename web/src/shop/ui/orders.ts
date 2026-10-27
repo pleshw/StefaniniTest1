@@ -4,6 +4,7 @@ import { formatDateTime } from '../../shared/domain/dates';
 import { formatMoney } from '../../shared/domain/money';
 import { timelineOf } from '../../shared/domain/orderTimeline';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import { statusBadge } from '../../shared/ui/status';
 import { renderOrderDetail } from '../../shared/ui/orderDetail';
@@ -33,11 +34,14 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
   let openedId: string | undefined;
   const buttons = new Map<string, HTMLButtonElement>();
 
-  const heading = h('h2', {
-    className: 'h4',
-    text: 'Meus pedidos',
-    attrs: { id: 'orders-heading', tabindex: '-1' },
-  });
+  const heading = withIcon(
+    h('h2', {
+      className: 'h4',
+      text: 'Meus pedidos',
+      attrs: { id: 'orders-heading', tabindex: '-1' },
+    }),
+    'bi-receipt',
+  );
   const status = h('p', { className: 'text-body-secondary', attrs: { role: 'status' } });
   const alertBox = h('div', {
     className: 'alert alert-danger d-flex align-items-center gap-3',
@@ -61,11 +65,15 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
     ),
     body,
   );
-  const more = h('button', {
-    className: 'btn btn-outline-primary',
-    text: 'Carregar mais',
-    attrs: { type: 'button' },
-  });
+  const more = withIcon(
+    h('button', {
+      className: 'btn btn-outline-primary',
+      text: 'Carregar mais',
+      attrs: { type: 'button' },
+    }),
+    'bi-chevron-double-down',
+    'me-1',
+  );
   const listPanel = h('div', {}, status, alertBox, table, more);
   const detailPanel = h('div');
   detailPanel.hidden = true;
@@ -212,11 +220,15 @@ export function mountOrders(container: HTMLElement, options: OrdersViewOptions):
 }
 
 function retryButton(onClick: () => void): HTMLButtonElement {
-  const button = h('button', {
-    className: 'btn btn-sm btn-outline-danger ms-auto',
-    text: 'Tentar novamente',
-    attrs: { type: 'button' },
-  });
+  const button = withIcon(
+    h('button', {
+      className: 'btn btn-sm btn-outline-danger ms-auto',
+      text: 'Tentar novamente',
+      attrs: { type: 'button' },
+    }),
+    'bi-arrow-clockwise',
+    'me-1',
+  );
   button.addEventListener('click', onClick);
 
   return button;

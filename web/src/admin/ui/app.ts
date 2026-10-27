@@ -1,26 +1,98 @@
-import { createHttpClient, type HttpClient } from '../../shared/api/http';
+import { createHttpClient, loginUrl, type HttpClient } from '../../shared/api/http';
 import type { EventSourceLike } from '../../shared/api/sse';
 import { createIdempotencyKeys } from '../../shared/domain/idempotency';
 import { h } from '../../shared/ui/dom';
-import { renderShell } from '../../shared/ui/layout';
 import { pageLinks } from '../../shared/ui/pages';
 import { createCart } from '../../shop/domain/cart';
 import { mountCatalogEditor } from './catalogEditor';
 import { mountConfirmationRules } from './confirmationRules';
 import { mountCreateOrder } from './createOrder';
 import { mountDeadLetters } from './deadLetters';
-import { mountDiscountRules } from './discountRules';
+import { mountDiscountRules, type DiscountRulesView } from './discountRules';
+import { mountDiscountSimulation, type DiscountSimulation } from './discountSimulation';
 import { mountInspector } from './inspector';
 import { mountLiveEvents } from './liveEvents';
 import { mountOnHold } from './onHold';
+import { renderAdminShell, type MenuGroup } from './shell';
 
 export interface AdminDependencies {
   readonly http: HttpClient;
   /** Opens the event stream; the browser's EventSource by default. */
   readonly createSource?: (url: string) => EventSourceLike;
+  /** Leaves the page after signing out; the browser's location by default. */
+  readonly navigate?: (url: string) => void;
 }
 
-type Section = 'live' | 'create' | 'discounts' | 'confirmation' | 'deadLetters' | 'catalog';
+type Section =
+  'live' | 'create' | 'discounts' | 'simulation' | 'confirmation' | 'deadLetters' | 'catalog';
+
+/** The side menu: every section, grouped by what an admin does there, with what each one is for. */
+const menu: readonly MenuGroup<Section>[] = [
+  {
+    title: 'Acompanhamento',
+    items: [
+      {
+        section: 'live',
+        label: 'Eventos ao vivo',
+        icon: 'bi-broadcast',
+        hint: 'Pedidos em tempo real, fila em espera e inspetor',
+      },
+    ],
+  },
+  {
+    title: 'Pedidos',
+    items: [
+      {
+        section: 'create',
+        label: 'Criar pedido',
+        icon: 'bi-cart-plus',
+        hint: 'Fazer um pedido em nome de um cliente',
+      },
+    ],
+  },
+  {
+    title: 'Regras',
+    items: [
+      {
+        section: 'discounts',
+        label: 'Regras de desconto',
+        icon: 'bi-percent',
+        hint: 'Descontos aplicados ao carrinho',
+        children: [
+          {
+            section: 'simulation',
+            label: 'Simulação',
+            icon: 'bi-calculator',
+            hint: 'Teste um carrinho de exemplo',
+          },
+        ],
+      },
+      {
+        section: 'confirmation',
+        label: 'Regras de confirmação',
+        icon: 'bi-shield-check',
+        hint: 'Quando um pedido fica em espera',
+      },
+    ],
+  },
+  {
+    title: 'Catálogo e mensagens',
+    items: [
+      {
+        section: 'catalog',
+        label: 'Catálogo',
+        icon: 'bi-box-seam',
+        hint: 'Nome, categoria e preços dos produtos',
+      },
+      {
+        section: 'deadLetters',
+        label: 'Mensagens mortas',
+        icon: 'bi-envelope-exclamation',
+        hint: 'Mensagens que falharam e o reprocessamento',
+      },
+    ],
+  },
+];
 
 /**
  * The Admin page. Live events with the OnHold queue and the order inspector sit together, because an admin goes from
@@ -32,12 +104,37 @@ export function mountAdmin(
   dependencies: AdminDependencies = { http: createHttpClient() },
 ): void {
   const { http } = dependencies;
-  const { content } = renderShell(root, 'Administração', pageLinks);
+  const shell = renderAdminShell(root, 'Administração', menu, pageLinks);
+  const { content } = shell;
+  const navigate =
+    dependencies.navigate ??
+    ((url: string) => {
+      window.location.assign(url);
+    });
+  void http.get<{ name: string }>('/bff/user').then(
+    (user) => {
+      shell.user.textContent = user.name;
+    },
+    () => {
+      shell.user.textContent = '';
+    },
+  );
+  shell.signOut.addEventListener('click', () => {
+    shell.signOut.disabled = true;
+    // Whatever the answer, the next page is the sign-in page: a session that is already gone is signed out as well.
+    void http
+      .send('/bff/logout', { method: 'POST' })
+      .catch(() => undefined)
+      .finally(() => {
+        navigate(loginUrl('/admin.html'));
+      });
+  });
 
-  const live = h('div', { className: 'col-lg-7' });
-  const side = h('div', { className: 'col-lg-5 d-grid gap-4 align-content-start' });
-  const queue = h('div');
-  const inspectorBox = h('div');
+  const liveBox = h('div', { className: 'admin-panel' });
+  const live = h('div', { className: 'col-xl-7' }, liveBox);
+  const side = h('div', { className: 'col-xl-5 d-grid gap-4 align-content-start' });
+  const queue = h('div', { className: 'admin-panel' });
+  const inspectorBox = h('div', { className: 'admin-panel' });
   side.append(queue, inspectorBox);
   const monitoring = h('div', { className: 'row g-4' }, live, side);
   const inspector = mountInspector(inspectorBox, {
@@ -47,7 +144,7 @@ export function mountAdmin(
     },
   });
   const onHold = mountOnHold(queue, { http, onInspect: inspector.open });
-  mountLiveEvents(live, {
+  mountLiveEvents(liveBox, {
     http,
     onInspect: inspector.open,
     // A queue changes when an order enters or leaves OnHold.
@@ -59,16 +156,12 @@ export function mountAdmin(
     ...(dependencies.createSource === undefined ? {} : { createSource: dependencies.createSource }),
   });
 
-  /** The sections other than the live view: where each one lives, how it is built and the button that opens it. */
+  /** The sections other than the live view: where each one lives and how it is built. */
   const lazy: Readonly<
-    Record<
-      Exclude<Section, 'live'>,
-      { label: string; box: HTMLElement; mount: (box: HTMLElement) => void }
-    >
+    Record<Exclude<Section, 'live'>, { box: HTMLElement; mount: (box: HTMLElement) => void }>
   > = {
     create: {
-      label: 'Criar pedido',
-      box: h('div'),
+      box: h('div', { className: 'admin-panel' }),
       mount: (box) => {
         mountCreateOrder(box, {
           http,
@@ -78,39 +171,51 @@ export function mountAdmin(
       },
     },
     discounts: {
-      label: 'Regras de desconto',
-      box: h('div'),
+      box: h('div', { className: 'admin-panel' }),
       mount: (box) => {
-        mountDiscountRules(box, { http });
+        discountRules = mountDiscountRules(box, {
+          http,
+          onSimulate: (draft) => {
+            show('simulation');
+            simulation?.simulate(draft);
+          },
+        });
+      },
+    },
+    simulation: {
+      box: h('div', { className: 'admin-panel' }),
+      mount: (box) => {
+        simulation = mountDiscountSimulation(box, {
+          http,
+          onBack: () => {
+            show('discounts');
+            discountRules?.resume();
+          },
+        });
       },
     },
     confirmation: {
-      label: 'Regras de confirmação',
-      box: h('div'),
+      box: h('div', { className: 'admin-panel' }),
       mount: (box) => {
         mountConfirmationRules(box, { http });
       },
     },
     deadLetters: {
-      label: 'Mensagens mortas',
-      box: h('div'),
+      box: h('div', { className: 'admin-panel' }),
       mount: (box) => {
         mountDeadLetters(box, { http });
       },
     },
     catalog: {
-      label: 'Catálogo',
-      box: h('div'),
+      box: h('div', { className: 'admin-panel' }),
       mount: (box) => {
         mountCatalogEditor(box, { http });
       },
     },
   };
   const mounted = new Set<Section>();
-  const buttons = new Map<Section, HTMLButtonElement>([['live', sectionButton('Eventos ao vivo')]]);
-  for (const [section, { label }] of Object.entries(lazy)) {
-    buttons.set(section as Section, sectionButton(label));
-  }
+  let discountRules: DiscountRulesView | undefined;
+  let simulation: DiscountSimulation | undefined;
 
   const show = (section: Section): void => {
     monitoring.hidden = section !== 'live';
@@ -119,34 +224,19 @@ export function mountAdmin(
       if (name === section && !mounted.has(section)) {
         mounted.add(section);
         mount(box);
+      } else if (name === section && section === 'simulation') {
+        // The rules may have changed in the other section since the simulation last read them.
+        simulation?.refresh();
       }
     }
-    for (const [name, button] of buttons) {
-      button.classList.toggle('active', name === section);
-      button.setAttribute('aria-current', String(name === section));
-    }
+    shell.select(section);
   };
-  for (const [section, button] of buttons) {
+  for (const [section, button] of shell.buttons) {
     button.addEventListener('click', () => {
       show(section);
     });
   }
 
-  content.append(
-    h(
-      'div',
-      {
-        className: 'nav nav-pills mb-3',
-        attrs: { role: 'group', 'aria-label': 'Seções da administração' },
-      },
-      ...buttons.values(),
-    ),
-    monitoring,
-    ...Object.values(lazy).map(({ box }) => box),
-  );
+  content.append(monitoring, ...Object.values(lazy).map(({ box }) => box));
   show('live');
-}
-
-function sectionButton(label: string): HTMLButtonElement {
-  return h('button', { className: 'nav-link', text: label, attrs: { type: 'button' } });
 }

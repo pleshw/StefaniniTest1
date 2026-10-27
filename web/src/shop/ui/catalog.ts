@@ -1,6 +1,7 @@
 import type { HttpClient } from '../../shared/api/http';
 import { formatMoney } from '../../shared/domain/money';
 import { h } from '../../shared/ui/dom';
+import { withIcon } from '../../shared/ui/icons';
 import { errorMessage } from '../../shared/ui/errors';
 import { listProducts, type ShopProduct } from '../api/catalog';
 
@@ -59,7 +60,11 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
     h(
       'div',
       { className: 'col-12 col-md-auto' },
-      h('button', { className: 'btn btn-primary', text: 'Buscar', attrs: { type: 'submit' } }),
+      withIcon(
+        h('button', { className: 'btn btn-primary', text: 'Buscar', attrs: { type: 'submit' } }),
+        'bi-search',
+        'me-1',
+      ),
     ),
   );
   const status = h('p', { className: 'text-body-secondary', attrs: { role: 'status' } });
@@ -71,17 +76,24 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
   const list = h('ul', {
     className: 'row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 list-unstyled',
   });
-  const more = h('button', {
-    className: 'btn btn-outline-primary',
-    text: 'Carregar mais',
-    attrs: { type: 'button' },
-  });
+  const more = withIcon(
+    h('button', {
+      className: 'btn btn-outline-primary',
+      text: 'Carregar mais',
+      attrs: { type: 'button' },
+    }),
+    'bi-chevron-double-down',
+    'me-1',
+  );
 
   container.append(
     h(
       'section',
       { attrs: { 'aria-labelledby': 'catalog-heading' } },
-      h('h2', { className: 'h4', text: 'Catálogo', attrs: { id: 'catalog-heading' } }),
+      withIcon(
+        h('h2', { className: 'h4', text: 'Catálogo', attrs: { id: 'catalog-heading' } }),
+        'bi-grid-3x3-gap',
+      ),
       form,
       status,
       alertBox,
@@ -117,11 +129,15 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
   }
 
   function retryButton(): HTMLButtonElement {
-    const button = h('button', {
-      className: 'btn btn-sm btn-outline-danger ms-auto',
-      text: 'Tentar novamente',
-      attrs: { type: 'button' },
-    });
+    const button = withIcon(
+      h('button', {
+        className: 'btn btn-sm btn-outline-danger ms-auto',
+        text: 'Tentar novamente',
+        attrs: { type: 'button' },
+      }),
+      'bi-arrow-clockwise',
+      'me-1',
+    );
     button.addEventListener('click', () => void load(loadingMore));
 
     return button;
@@ -141,7 +157,7 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
   function card(product: ShopProduct): HTMLElement {
     const add = h('button', {
       className: 'btn btn-primary mt-auto',
-      attrs: { type: 'button', 'aria-label': `Adicionar ${product.name} ao carrinho` },
+      attrs: { type: 'button', 'aria-label': `Adicionar ao carrinho: ${product.name}` },
     });
     add.append(
       h('i', { className: 'bi bi-cart-plus me-1', attrs: { 'aria-hidden': 'true' } }),
@@ -162,10 +178,14 @@ export function mountCatalog(container: HTMLElement, options: CatalogOptions): v
           'div',
           { className: 'card-body d-flex flex-column gap-2' },
           h('h3', { className: 'h5 card-title mb-0', text: product.name }),
-          h('span', {
-            className: 'badge text-bg-secondary align-self-start',
-            text: product.category,
-          }),
+          withIcon(
+            h('span', {
+              className: 'badge text-bg-secondary align-self-start',
+              text: product.category,
+            }),
+            'bi-tag',
+            'me-1',
+          ),
           h('p', { className: 'card-text', text: product.description }),
           h('p', {
             className: 'fs-5 fw-semibold mb-0',

@@ -13,7 +13,7 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { server } from '../../mocks/server';
 import type { DiscountRule } from '../../src/admin/api/rules';
-import { mountDiscountRules } from '../../src/admin/ui/discountRules';
+import { mountDiscountRules, type DiscountDraft } from '../../src/admin/ui/discountRules';
 import { createHttpClient } from '../../src/shared/api/http';
 import { expectAccessible } from '../helpers';
 
@@ -481,152 +481,69 @@ describe('discount rule editor', () => {
   });
 });
 
-describe('preview', () => {
-  const quote = {
-    currency: 'BRL',
-    itemCount: 2,
-    subtotal: 200,
-    discountTotal: 20,
-    total: 180,
-    items: [],
-  };
+describe('simulating from the editor', () => {
+  function mountWith(onSimulate?: (draft: DiscountDraft) => void) {
+    const container = document.createElement('div');
+    document.body.append(container);
+    mountDiscountRules(container, {
+      http: createHttpClient({ sleep: () => Promise.resolve() }),
+      ...(onSimulate === undefined ? {} : { onSimulate }),
+    });
 
-  async function openPreview(existing?: DiscountRule) {
-    useRules(existing === undefined ? [] : [existing]);
-    const container = mount();
-    if (existing === undefined) {
-      fireEvent.click(await findByRole(container, 'button', { name: 'Nova regra' }));
-    } else {
-      fireEvent.click(await findByRole(container, 'button', { name: `Editar ${existing.name}` }));
-    }
-
-    return { container, form: getByRole(container, 'form', { name: 'Editor de regra' }) };
+    return container;
   }
 
-  it('prices a sample cart with the rule being edited, and names the rules applied', async () => {
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.post('*/bff/admin/discount-rules/preview', async ({ request }) => {
-        body = (await request.json()) as typeof body;
-        return HttpResponse.json({
-          quote,
-          applied: [{ ruleId: 'r1', ruleVersion: 3, amount: 20 }],
-        });
-      }),
-    );
-    const { form } = await openPreview(rule());
-    fill(form, 'Percentual', '10');
-    fill(form, 'SKU da simulação', 'DESK-1');
-    fill(form, 'Quantidade da simulação', '2');
+  it('hands over the rule as it is in the form, with the saved rule it would replace', async () => {
+    useRules([rule()]);
+    const onSimulate = vi.fn<(draft: DiscountDraft) => void>();
+    const container = mountWith(onSimulate);
+    fireEvent.click(await findByRole(container, 'button', { name: 'Editar Ten off' }));
+    const form = getByRole(container, 'form', { name: 'Editor de regra' });
+    fill(form, 'Percentual', '15');
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular esta regra' }));
 
-    const result = await findByRole(form, 'region', { name: 'Resultado da simulação' });
-    expect(result.textContent).toContain('Subtotal');
-    expect(result.textContent).toContain('R$ 200,00');
-    expect(result.textContent).toContain('R$ 180,00');
-    expect(result.textContent).toContain('Ten off (versão 3): -R$ 20,00');
-    expect(body).toMatchObject({
-      currency: 'BRL',
-      items: [{ sku: 'DESK-1', quantity: 2 }],
-      ruleId: 'r1',
-      rule: {
-        name: 'Ten off',
-        type: 'Percentage',
-        parameters: { percent: 10, appliesTo: 'order' },
-      },
+    expect(onSimulate).toHaveBeenCalledOnce();
+    const draft = onSimulate.mock.calls[0]?.[0];
+    expect(draft?.existing?.id).toBe('r1');
+    expect(draft?.definition).toMatchObject({
+      name: 'Ten off',
+      parameters: { percent: 15, appliesTo: 'order' },
     });
   });
 
-  it('previews a new rule without a rule id, and says when no rule applies', async () => {
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.post('*/bff/admin/discount-rules/preview', async ({ request }) => {
-        body = (await request.json()) as typeof body;
-        return HttpResponse.json({
-          quote: { ...quote, discountTotal: 0, total: 200 },
-          applied: [],
-        });
-      }),
-    );
-    const { form } = await openPreview();
-    fill(form, 'Nome', 'Draft');
-    fill(form, 'Percentual', '10');
-    fill(form, 'SKU da simulação', 'DESK-1');
+  it('lists what to fix instead of simulating an invalid rule', async () => {
+    useRules([]);
+    const onSimulate = vi.fn<(draft: DiscountDraft) => void>();
+    const container = mountWith(onSimulate);
+    const form = await openNew(container);
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
+    fireEvent.click(getByRole(form, 'button', { name: 'Simular esta regra' }));
 
-    expect(
-      (await findByRole(form, 'region', { name: 'Resultado da simulação' })).textContent,
-    ).toContain('Nenhuma regra se aplica a este carrinho.');
-    expect(body).not.toHaveProperty('ruleId');
-  });
-
-  it('shows the rule being edited by its form name and an unknown rule by its id', async () => {
-    server.use(
-      http.post('*/bff/admin/discount-rules/preview', () =>
-        HttpResponse.json({
-          quote,
-          applied: [{ ruleId: 'other-rule-id', ruleVersion: 1, amount: 5 }],
-        }),
-      ),
-    );
-    const { form } = await openPreview();
-    fill(form, 'Nome', 'Draft');
-    fill(form, 'Percentual', '10');
-    fill(form, 'SKU da simulação', 'DESK-1');
-
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
-
-    expect(
-      (await findByRole(form, 'region', { name: 'Resultado da simulação' })).textContent,
-    ).toContain('other-ru (versão 1): -R$ 5,00');
-  });
-
-  it('asks for a SKU first, adds and removes items, and does not preview an invalid rule', async () => {
-    let calls = 0;
-    server.use(
-      http.post('*/bff/admin/discount-rules/preview', () => {
-        calls++;
-        return HttpResponse.json({ quote, applied: [] });
-      }),
-    );
-    const { form } = await openPreview();
-
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
     expect(getByRole(form, 'alert').textContent).toContain('O nome é obrigatório.');
-
-    fill(form, 'Nome', 'Draft');
-    fill(form, 'Percentual', '10');
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
-    expect(getByRole(form, 'alert').textContent).toContain(
-      'Adicione ao carrinho de exemplo pelo menos um SKU com quantidade 1 ou mais.',
-    );
-
-    fireEvent.click(getByRole(form, 'button', { name: 'Adicionar item de exemplo' }));
-    expect(getAllByLabelText(form, 'SKU da simulação')).toHaveLength(2);
-    fireEvent.click(getByRole(form, 'button', { name: 'Remover item de exemplo 2' }));
-    expect(getAllByLabelText(form, 'SKU da simulação')).toHaveLength(1);
-    expect(calls).toBe(0);
+    expect(onSimulate).not.toHaveBeenCalled();
   });
 
-  it("shows Orders' answer when the preview fails", async () => {
-    server.use(
-      http.post('*/bff/admin/discount-rules/preview', () =>
-        HttpResponse.json(
-          { title: 'Unprocessable', detail: 'SKU NOPE does not exist.' },
-          { status: 422 },
-        ),
-      ),
-    );
-    const { form } = await openPreview();
-    fill(form, 'Nome', 'Draft');
-    fill(form, 'Percentual', '10');
-    fill(form, 'SKU da simulação', 'NOPE');
+  it('has no simulation step when nothing can simulate', async () => {
+    useRules([]);
+    const form = await openNew(mountWith());
 
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
+    expect(queryByRole(form, 'button', { name: 'Simular esta regra' })).toBeNull();
+  });
 
-    expect((await findByRole(form, 'alert')).textContent).toContain('SKU NOPE does not exist.');
+  it('puts the focus back on the simulation button when the person returns', async () => {
+    useRules([]);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const view = mountDiscountRules(container, {
+      http: createHttpClient({ sleep: () => Promise.resolve() }),
+      onSimulate: () => undefined,
+    });
+    const form = await openNew(container);
+
+    view.resume();
+
+    expect(document.activeElement).toBe(getByRole(form, 'button', { name: 'Simular esta regra' }));
   });
 });
 
@@ -676,23 +593,8 @@ describe('deactivating a rule', () => {
 });
 
 describe('discount rules accessibility', () => {
-  it('has no violations in the list, the editor of each type with conditions, and the preview', async () => {
+  it('has no violations in the list and the editor of each type with conditions', async () => {
     useRules([rule()]);
-    server.use(
-      http.post('*/bff/admin/discount-rules/preview', () =>
-        HttpResponse.json({
-          quote: {
-            currency: 'BRL',
-            itemCount: 1,
-            subtotal: 10,
-            discountTotal: 1,
-            total: 9,
-            items: [],
-          },
-          applied: [{ ruleId: 'r1', ruleVersion: 2, amount: 1 }],
-        }),
-      ),
-    );
     const container = mount();
     await findByRole(container, 'button', { name: 'Editar Ten off' });
     await expectAccessible(container);
@@ -703,11 +605,6 @@ describe('discount rules accessibility', () => {
       type(form, kind);
       await expectAccessible(form);
     }
-    fill(form, 'Percentual', '10');
-    fill(form, 'SKU da simulação', 'A');
-    fireEvent.click(getByRole(form, 'button', { name: 'Simular regra' }));
-    await findByRole(form, 'region', { name: 'Resultado da simulação' });
-    await expectAccessible(form);
     for (const kind of ['SkuIn', 'MinQuantity', 'DateWindow', 'ChannelIs', 'FirstOrderOfClient']) {
       fireEvent.change(getByLabelText(form, 'Tipo de condição'), { target: { value: kind } });
       fireEvent.click(getByRole(form, 'button', { name: 'Adicionar condição' }));
