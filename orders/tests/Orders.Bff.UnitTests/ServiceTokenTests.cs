@@ -38,22 +38,23 @@ public sealed class ServiceTokenTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
-    public async Task ForwardedRequest_Anonymous_CarriesNoTokenEvenWhenTheBrowserSentOne()
+    public async Task ForwardedRequest_BrowserSentAToken_CarriesTheBffTokenInstead()
     {
-        var browser = _factory.CreateBrowser();
+        var browser = await SignedInBrowser("admin", BffFactory.AdminPassword);
         using var request = new HttpRequestMessage(HttpMethod.Get, "/bff/admin/dead-letters");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "forged");
 
         await browser.SendAsync(request, Token);
 
-        _factory.Downstream.Requests.ShouldHaveSingleItem().Headers.ContainsKey("Authorization").ShouldBeFalse();
+        var token = await Validate(BearerOf(_factory.Downstream.Requests.ShouldHaveSingleItem()), ServiceTokens.OrdersAudience);
+        token.GetClaim("name").Value.ShouldBe("admin");
     }
 
     [Fact]
     [Trait("Category", "Unit")]
     public async Task ForwardedRequests_SameUserAndService_ReuseTheCachedToken()
     {
-        var browser = await SignedInBrowser("shopper", BffFactory.ShopperPassword);
+        var browser = await SignedInBrowser("admin", BffFactory.AdminPassword);
 
         await Send(browser, "/bff/admin/dead-letters");
         await Send(browser, "/bff/admin/confirmation-rules");

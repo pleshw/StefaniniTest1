@@ -56,38 +56,11 @@ internal static class ShopEndpoints
 
     /// <summary>
     /// Forwarded as it came, because Orders' answer is the contract: 201 with the order, the stored answer on a replay of
-    /// the same key, 409 or 422 otherwise. The body is buffered so a retry can send it again with the same key.
+    /// the same key, 409 or 422 otherwise.
     /// </summary>
-    private static async Task<IResult> PlaceOrder(HttpContext context, IHttpClientFactory clients, CancellationToken cancellationToken)
-    {
-        using var body = new MemoryStream();
-        await context.Request.Body.CopyToAsync(body, cancellationToken);
-        using var request = new HttpRequestMessage(HttpMethod.Post, _ordersPath) { Content = new ByteArrayContent(body.ToArray()) };
-        request.Content.Headers.TryAddWithoutValidation("Content-Type", context.Request.ContentType ?? "application/json");
-
-        if (context.Request.Headers.TryGetValue("Idempotency-Key", out var key))
-        {
-            request.Headers.TryAddWithoutValidation("Idempotency-Key", key.ToString());
-        }
-
-        try
-        {
-            using var response = await clients.CreateClient(BffClients.OrdersClientName).SendAsync(request, cancellationToken);
-            var location = response.Headers.Location?.OriginalString is { } path && path.StartsWith(_ordersPath, StringComparison.Ordinal)
-                ? _shopOrdersPath + path[_ordersPath.Length..]
-                : null;
-
-            return new PassthroughResult(
-                (int)response.StatusCode,
-                await response.Content.ReadAsStringAsync(cancellationToken),
-                response.Content.Headers.ContentType?.ToString(),
-                location);
-        }
-        catch (Exception error) when (Downstream.IsUnavailable(error, cancellationToken))
-        {
-            return Downstream.Unavailable("Orders");
-        }
-    }
+    private static Task<IResult> PlaceOrder(HttpContext context, IHttpClientFactory clients, CancellationToken cancellationToken) =>
+        Downstream.ForwardAsync(
+            context, clients.CreateClient(BffClients.OrdersClientName), "Orders", _ordersPath, _ordersPath, _shopOrdersPath, cancellationToken);
 
     private static Task<IResult> ListOrders(IOrdersApiClient orders, ClaimsPrincipal user, string? after, int? limit, CancellationToken cancellationToken) =>
         Downstream.CallAsync(

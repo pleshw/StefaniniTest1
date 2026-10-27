@@ -34,6 +34,16 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         HandleCookies = true,
     });
 
+    /// <summary>A browser signed in as <c>admin</c> that sends the X-CSRF header (the /bff/admin routes need both).</summary>
+    public async Task<HttpClient> CreateAdminAsync()
+    {
+        var browser = CreateBrowser();
+        await SignInAsync(browser, "admin", AdminPassword);
+        browser.DefaultRequestHeaders.Add("X-CSRF", "1");
+
+        return browser;
+    }
+
     /// <summary>Signs <paramref name="user"/> in through the login form, so the client carries the session cookie.</summary>
     public static async Task<HttpResponseMessage> SignInAsync(HttpClient browser, string user, string password, string? returnUrl = null)
     {

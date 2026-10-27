@@ -7,16 +7,12 @@ using Orders.Bff.UnitTests.Support;
 namespace Orders.Bff.UnitTests;
 
 /// <summary>The BFF refuses bodies above <c>Bff:MaxRequestBodySize</c> (1,024 bytes in these tests) before forwarding.</summary>
-public sealed class RequestSizeLimitTests : IAsyncDisposable
+public sealed class RequestSizeLimitTests : IAsyncLifetime
 {
     private readonly BffFactory _factory = new();
-    private readonly HttpClient _client;
+    private HttpClient _client = null!;
 
-    public RequestSizeLimitTests()
-    {
-        _client = _factory.CreateClient();
-        _client.DefaultRequestHeaders.Add("X-CSRF", "1");
-    }
+    public async ValueTask InitializeAsync() => _client = await _factory.CreateAdminAsync();
 
     [Fact]
     [Trait("Category", "Unit")]

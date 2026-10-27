@@ -7,16 +7,12 @@ using Orders.Bff.UnitTests.Support;
 namespace Orders.Bff.UnitTests;
 
 /// <summary>Errors from Orders and Catalog reach the browser as the service wrote them.</summary>
-public sealed class ProblemDetailsPassthroughTests : IAsyncDisposable
+public sealed class ProblemDetailsPassthroughTests : IAsyncLifetime
 {
     private readonly BffFactory _factory = new();
-    private readonly HttpClient _client;
+    private HttpClient _client = null!;
 
-    public ProblemDetailsPassthroughTests()
-    {
-        _client = _factory.CreateClient();
-        _client.DefaultRequestHeaders.Add("X-CSRF", "1");
-    }
+    public async ValueTask InitializeAsync() => _client = await _factory.CreateAdminAsync();
 
     [Theory]
     [InlineData(HttpStatusCode.Conflict, "invalid-transition")]

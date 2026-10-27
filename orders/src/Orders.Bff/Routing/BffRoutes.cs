@@ -10,7 +10,7 @@ namespace Orders.Bff.Routing;
 /// <summary>
 /// The pass-through admin routes: YARP forwards them to Orders or Catalog with the <c>/bff/admin</c> prefix replaced by
 /// <c>/api/v1/admin</c>, and returns the service's answer (ProblemDetails included) unchanged. Composed routes are
-/// endpoints of their own, not routes here.
+/// endpoints of their own, not routes here. Every route needs the Admin role, like the rest of <c>/bff/admin</c>.
 /// </summary>
 internal static class BffRoutes
 {
@@ -91,6 +91,7 @@ internal static class BffRoutes
         {
             RouteId = id,
             ClusterId = cluster,
+            AuthorizationPolicy = BffAuthentication.AdminPolicy,
             Match = new RouteMatch { Path = path },
         }.WithTransformPathRouteValues(downstreamPath);
 

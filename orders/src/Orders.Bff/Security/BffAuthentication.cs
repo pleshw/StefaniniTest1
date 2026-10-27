@@ -20,6 +20,7 @@ internal static class BffAuthentication
     public const string NameClaim = "name";
     public const string ShopperRole = "Shopper";
     public const string AdminRole = "Admin";
+    public const string AdminPolicy = "Admin";
 
     public static IServiceCollection AddBffAuthentication(this IServiceCollection services)
     {
@@ -35,7 +36,8 @@ internal static class BffAuthentication
                 cookie.Events.OnRedirectToLogin = context => Status(context, StatusCodes.Status401Unauthorized);
                 cookie.Events.OnRedirectToAccessDenied = context => Status(context, StatusCodes.Status403Forbidden);
             });
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder()
+            .AddPolicy(AdminPolicy, policy => policy.RequireRole(AdminRole));
         services.AddHttpContextAccessor();
         services.AddMemoryCache();
         services.TryAddSingleton(TimeProvider.System);

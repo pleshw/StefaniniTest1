@@ -1,4 +1,5 @@
 using Orders.Bff;
+using Orders.Bff.Admin;
 using Orders.Bff.Clients;
 using Orders.Bff.Routing;
 using Orders.Bff.Security;
@@ -32,6 +33,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapBffSession(devLogin);
 app.MapShopEndpoints();
+app.MapAdminEndpoints();
 app.MapBffProxy();
 
 app.Run();

@@ -5,18 +5,14 @@ using Orders.Bff.UnitTests.Support;
 namespace Orders.Bff.UnitTests;
 
 /// <summary>The pass-through route table: each public BFF path reaches the right service at the right path.</summary>
-public sealed class BffRouteTests : IAsyncDisposable
+public sealed class BffRouteTests : IAsyncLifetime
 {
     private const string _id = "6f1c2d3e-0000-4000-8000-000000000001";
 
     private readonly BffFactory _factory = new();
-    private readonly HttpClient _client;
+    private HttpClient _client = null!;
 
-    public BffRouteTests()
-    {
-        _client = _factory.CreateClient();
-        _client.DefaultRequestHeaders.Add("X-CSRF", "1");
-    }
+    public async ValueTask InitializeAsync() => _client = await _factory.CreateAdminAsync();
 
     public static TheoryData<string, string, string> PassThroughRoutes => new()
     {
